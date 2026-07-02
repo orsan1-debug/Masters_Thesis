@@ -1,0 +1,125 @@
+---
+title: "When can covariate balancing estimators provide meaningful benefits in practical settings?"
+author:
+  - name: "Otis Sandford - 2691671 "
+subtitle: "Supervisor: Erik Sverdrup"
+format:
+  pdf:
+    number-sections: false
+    geometry:
+      - margin=2.5cm
+    pdf-engine: xelatex
+    mainfont: "Times New Roman"
+    header-includes: |
+      \addtokomafont{disposition}{\rmfamily}
+      \RedeclareSectionCommand[beforeskip=0pt,afterskip=1sp]{section}
+      \RedeclareSectionCommand[beforeskip=0pt,afterskip=1sp]{subsection}
+      \RedeclareSectionCommand[beforeskip=0pt,afterskip=1sp]{subsubsection}
+bibliography: references.bib
+---
+
+# Topic
+
+Inverse-propensity weighting (IPW) methods are a widely used approach for researchers studying the effects of programs, treatments, or interventions in observational settings. In IPW approaches, researchers isolate treatment effects by substituting the randomization in controlled trials with an assumption that once relevant pre-treatment characteristics are controlled for, treatment allocation is as good as random. Key to this approach is the propensity score, the probability of an individual receiving treatment given their pre-treatment covariates [@rosenbaum1983]. Recent methodological work has developed propensity score estimation methods that directly target the covariate balance IPW methods aim to achieve. Results of these covariate balancing approaches have been positive. However, there is currently no comprehensive simulation study demonstrating their benefits in realistic settings. This papers simulation aims to provide practical guidance on when covariate balancing methods offer advantages over traditional propensity score estimation.
+
+# Background and Model Selection
+
+The application of IPW methods to address problems involving large and high dimensional data has increased significantly over the past decade [@chattopadhyay2020; @austin2015]. These methods use the propensity score to reweight outcomes, creating comparable treatment and control groups by accounting for systemic differences in treatment assignment [@rosenbaum1983]. Traditional approaches fit an MLE logistic regression predicting the propensity score and invert these estimated probabilities to achieve balance. This effectively optimizes for predictive accuracy of treatment assignment rather than balance between treatment groups. While under the oracle propensity score IPW perfectly balances covariate means, this property does not generally hold for MLE-estimated propensity scores, even in the absence of model misspecification [@wager2024]. Under misspecification or small sample sizes, minor estimation errors are amplified by inversion of the propensity score, producing severe imbalance and biased estimates [@benmichael2021]. This problem is compounded by weight instability, as observations with small propensity scores receive disproportionately large weights, inflating variance and leading researchers to ad hoc solutions that lack formal justification [@benmichael2021; @chattopadhyay2020]. When the treated fraction is small, MLE also concentrates propensity scores near zero, producing weights that fail to meaningfully differentiate control units, whereas covariate balancing approaches assign more variable weights that enable estimation of the ATT [@sverdrup2026]. The @austin2015 review on IPTW studies exacerbate these concerns, suggesting that estimated treatment effects in applied papers may be biased due to practitioners neglecting to assess whether weighting had achieved covariate balance.
+
+Covariate balancing propensity score (CBPS) methods, introduced by @imai2014, estimate propensity scores by selecting parameters that satisfy sample balance conditions. This approach is theoretically more appealing than MLE approaches for propensity modelling, as by minimizing covariate imbalance they target the balance that IPW requires [@benmichael2021; @wager2024, Chapter 7]. By optimizing for balance rather than predictive accuracy, these methods produce estimates that are more robust to model misspecification and more efficient than MLE estimators [@benmichael2021; @chattopadhyay2020]. Under a correctly specified linear-logistic model, balancing estimators are $\sqrt{n}$-consistent and have lower variance than even the oracle IPW [@wager2024].
+
+While the theoretical case for covariate balancing is well established, for applied work with large-scale or high-dimensional data, most existing balancing implementations suffer practical limitations. CBPS and entropy balancing approaches both enforce exact balance conditions, which become unworkable in large-scale data settings [@hainmueller2012; @fong2022; @sverdrup2026]. Alternative approaches that soften this exact balance condition have computational issues of their own. Stable balancing weights from @zubizarreta2015 require a maximum imbalance tolerance to be set before estimation and must be re-solved if this tolerance is unattainable or the bias-variance tradeoff is suboptimal [@sverdrup2026]. Work from @zhao2019 shows balancing estimators can generally be expressed as minimising a covariate balancing loss function, enabling the application of lasso regularization and other penalized regression approaches. RCAL implements lasso regularization for a covariate balancing loss function, however, as the package is written in R it struggles computationally with large data [@tan2020b].
+
+Of the currently available implementations, `balnet` from @sverdrup2026 provides the most scalable solution for large datasets and high dimensional settings. Like RCAL, `balnet` applies a lasso regularization for a covariate balancing loss function but is written in C++ and utilizes modern optimization techniques to address concerns around speed and scalability. Given that under lasso regularization the penalty parameter ($\lambda$) is equivalent to the maximum allowable covariate imbalance, the regularization path computed by balnet also provides a strong diagnostic tool for overlap. Results from @sverdrup2026 demonstrate this computational advantage, showing `balnet` is able to compute its regularization path with $n \approx 140000$ and $p=500$ in under a minute while alternative balancing packages failed to produce results within an hour.
+
+# Contribution
+
+While theoretical, simulated and applied evidence for the benefits of covariate balancing approaches is available, there are no systematic simulation studies comparing the approaches in realistic settings. This paper builds on the covariate balancing IPW literature by providing the first systematic simulation comparison of penalized covariate balancing and penalized MLE estimation in high-dimensional, large-sample settings. Using the `balnet` package, we compare these approaches across realistic scenarios to provide applied researchers with practical guidance on when covariate balancing methods offer meaningful improvements over current go-to approaches.
+
+# Methodology
+
+We consider the standard potential outcomes setting with a sample of $n$ units, a treatment indicator $W_i \in \{0, 1\}$ and where $Y_i(1)$ and $Y_i(0)$ represent potential outcomes under treatment and control respectively. Identification of the ATE, $\tau = \mathbb{E}[Y_i(1) - Y_i(0)]$, relies on unconfoundedness and overlap. Under these assumptions the propensity score $e(x) = P[W_i = 1 \mid X_i = x]$ allows unbiased estimation via IPW:
+
+$$\tau = \mathbb{E}\left[\frac{W_i Y_i}{e(X_i)} - \frac{(1 - W_i) Y_i}{1 - e(X_i)}\right].$$
+
+- **EDIT: add hajek estimator, glmnet performs much better - and all it does is normalize?**
+
+**Propensity Score Estimation**
+
+We compare two approaches under a logistic propensity score model, $e(x) = 1 / (1 + \exp(-(\beta_0 + x^\top \beta)))$. Both approaches use penalized logistic regressions but differ in the loss functions used for estimation.
+
+**Standard MLE approach:** The standard MLE approach estimates $(\beta)$ by minimizing the negative Bernoulli log-likelihood function,
+
+$$\ell_{\text{ML}}( \beta) = -\frac{1}{n} \sum_{i=1}^{n} \left[ W_i \eta_i - \log(1 + \exp({\eta_i})) \right],$$
+
+where $\eta_i = \beta_0 + X_i^\top \beta$. This approach targets accurate prediction of treatment assignment and when correctly specified has first order conditions,
+
+$$\frac{1}{n} \sum_{i=1}^{n} \left( W_i - \hat{e}(X_i) \right) X_{ij} = 0, \quad j = 1, \ldots, p,$$
+
+that balance predicted and observed treatment.
+
+In our study, we use a penalized MLE approach implemented in the `glmnet` package from @friedman2010, which incorporates elastic net penalties and computes a regularization path with a penalty parameter $\lambda$ acting as a coefficient budget.
+
+**Covariate Balancing Approach:** The covariate balancing approach is motivated by the fact that the finite-sample bias of IPW estimators is driven by covariate imbalance. Achieving this balance in finite samples requires:
+
+$$\frac{1}{n} \sum_{i=1}^{n} \frac{W_i X_{ij}}{\hat{e}(X_i)} = \frac{1}{n} \sum_{i=1}^{n} X_{ij}, \quad j = 1, \ldots, p.$$ {#eq-exactbalance}
+
+For estimating treatment effects the covariate balancing approach uses a two step approach targeting balance for treated and control means separately. However, in practice propensities targeting their inverse can be solved by symmetry. When estimating the treated mean $\mathbb{E}[Y_i(1)]$, this balance condition is satisfied by deriving a loss function with first order conditions,
+
+$$\frac{1}{n} \sum_{i=1}^{n} \left( \frac{W_i}{\hat{e}(X_i)} - 1 \right) X_{ij} = 0, \quad j = 1, \ldots, p,$$
+
+which integrates to the covariate balancing loss function:
+
+$$\ell_1(\eta) = \frac{1}{n} \sum_{i=1}^{n} \left[ W_i \exp(-\eta_i) + (1 - W_i) \eta_i \right].$$
+
+The corresponding loss function $\ell_0(\eta)$ for the control mean $\mathbb{E}[Y_i(0)]$.
+
+Overlap conditions are also stricter under this approach than with MLE, additionally requiring that no linear combination of covariates has a weighted control mean exceeding the treated mean (Tan, 2020). To address this, we regularize the covariate balancing loss function using the penalized approach of Sverdrup and Hastie (2026), where the penalized objective under lasso regularization is
+
+$$ \; \ell_1(\eta) + \lambda \sum_{j=1}^{p} |\beta_j|.$$
+
+Under lasso penalization, the exact balance requirements from @eq-exactbalance are relaxed by the constrained first order conditions giving,
+
+$$\left| \frac{1}{n} \sum_{i=1}^{n} \frac{W_i X_{ij}}{\hat{e}(X_i)} - \frac{1}{n} \sum_{i=1}^{n} X_{ij} \right| \leq \lambda, \quad j = 1, \ldots, p.$$
+
+Where $\lambda$ is interpreted as the maximum allowable imbalance across covariates. The regularization path then logs sequenced solutions between balance tolerances computed in the balnet, fitting for loss and providing diagnostics for overlap [@sverdrup2026].
+
+**Simulation Design**
+
+For our simulated data to represent realistic high-dimensional settings, we require a data generating process (DGP) that features model misspecification, overlap conditions, signal density, correlated covariates, and outcome complexity. While no simulation studies in the covariate balancing literature cover all these conditions, many include components relevant for our design.
+
+The extended design of @kang2007 to high dimensional settings from @tan2020a, provides a strong baseline for testing misspecification, since the model appears adequate as the nonlinear transformed $\tilde{X}$ contains the same information as $X$, but is misspecified as the true propensity score is linear in $X$ on the logit scale. While this approach considers a high dimensional setting, it also enforces a strict sparsity assumption. A DGP that includes a sparsity parameter can more plausibly simulate a realistic setting where the number of active covariates may be large [@zhao2019]. To compare performance under varied outcome complexities, our potential outcome functions must also share active covariates with the propensity score specification [@tan2020a] . As overlap is a key assumption underpinning IPW estimation, accounting for it in our DGP is critical. Applying an overlap scaler to the propensity score specification permits simulation under a range of overlap conditions [@keele2025]. Incorporating correlated multivariate normal covariates also supports the plausibility of our DGP and allows simulation under multicollinearity. Autoregressive covariance structures as in @tan2020b are attractive in our context as their simplicity scales naturally into high-dimensional settings.
+
+Our data generating process will be iteratively developed over varying factors for sample size $n$, covariate dimension $p$, overlap scaler $c$, signal sparsity $s$, misspecification, outcome complexity, and covariance structure.
+
+To begin we will consider a preliminary specification where we draw $n$ observations of $p$ multivariate normal covariates $X = (X_1, \ldots, X_p)$ with means 0 and $\text{cov}(X_j, X_k) = 2^{-|j-k|}$ for $1 \leq j, k \leq p$ .
+
+$$e^*(X_i) = \left\{1 + \exp\left(\frac{\sum_{j=1}^{s} j^{-1} X_{ij}}{c}\right)\right\}^{-1}$$ {#eq-propensity}
+
+where $s$ is the number of active covariates, with their signal decaying as $s$ increases and $c$ is an overlap scaler. Here, large $c$ values will create strong overlap conditions as the influence of covariates on the propensity score diminishes. Misspecification is introduced by performing nonlinear transformations on active covariates. Potential outcome functions share the active covariates and their decaying weights with the propensity score specification. Exact functional forms, parameter values, and factor levels will be refined through preliminary simulation work.
+
+Under lasso regularization $\lambda$ will be selected by 5-fold cross-validation for both approaches using the `cv.glmnet` with `lambda.min` for MLE and `cv.balnet` for covariate balancing. For the balancing approach with lasso regularization, in addition to the automated evaluation and selection of $\lambda$ with `cv.balnet` we will also evaluate at fixed $\lambda = 0.05$ and $\lambda = 0.1$, corresponding with common thresholds for maximum allowed imbalance (standardized mean difference).
+
+**Estimand:** our results will target the ATE, $\tau$ .
+
+**Performance metrics:** To find when balancing approaches offer meaningful advantages, we will compare bias and RMSE for ATE across a range of conditions.
+
+# Expected Results
+
+We expect the advantages of covariate balancing to persist and amplify in high-dimensional, large-sample settings. Under correct specification with strong overlap, both methods should perform similarly. In cases of misspecification and weak overlap we expect covariate balancing advantages to be more pronounced. Results as $s$ increases under lasso regularization are of particular interest. We predict the balancing method may degrade more slowly when omitted covariates are correlated with active ones.
+
+# Limitations and Possible Extensions
+
+If time allows, this study will also investigate the role of elastic net parameter $\alpha$, and how covariate balancing can improve doubly robust methods which combine weighting with outcome modelling to protect against misspecification.
+
+# Timeline
+
+*May - June:* Code data generating process for our simulation. Define functional forms, parameter values, and factor levels through preliminary simulation work. Ensure simulation design as specified is feasible across dimensions.
+
+*June - July:* Run the full simulation across all dimensions and specifications, documenting results. Produce relevant tables, graphics, results, etc.
+
+*July - August:* Analyse results, identify key findings and begin initial draft.
+
+*September - October:* Finalize draft, if time permits, consider extensions. Revise draft based on feedback and submit final document.
+
+# References

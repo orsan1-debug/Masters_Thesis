@@ -1,0 +1,454 @@
+---
+title: "E1: Correctly Specified DGP"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(kableExtra)
+library(gt)
+
+
+df <- bind_rows(
+  read.csv("E1_results.csv.gz"),
+  read.csv("Mispeccified_results.csv.gz"),
+  read.csv("E2_results.csv.gz")
+  
+)
+```
+
+# Expected Results
+
+**E1 (Correct specification, strong overlap):** Both methods should produce similar bias and RMSE. Any divergence here signals an implementation or DGP issue rather than a substantive finding. This serves as a sanity check for the simulation infrastructure [@keele2025; @tan2020b].
+
+**E2 (Overlap degradation):** As the overlap scaler $c$ decreases, bias and RMSE for `cv.glmnet` should increase faster than for `cv.balnet`. The performance gap should widen as overlap weakens [@keele2025; @chattopadhyay2020].
+
+**E3 (Misspecification):** Under misspecification via Kang--Schafer transformations, `cv.balnet` should show a clear advantage in both bias and RMSE, exceeding the gap observed under correct specification. The interaction of misspecification with weak overlap should produce the largest relative advantage. This follows from the calibration loss controlling MSRE, which bounds IPW bias via Cauchy--Schwarz, whereas the MLE loss controls KL divergence, which does not directly bound IPW bias [@tan2020b, Prop. 3].
+
+**E4 (High dimensionality):** With $s$ fixed, increasing $p$ should hurt both methods, but `cv.balnet` should be more robust. Under misspecification at high $p$, RCAL selects sparser models than RML while achieving equal or better IPW estimation [@tan2020b].
+
+**E5 (Soft sparsity):** As $s$ increases with harmonic decay coefficients, the boundary between active and inactive covariates blurs under the AR(1) covariance structure. The balancing loss should handle this more robustly because it optimises for balance rather than prediction, retaining weakly-correlated covariates that happen to improve balance. There is no direct precedent in the project literature for this experiment; it is the simulation's novel contribution.
+
+**E6 (Outcome complexity):** More complex outcome functions (quadratic, exponential) should increase RMSE for both methods, but the relative advantage of the balancing approach should persist, especially under misspecification [@tan2020b].
+
+**E7 (Lambda interpretation and fixed-lambda behaviour):** Fixed $\lambda = 0.05$ should produce tighter balance but higher variance (lower effective sample size) than $\lambda = 0.10$. The CV-selected $\lambda$ should generally fall between these. Under weak overlap, fixed $\lambda = 0.05$ may become infeasible due to path truncation, which is itself a diagnostic for positivity violations [@sverdrup2026].
+
+**E8 (Computational cost):** `cv.balnet` must fit two separate propensity score models for ATE estimation (one for each potential outcome mean), roughly doubling computation relative to `cv.glmnet`'s single model [@sverdrup2026, Remark 1].
+
+**E9 (Variable selection):** `cv.balnet` should consistently select fewer nonzero coefficients than `cv.glmnet`, especially under misspecification. This is consistent with the calibration loss requiring fewer covariates to achieve balance than the MLE loss requires for predictive accuracy [@tan2020b].
+
+# 
+
+# DGP 1
+
+### Data-Generating Process
+
+We draw $n$ observations of $p$ covariates $X_i = (X_{i1}, \dots, X_{ip})^\top \sim \mathcal{N}(0, \Sigma)$, where $\Sigma_{jk} = \rho^{|j-k|}$ with $\rho = 0$ (independent) or $\rho = 0.5$ (AR(1)). The true propensity score is
+
+$$e^*(X_i) = \left\{1 + \exp\left(\frac{X_{i1} - 0.5\,X_{i2} + 0.25\,X_{i3} + 0.1\,X_{i4}}{c}\right)\right\}^{-1}$$
+
+where $c > 0$ is an overlap scaler [@keele2025], and treatment is assigned as $W_i \sim \text{Bernoulli}(e^*(X_i))$. Only the first four of $p$ covariates are active in the propensity score, creating a sparse signal setting consistent with @tan2020.
+
+Under the sharp null $\tau = 0$, potential outcomes are generated as
+
+$$\begin{aligned}
+Y_i^{\text{lin}} &= X_{i1} + 0.5\,X_{i2} + 0.5\,X_{i3} + 0.5\,X_{i4} + \varepsilon_i \\
+Y_i^{\text{quad}} &= \sum_{j=1}^{4} \{\max(X_{ij}, 0)\}^2 + \varepsilon_i \\
+Y_i^{\text{exp}} &= \sum_{j=1}^{4} \exp(X_{ij}/2) + \varepsilon_i
+\end{aligned}$$
+
+where $\varepsilon_i \sim \mathcal{N}(0, 1)$. The linear specification follows @tan2020 (lin1); the quadratic and exponential forms are also drawn from @tan2020.
+
+To introduce misspecification, the analyst observes transformed covariates $\tilde{X}$ instead of $X$ [@kangschafer2007]:
+
+$$\begin{aligned}
+\tilde{X}_{i1} &= \exp(X_{i1}/2) \\
+\tilde{X}_{i2} &= \frac{X_{i2}}{1 + \exp(X_{i1})} + 10 \\
+\tilde{X}_{i3} &= (0.04\,X_{i1}\,X_{i3} + 0.6)^3 \\
+\tilde{X}_{i4} &= (X_{i2} + X_{i4} + 20)^2
+\end{aligned}$$
+
+where $\tilde{X}_{i1}, \dots, \tilde{X}_{i4}$ are subsequently standardized to have mean zero and unit variance, following @tan2020. For $j = 5, \dots, p$, $\tilde{X}_{ij} = X_{ij}$. Both logistic and linear regressions on $\tilde{X}$ appear adequate by standard diagnostics, yet are misspecified since the true models are linear in $X$ on the logit scale.
+
+The simulation varies sample size $n \in \{500, 1000, 5000\}$, covariate dimension $p \in \{10, 50, 100, \dots\}$, and overlap $c \in \{2, 1, 0.75, 0.5, 0.25\}$, with each experiment isolating one factor at a time.
+
+## Replicate Tan in RCAL (same DGP)
+
+**Tan's core result replicates.** Under misspecification, balnet outperforms glmnet across all three outcome functions, with the advantage growing with n and largest for quad1 (5.6×) and exp (2.6×). RML-HT deteriorates with n while RCAL stays flat. This validates simulation infrastructure and the calibration loss advantage.
+
+| $n$ | Tan RCAL $\times \sqrt{2}$ | bal0  | bal05 | balnetcv |
+|-----|----------------------------|-------|-------|----------|
+| 200 | 0.198                      | 0.173 | 0.206 | 0.231    |
+| 400 | 0.127                      | 0.124 | 0.173 | 0.192    |
+| 800 | 0.085                      | 0.089 | 0.156 | 0.176    |
+
+: Convergence comparison: RMSE under correct specification ($p=4$, linear outcome, $c=1$, iid covariates, 1000 replications). Tan RCAL values from Tan (2020, Table S3) scaled by $\sqrt{2}$ for the ATE estimand.\
+\
+**bal0 recovers Tan's convergence rate exactly.** After √2 scaling for the ATE vs μ¹ estimand difference, bal0 RMSE at (200/400/800, p=4, correct spec, linear) is 0.173/0.124/0.089 versus the expected 0.198/0.127/0.085.
+
+- **bal0 converges with Tan**; bal05 and balnetcv flatten out.
+  - This isolates the attenuation to cv.balnet's λ selection and confirms the balnet loss function itself is correct.
+- Tan's CV behaves somewhere between bal0 and bal05 depending on the outcome, but consistently below balcv's selected λ.
+- From Tan (2020, p.19), his CV minimises the held-out calibration loss over a discrete grid. **change CV criterion?**
+
+## Setup
+
+- **Grid:** n ∈ {500, 1000, 5000, 10000, 50000}, p = 50, overlap = 1
+- **Outcomes:** linear, quad1, exp
+- **Misspec:** FALSE
+- **Estimators:** balnet (cv, λ→0, λ=0.05, λ=0.10), glmnet (HT, Hajek), oracle (HT, Hajek)
+- **Reps:** 1000
+
+## Summary
+
+```{r}
+summary_df <- df %>%
+  group_by(n, p, misspec, outcome, estimator) %>%
+  summarise(
+    bias = mean(tau_hat),
+    sd = sd(tau_hat),
+    rmse = sqrt(mean(tau_hat^2)),
+    .groups = "drop"
+  )
+```
+
+## E1: Correct Specification
+
+```{r}
+
+label_map <- c(
+  "oracle"            = "Oracle",
+  "normalised_oracle" = "Normalised Oracle",
+  "balnet0"           = "BalNet (λ=0)",
+  "balnet05"          = "BalNet (λ=.05)",
+  "balnet10"          = "BalNet (λ=.10)",
+  "balnetcv"          = "BalNet (CV)",
+  "glmnetcv"          = "GLMNet (CV)",
+  "glmcv_normal"      = "GLM (CV, Normalized)"
+)
+
+e1_estimators <- c("balnetcv", "balnet05", "balnet0", "glmnetcv", "normalised_oracle")
+
+estimator_colours <- c(
+  "BalNet (CV)"        = "#2ca02c",  # green
+  "BalNet (λ=.05)"     = "#1f77b4",  # blue
+  "BalNet (λ=0)"       = "#17becf",  # teal
+  "GLMNet (CV)"        = "#d62728",  # red
+  "GLM (CV, Normalized)" = "#d62728",  # red
+  "Normalised Oracle"  = "#7f7f7f"   # grey
+)
+
+plot_rmse <- function(data, outcome_name, estimators, label_map, colours,
+                      title = NULL, is_misspec = FALSE) {
+  data |>
+    filter(misspec == is_misspec, outcome == outcome_name, estimator %in% estimators) |>
+    mutate(estimator = fct_relevel(recode(estimator, !!!label_map), label_map[estimators])) |>
+    ggplot(aes(n, rmse, colour = estimator)) +
+    geom_line() +
+    geom_point(size = 2) +
+    scale_x_log10(breaks = c(500, 1000, 5000, 10000, 50000),
+                  labels = scales::comma) +
+    scale_y_continuous(limits = c(0, NA)) +
+    scale_colour_manual(values = colours) +
+    labs(x = "n", y = "RMSE", colour = "Estimator",
+         title = title %||% paste0(str_to_title(outcome_name), " — RMSE")) +
+    theme_minimal()
+}
+
+plot_rmse(summary_df, "linear", e1_estimators, label_map, estimator_colours,
+          title = "E1: Correct Specification (p = 50, c = 1)")
+
+
+#table
+
+make_sim_table <- function(data, outcome_name, estimators, label_map,
+                           title = NULL, is_misspec = FALSE) {
+  tbl <- data |>
+    filter(misspec == is_misspec, outcome == outcome_name, estimator %in% estimators) |>
+    mutate(
+      estimator = factor(estimator, levels = names(label_map), labels = label_map),
+      cell = paste0(sprintf("%.3f", bias), "<br><small>(", sprintf("%.3f", rmse), ")</small>"),
+      avg_rmse = ave(rmse, estimator, FUN = mean)
+    )
+
+  tbl |>
+    select(estimator, n, cell, avg_rmse) |>
+    pivot_wider(names_from = n, values_from = cell, names_prefix = "n = ") |>
+    arrange(avg_rmse) |>
+    select(-avg_rmse) |>
+    kbl(caption = title %||% paste0(str_to_title(outcome_name), " — Bias (RMSE)"), escape = FALSE) |>
+    kable_styling(
+      bootstrap_options = c("striped", "hover", "condensed"),
+      full_width = FALSE, latex_options = c("hold_position", "scale_down")
+    ) |>
+    column_spec(1, bold = TRUE) |>
+    footnote(general = "Top: Bias. Bottom (smaller): RMSE. Ordered by average RMSE.",
+             general_title = "")
+}
+
+make_sim_table(summary_df, "linear", e1_estimators, label_map,
+               title = "E1: Correct Specification (p = 50, c = 1)")
+
+
+## taBLE FOR BIAS
+
+make_bias_table <- function(data, outcome_name, estimators, label_map,
+                            title = NULL, is_misspec = FALSE) {
+  data |>
+    filter(misspec == is_misspec, outcome == outcome_name, estimator %in% estimators) |>
+    mutate(
+      estimator = factor(estimator, levels = names(label_map), labels = label_map),
+      bias_fmt  = sprintf("%.3f", bias)
+    ) |>
+    select(estimator, n, bias_fmt) |>
+    pivot_wider(names_from = n, values_from = bias_fmt, names_prefix = "n = ") |>
+    kbl(caption = title %||% paste0(str_to_title(outcome_name), " — Bias"),
+        escape = FALSE, align = c("l", rep("r", 5))) |>
+    kable_styling(
+      bootstrap_options = c("striped", "hover", "condensed"),
+      full_width = FALSE, latex_options = c("hold_position", "scale_down")
+    ) |>
+    column_spec(1, bold = TRUE)
+}
+
+make_bias_table(summary_df, "linear", e1_estimators, label_map,
+                title = "E1: Bias — Correct Specification (p = 50, c = 1)")
+
+```
+
+**E1 holds at the loss-function level, bal0 matches or beats glmnet at every n, but cv.balnet selects λ large enough to erase the advantage.**
+
+- **bal0 more efficient than normalized oracle** — consistent with Wager (2024). Confirms the calibration loss function is correctly implemented and dominates MLE at every n.
+
+- **cv.balnet over-regularizes, erasing the loss function advantage.** CV selects λ too large → non-vanishing attenuation bias ≈ −0.13. This is the mechanism worth investigating — not a bug, but a cost of the regularization that pays off under misspecification/overlap degradation (E2, E3).
+
+- **bal05 outperforms glmnet at n ≤ 1000, glmnet overtakes by n = 5,000.** Expected, bal05's fixed bias floor (−0.14) is cheaper than glmnet's variance at small n, but glmnet is consistent so it eventually wins. correct specification rewards consistency.
+
+- **Outcome complexity affects attenuation magnitude, not ranking.** Bias floors: linear ≈ −0.14, quad1 ≈ −0.15, exp ≈ −0.11. Same story across all three.
+
+- **check?** CV-selected λ at each n. You noted CV selects λ ≈ 0.23 at n=5,000 for p=10 — reporting the p=50 equivalent would quantify how much CV over-regularises and connect directly to the KKT interpretation (λ = max allowable imbalance).
+
+## With Overlap
+
+```{r}
+library(ggh4x)
+
+plot_data_final <- d |>
+  filter(
+    outcome == "linear",
+    n %in% c(500, 5000, 10000),
+    overlap %in% c(1, 0.5, 0.25),
+    estimator %in% c("balnet05", "glmcv_normal")
+  ) |>
+  mutate(
+    estimator = dplyr::recode(estimator,
+                              "balnet05" = "BalNet (\u03bb = 0.05)",
+                              "glmcv_normal" = "GLM (CV, Normalized)"),
+    n_label = factor(paste0("n = ", scales::comma(n)),
+                     levels = paste0("n = ", scales::comma(c(500, 5000, 10000)))),
+    overlap = factor(paste0("c = ", overlap),
+                     levels = paste0("c = ", c(1, 0.5, 0.25)))
+  )
+
+ggplot(plot_data_final, aes(x = tau_hat, fill = estimator, colour = estimator)) +
+  geom_density(alpha = 0.35, linewidth = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  facet_grid2(overlap ~ n_label, scales = "free", independent = "all") +
+  labs(
+    title = "Linear Outcome",
+    x = "Estimate", y = "Density", fill = "Estimator", colour = "Estimator"
+  ) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_fill_manual(values = c("BalNet (\u03bb = 0.05)" = "#E69F00",
+                               "GLM (CV, Normalized)" = "#56B4E9")) +
+  scale_colour_manual(values = c("BalNet (\u03bb = 0.05)" = "#E69F00",
+                                 "GLM (CV, Normalized)" = "#56B4E9")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 11),
+    strip.text.x = element_text(face = "bold", size = 12),
+    strip.text.y = element_text(face = "bold", size = 11, angle = 0),
+    strip.clip = "off",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines"),
+    plot.margin = margin(5, 20, 5, 5)
+  )
+
+#cv.balnet
+
+
+plot_data_balnet <- d |>
+  filter(
+    outcome == "linear",
+    n %in% c(500, 5000, 10000),
+    overlap %in% c(1, 0.5, 0.25),
+    estimator %in% c("balnet05", "balnetcv")
+  ) |>
+  mutate(
+    estimator = dplyr::recode(estimator,
+                              "balnet05" = "BalNet (\u03bb = 0.05)",
+                              "balnetcv" = "BalNet (CV)"),
+    n_label = factor(paste0("n = ", scales::comma(n)),
+                     levels = paste0("n = ", scales::comma(c(500, 5000, 10000)))),
+    overlap = factor(paste0("c = ", overlap),
+                     levels = paste0("c = ", c(1, 0.5, 0.25)))
+  )
+
+ggplot(plot_data_balnet, aes(x = tau_hat, fill = estimator, colour = estimator)) +
+  geom_density(alpha = 0.35, linewidth = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  facet_grid2(overlap ~ n_label, scales = "free", independent = "all") +
+  labs(
+    title = "Balnet .05 vs cvbalnet",
+    x = "Estimate", y = "Density", fill = "Estimator", colour = "Estimator"
+  ) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_fill_manual(values = c("BalNet (\u03bb = 0.05)" = "#E69F00",
+                               "BalNet (CV)" = "#56B4E9")) +
+  scale_colour_manual(values = c("BalNet (\u03bb = 0.05)" = "#E69F00",
+                                 "BalNet (CV)" = "#56B4E9")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 11),
+    strip.text.x = element_text(face = "bold", size = 12),
+    strip.text.y = element_text(face = "bold", size = 11, angle = 0),
+    strip.clip = "off",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines"),
+    plot.margin = margin(5, 20, 5, 5)
+  )
+
+
+
+plot_data_bal0v05 <- d |>
+  filter(
+    outcome == "linear",
+    n %in% c(500, 5000, 10000),
+    overlap %in% c(1, 0.5, 0.25),
+    estimator %in% c("balnet0", "balnet05")
+  ) |>
+  mutate(
+    estimator = dplyr::recode(estimator,
+                              "balnet0" = "BalNet (\u03bb = 0)",
+                              "balnet05" = "BalNet (\u03bb = 0.05)"),
+    n_label = factor(paste0("n = ", scales::comma(n)),
+                     levels = paste0("n = ", scales::comma(c(500, 5000, 10000)))),
+    overlap = factor(paste0("c = ", overlap),
+                     levels = paste0("c = ", c(1, 0.5, 0.25)))
+  )
+
+ggplot(plot_data_bal0v05, aes(x = tau_hat, fill = estimator, colour = estimator)) +
+  geom_density(alpha = 0.35, linewidth = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  facet_grid2(overlap ~ n_label, scales = "free", independent = "all") +
+  labs(
+    title = "0.5 vs 0 BalNet",
+    x = "Estimate", y = "Density", fill = "Estimator", colour = "Estimator"
+  ) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 3)) +
+  scale_fill_manual(values = c("BalNet (\u03bb = 0)" = "#E69F00",
+                               "BalNet (\u03bb = 0.05)" = "#56B4E9")) +
+  scale_colour_manual(values = c("BalNet (\u03bb = 0)" = "#E69F00",
+                                 "BalNet (\u03bb = 0.05)" = "#56B4E9")) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 11),
+    strip.text.x = element_text(face = "bold", size = 12),
+    strip.text.y = element_text(face = "bold", size = 11, angle = 0),
+    strip.clip = "off",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines"),
+    plot.margin = margin(5, 20, 5, 5)
+  )
+
+```
+
+\
+
+\
+
+- **bal05 outperforms glmnet at every sample size when overlap is weak (c = 0.25)**, with the advantage growing with n. At moderate overlap (c = 0.5), glmnet's consistency advantage eventually overtakes bal05 at large n for the linear outcome, but not for the nonlinear outcomes.
+
+- **at overlap c=0.25, glmnet RMSE increases with N.**
+
+- **Under correct specification, bal0 outpeforms bal05 and everything else,** at every overlap level. loss function handles weak overlap cleanly.
+
+- **cv.balnet:** Despite over-regularizing, cv.balnet still outperforms glmnet-Hajek in the majority of weak-overlap cells.
+
+- **Outcome complexity:** The pattern holds across all three outcome functions. Outcome complexity amplifies glmnet's divergence under weak overlap.
+
+- **balnet predictable bias:** balnets attenuation bias is stable and predictable, robust estimation through AIPW should help account for this?
+
+## With Misspeccification
+
+```{r}
+
+
+
+e2_estimators <- c("balnetcv", "balnet05", "balnet0", "glmcv_normal")
+e3_estimators <- c("balnetcv", "balnet05", "balnet0","balnet10", "glmcv_normal", "glmnetcv")
+
+plot_rmse(summary_df, "linear", e2_estimators, label_map, estimator_colours,
+          title = " Misspecified (p = 50, c = 1)", is_misspec = TRUE)
+
+plot_rmse(summary_df, "quad1", e2_estimators, label_map, estimator_colours,
+          title = "Misspecified quad (p = 50, c = 1)", is_misspec = TRUE)
+
+plot_rmse(summary_df, "exp", e2_estimators, label_map, estimator_colours,
+          title = "Misspecified exp (p = 50, c = 1)", is_misspec = TRUE)
+
+
+
+
+make_sim_table(summary_df, "linear", e3_estimators, label_map,
+               title = " Misspecified, Linear — Bias (RMSE)", is_misspec = TRUE)
+
+make_sim_table(summary_df, "quad1", e3_estimators, label_map,
+               title = "E3: Misspecified, Quadratic — Bias (RMSE)", is_misspec = TRUE)
+
+make_sim_table(summary_df, "exp", e3_estimators, label_map,
+               title = " Misspecified, Exponential — Bias (RMSE)", is_misspec = TRUE)
+
+df2 <- read.csv("Mispeccified_Lineartest_results.csv")
+  
+)
+
+summary_df2 <- df2 %>%
+  group_by(n, p, misspec, outcome, estimator) %>%
+  summarise(
+    bias = mean(tau_hat),
+    sd = sd(tau_hat),
+    rmse = sqrt(mean(tau_hat^2)),
+    .groups = "drop"
+  )
+
+plot_rmse(summary_df, "linear", e2_estimators, label_map, estimator_colours,
+          title = " Misspecified (p = 50, c = 1)", is_misspec = TRUE)
+
+
+make_sim_t
+
+```
+
+- BalNet (λ=0) - still outpeforms in every setting - over all outcome complexities.
+
+- balnet.cv seems to perform very similarly to balnet .05
+
+- **outcome complexity** causes MLE estimators to be significantly more biased/inefficient. **Does not effect balancing estimators.**
+
+- CVglmnet exploads.
+
+- Linear Mispeccified: Why does GLM first lose to then outperform balnet05 and balcv between 500 and 1000 for linear ? - when and why? - **consistent with RCAL paper**
+
+- Normalized (Hajek) estimator for MLE estimation **mitigates but does not eliminate** misspeccification exploding RMSE results.
