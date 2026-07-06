@@ -17,8 +17,7 @@ library(gt)
 df <- bind_rows(
   read.csv("E1_results.csv.gz"),
   read.csv("Mispeccified_results.csv.gz"),
-  read.csv("E2_results.csv.gz")
-  
+  read.csv("E2_results.csv.gz"),
 )
 ```
 
@@ -108,12 +107,17 @@ The simulation varies sample size $n \in \{500, 1000, 5000\}$, covariate dimensi
 
 ```{r}
 summary_df <- df |>
-  dplyr::group_by(n, p, misspec, outcome, overlap, estimator) |>
-  dplyr::summarise(
-    bias = mean(tau_hat),
-    sd = sd(tau_hat),
-    rmse = sqrt(mean(tau_hat^2)),
-    .groups = "drop"
+  group_by(n, p, misspec, outcome, overlap, estimator) |>
+  summarise(
+    m          = n(),
+    bias       = mean(tau_hat),
+    mcse_bias  = sd(tau_hat) / sqrt(m),
+    empse      = sd(tau_hat),
+    mcse_empse = empse / sqrt(2 * (m - 1)),
+    rmse       = sqrt(mean(tau_hat^2)),
+    mcse_rmse  = sd(tau_hat^2) / (2 * rmse * sqrt(m)),
+    n_extreme  = sum(abs(tau_hat) > 10),
+    .groups    = "drop"
   )
 ```
 
@@ -202,7 +206,7 @@ make_sim_table(summary_df, "linear", e1_estimators, label_map,
 
 - **bal0 more efficient than normalized oracle** — consistent with Wager (2024). Confirms the calibration loss function is correctly implemented and dominates MLE at every n.
 
-- **cv.balnet over-regularizes, erasing the loss function advantage.** CV selects λ too large → non-vanishing attenuation bias ≈ −0.13. This is the mechanism worth investigating — not a bug, but a cost of the regularization that pays off under misspecification/overlap degradation (E2, E3).
+-  **cv.balnet over-regularizes, erasing the loss function advantage.** CV selects λ too large → non-vanishing attenuation bias ≈ −0.13. This is the mechanism worth investigating — not a bug, but a cost of the regularization that pays off under misspecification/overlap degradation (E2, E3).
 
 - **bal05 outperforms glmnet at n ≤ 1000, glmnet overtakes by n = 5,000.** Expected, bal05's fixed bias floor (−0.14) is cheaper than glmnet's variance at small n, but glmnet is consistent so it eventually wins. correct specification rewards consistency.
 
@@ -362,88 +366,383 @@ ggplot(plot_data_bal0v05, aes(x = tau_hat, fill = estimator, colour = estimator)
 ## With Misspeccification
 
 ```{r}
+library(tidyverse)
+library(kableExtra)
 
+raw_ms  <- read.csv("Mispeccified_results.csv.gz")
+raw_ms2 <- read.csv("Mispeccified_Lineartest_results2.csv.gz")
 
+ests_ms <- c("balnet0","balnet05","balnet10","balnetcv","glmcv_normal","glmnetcv")
+e2_ests <- c("balnetcv","balnet05","balnet0","glmcv_normal")
+e3_ests <- c("balnetcv","balnet05","balnet0","balnet10","glmcv_normal","glmnetcv")
 
-e2_estimators <- c("balnetcv", "balnet05", "balnet0", "glmcv_normal")
-e3_estimators <- c("balnetcv", "balnet05", "balnet0","balnet10", "glmcv_normal", "glmnetcv")
+label_map_ms <- c(balnet0="BalNet (\u03bb=0)", balnet05="BalNet (\u03bb=.05)",
+                  balnet10="BalNet (\u03bb=.10)", balnetcv="BalNet (CV)",
+                  glmcv_normal="GLM (CV, Normalized)", glmnetcv="GLMNet (CV)")
+color_map_ms <- c("BalNet (CV)"="#2ca02c", "BalNet (\u03bb=.05)"="#1f77b4",
+                  "BalNet (\u03bb=0)"="#17becf", "BalNet (\u03bb=.10)"="#ff7f0e",
+                  "GLM (CV, Normalized)"="#d62728", "GLMNet (CV)"="#9467bd")
 
-plot_rmse(summary_df, "linear", e2_estimators, label_map, estimator_colours,
-          title = " Misspecified (p = 50, c = 1)", is_misspec = TRUE)
-
-plot_rmse(summary_df, "quad1", e2_estimators, label_map, estimator_colours,
-          title = "Misspecified quad (p = 50, c = 1)", is_misspec = TRUE)
-
-plot_rmse(summary_df, "exp", e2_estimators, label_map, estimator_colours,
-          title = "Misspecified exp (p = 50, c = 1)", is_misspec = TRUE)
-
-
-
-
-make_sim_table(summary_df, "linear", e3_estimators, label_map,
-               title = " Misspecified, Linear — Bias (RMSE)", is_misspec = TRUE)
-
-make_sim_table(summary_df, "quad1", e3_estimators, label_map,
-               title = "E3: Misspecified, Quadratic — Bias (RMSE)", is_misspec = TRUE)
-
-make_sim_table(summary_df, "exp", e3_estimators, label_map,
-               title = " Misspecified, Exponential — Bias (RMSE)", is_misspec = TRUE)
-
-
-
-
-#testing the sign change 
-
-df2 <- read.csv("Mispeccified_Lineartest_results2.csv.gz")
-
-summary_df2 <- df2 %>%
-  group_by(n, p, misspec, outcome, overlap, estimator) %>%
-  summarise(
-    bias = mean(tau_hat),
-    sd = sd(tau_hat),
-    rmse = sqrt(mean(tau_hat^2)),
-    .groups = "drop"
-  )
-
-plot_rmse2 <- function(data, outcome_name, estimators, label_map, colours,
-                      title = NULL, is_misspec = FALSE,
-                      x_breaks = c(250, 500, 750,1000,2000,3000,4000,5000)) {
+make_summ <- function(data) {
   data |>
-    filter(misspec == is_misspec, outcome == outcome_name,
-           estimator %in% estimators, overlap == 1) |>
-    mutate(estimator = fct_relevel(recode(estimator, !!!label_map), label_map[estimators])) |>
-    ggplot(aes(n, rmse, colour = estimator)) +
-    geom_line() +
-    geom_point(size = 2) +
-    scale_x_log10(breaks = x_breaks, labels = scales::comma) +
-    scale_y_continuous(limits = c(0, NA)) +
-    scale_colour_manual(values = colours) +
-    labs(x = "n", y = "RMSE", colour = "Estimator",
-         title = title %||% paste0(str_to_title(outcome_name), " — RMSE")) +
-    theme_minimal()
+    filter(estimator %in% ests_ms) |>
+    group_by(n, p, misspec, outcome, overlap, estimator) |>
+    summarise(m = n(), bias = mean(tau_hat), mcse_bias = sd(tau_hat)/sqrt(m),
+              empse = sd(tau_hat), mcse_empse = empse/sqrt(2*(m-1)),
+              rmse = sqrt(mean(tau_hat^2)), mcse_rmse = sd(tau_hat^2)/(2*rmse*sqrt(m)),
+              n_extreme = sum(abs(tau_hat) > 10), .groups = "drop")
 }
 
-plot_rmse2(summary_df2, "linear", e2_estimators, label_map, estimator_colours,
-         title = " Misspecified (p = 50, c = 1)", is_misspec = TRUE)
-  
+summ_ms  <- make_summ(raw_ms)
+summ_ms2 <- make_summ(raw_ms2)
+
+theme_ms <- theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom", strip.text = element_text(face = "bold"),
+        panel.grid.minor = element_blank())
+
+plot_rmse_ms <- function(data, outcome_name, estimators, title = NULL) {
+  data |>
+    filter(misspec == TRUE, outcome == outcome_name,
+           estimator %in% estimators, overlap == 1) |>
+    mutate(estimator = factor(estimator, names(label_map_ms), label_map_ms)) |>
+    ggplot(aes(n, rmse, colour = estimator)) +
+    geom_line(linewidth = 0.8) + geom_point(size = 2.5) +
+    scale_x_log10(breaks = c(500,1000,5000,10000,50000), labels = scales::comma) +
+    scale_y_continuous(limits = c(0, NA)) +
+    scale_colour_manual(values = color_map_ms) +
+    labs(x = "n", y = "RMSE", colour = "Estimator",
+         title = title %||% paste0(str_to_title(outcome_name), " — RMSE")) +
+    theme_ms
+}
+
+make_table_ms <- function(data, outcome_name, estimators, title = NULL) {
+  tbl <- data |>
+    filter(misspec == TRUE, outcome == outcome_name,
+           estimator %in% estimators, overlap == 1) |>
+    mutate(estimator = factor(estimator, names(label_map_ms), label_map_ms),
+           cell = paste0(sprintf("%.3f", bias), "<br><small>(", sprintf("%.3f", rmse), ")</small>"),
+           avg_rmse = ave(rmse, estimator, FUN = mean))
+  tbl |>
+    select(estimator, n, cell, avg_rmse) |>
+    pivot_wider(names_from = n, values_from = cell, names_prefix = "n = ") |>
+    arrange(avg_rmse) |> select(-avg_rmse) |>
+    kbl(caption = title %||% paste0(str_to_title(outcome_name), " — Bias (RMSE)"),
+        escape = FALSE) |>
+    kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                  full_width = FALSE, latex_options = c("hold_position","scale_down")) |>
+    column_spec(1, bold = TRUE) |>
+    footnote(general = "Top: Bias. Bottom (smaller): RMSE. Ordered by average RMSE.",
+             general_title = "")
+}
+
+# RMSE plots — linear from summ_ms2, rest from summ_ms
+plot_rmse_ms(summ_ms, "linear",  e2_ests, "Misspecified quad (p = 50, c = 1)")
+plot_rmse_ms(summ_ms2, "linear", e2_ests, "Misspecified (p = 50, c = 1)") +
+  scale_x_log10(breaks = c(250,500,750,1000,2000,3000,4000,5000), labels = scales::comma)
+plot_rmse_ms(summ_ms, "quad1",  e2_ests, "Misspecified quad (p = 50, c = 1)")
+plot_rmse_ms(summ_ms, "exp",    e2_ests, "Misspecified exp (p = 50, c = 1)")
+
+# Tables — linear from summ_ms2, rest from summ_ms
+make_table_ms(summ_ms2, "linear", e3_ests, "Misspecified, Linear — Bias (RMSE)")
+make_table_ms(summ_ms, "quad1",  e3_ests, "Misspecified, Quadratic — Bias (RMSE)")
+make_table_ms(summ_ms, "exp",    e3_ests, "Misspecified, Exponential — Bias (RMSE)")
+
+
+# bias plots 
+
+plot_bias_ms(summ_ms, "linear",  e2_ests, "Misspecified linear (p = 50, c = 1) — |Bias|")
+plot_bias_ms(summ_ms2, "linear", e2_ests, "Misspecified linear (p = 50, c = 1) — |Bias|") +
+  scale_x_log10(breaks = c(250,500,750,1000,2000,3000,4000,5000), labels = scales::comma)
+plot_bias_ms(summ_ms, "quad1",  e2_ests, "Misspecified quad (p = 50, c = 1) — |Bias|")
+plot_bias_ms(summ_ms, "exp",    e2_ests, "Misspecified exp (p = 50, c = 1) — |Bias|")
+
+# Cell wins (with ties)
+summ_ms |>
+  filter(misspec == TRUE, overlap == 1) |>
+  group_by(outcome, n) |>
+  filter(rmse == min(rmse)) |>
+  ungroup() |>
+  count(estimator, name = "cells_won")
+
+
+
+#RMSE decomp
+decomp_abs_all <- summ_ms |>
+  filter(misspec == TRUE, overlap == 1,
+         outcome %in% c("linear", "quad1", "exp"),
+         estimator %in% c("balnet0", "balnet05", "balnetcv", "glmcv_normal")) |>
+  mutate(
+    bias_sq = bias^2,
+    var     = empse^2,
+    estimator = factor(estimator, names(label_map_ms), label_map_ms),
+    outcome = factor(outcome, c("linear", "quad1", "exp"),
+                     c("Linear", "Quadratic", "Exponential"))
+  ) |>
+  select(n, outcome, estimator, bias_sq, var) |>
+  pivot_longer(cols = c(bias_sq, var), names_to = "component", values_to = "value") |>
+  mutate(component = factor(component, c("var", "bias_sq"), c("Variance", "Bias²")))
+
+decomp_prop_all <- decomp_abs_all |>
+  group_by(n, outcome, estimator) |>
+  mutate(prop = value / sum(value)) |>
+  ungroup()
+
+ggplot(decomp_prop_all, aes(x = n, y = prop, fill = component)) +
+  geom_area(alpha = 0.8) +
+  facet_grid(estimator ~ outcome) +
+  scale_x_log10(breaks = c(500, 5000, 50000), labels = scales::comma) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("Bias²" = "#e41a1c", "Variance" = "#377eb8")) +
+  labs(x = "n", y = "Share of MSE", fill = NULL,
+       title = "MSE Decomposition (%) — Misspecified (c = 1)") +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    strip.text.y = element_text(face = "bold", size = 9, angle = 0),
+    strip.text.x = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(5, 50, 5, 5)
+  )
 ```
 
-- BalNet (λ=0) - still outpeforms in every setting - over all outcome complexities.
+**E3 (Misspecification):** Under misspecification via Kang--Schafer transformations, `cv.balnet` should show a clear advantage in both bias and RMSE, exceeding the gap observed under correct specification. The interaction of misspecification with weak overlap should produce the largest relative advantage. This follows from the calibration loss controlling MSRE, which bounds IPW bias via Cauchy--Schwarz, whereas the MLE loss controls KL divergence, which does not directly bound IPW bias [@tan2020b, Prop. 3].
 
-- balnet.cv seems to perform very similarly to balnet .05
+As expected, under misspecification balancing methods outperformed RMSE estimates against the MLE approach consistently. However, at lower $n$ bias for non-linear outcomes either matches our outperforms balancing estimators before exploding as $n \to \infty$. This reflects the RMSE decomposition, where balancing estimators are bias driven and MLE ones are variance driven with bias increasing with sample size.
 
-- bal0 bias doesn't vanish under misspec (\~−0.20 linear, \~−0.12 exp, stable across n). contrasts with E1 where bal0 → 0 and confirms that misspecification introduces its own bias separate from regularization attenuation.
+Under doubly robust estimators, it would be interesting to see how balancing methods inherent negative bias is accounted for, and if these results change.
 
-- **outcome complexity** causes MLE estimators to be significantly more biased/inefficient. **Hardly effects balancing estimators, balancing estimators remain bounded regardless.** bal05 bias: −0.27 (linear), −0.10 (quad1), −0.15 (exp).
+Within the balnet package, it seems like under misspeccification alone that setting $\lambda=0$ produces the best results consistently, however cv.balnet has improved comparitivly to when the model was correctly specified.
 
-- **CVglmnet when not normalised exploads.**
+#### !!Overall, balancing VS MLE!!
 
-- Linear Mispeccified: **GLM approaches bal05 prior to n=4000.** In first sim, why does GLM first lose to then outperform balnet05 and balcv between 500 and 1000 for linear ? **consistent with RCAL paper**
+-  **bal0 RMSE outperforms every feasible estimator in all cells, with one tie:**
 
-  - **there is no crossover, from m=5000 rep**, under lower m simulation noise contributes to whether GLM crosses over. **when** GLMNET changes direction between n=3000,4000. If it outpeforms prior to 3000 could be found with more montecarlo reps.
+  -  balancing loss function advantage holds under misspecification.
 
-  -  by n=4000 misspecification amplification is present and RMSE bias in the MLE estimates increases with N instead of reducing.
+    - *in E1 bal0 wins on efficiency (beats the oracle); in E3 it wins on robustness (bounded while MLE diverges, but the misspec bias floor means it no longer consistently beats the oracle\*).*
 
-  - prior to this
+      - *\*still beats oracle under quad1*
 
-- Normalized (Hajek) estimator for MLE estimation **mitigates but does not eliminate** misspeccification exploding RMSE results.
+  - *bal10 edges bal0 in the most variance dominated cell, quad1 n=500 (ahead by 0.002,
+    0.5 mcse - consistent with simulation noise; resolving it would take \~45k reps). everywhere else bal0 wins outright.*
+
+- **normalised MLE diverges with n under misspecification (K&S amplification); all balnet variants stay bounded.**
+
+  - Generally for MLE, RMSE divergence is primarily variance driven. For nonlinear outcomes, bias also grows with n, compounding the divergence.
+
+  - *Divergence form is outcome dependent. Bias explodes for nonlinear outcomes (+1.15 at n=50000 for quad1, +0.38 exp). For linear, divergence is variance driven, bias approaches zero around n=5000 before increasing, and remains below all balnet variants through n=50000.*
+
+  - *In the exponential case, bias only overtakes balnet after n≈10000, while for quadratic MLE bias overtakes balnet earlier around n≈1000.*
+
+  - non normalised MLE explodes, will be excluded from further analysis.
+
+  - **for balancing estimators mispeccification introduced its own bias, seperate from regularization attenuation:** *bal0 bias doesn't vanish under misspec (Linear worsens, -0.18 → −0.21, quad1 improves −0.10 → −0.04, exp stable at−0.12), where for correctly specified* *bal0 → 0.*
+
+- **MLE RMSE is primarily variance driven while balancing estimator RMSE is bias driven**
+
+#### !!Within Balancing Estimators!!
+
+- **For balancing estimators, larger λ means larger rmse: bal0 wins in every cell\***
+
+  - varience reduction from increasing $\lambda$ is small, effect on RMSE is outweighed by increase in bias.
+
+    - \**exception is with a quadratic outcome at n=500, where bal10 RMSE* $\approx$ *bal0 RMSE.*
+
+    - *at n=500 for nonlinear outcomes, bal05 bias is* $\approx$ *bal10, but bal10 has slightly less variance from stronger regularization. So bal10 wins. bal0 has meaningfully less bias than both, so it still wins overall.*
+
+- **the criterion cv.balnet uses (balancing loss) fails to select** $\lambda$ **competitive against optimal** $\lambda$ **path endpoint.**
+
+  - cv.balnet's $\lambda_{cv}$ shrinks toward the path endpoint as n grows under misspec, unlike under correct spec where $\lambda_{cv}$ is independent of n.
+
+  - still outperforms MLE estimators.
+
+  - worse than bal05 at small n, improves with large n but doesnt approach bal0.
+
+- **regularisation is cheaper when the model is mispeccified.**
+
+  - under correct specification, doubling λ roughly doubled the bias cost *(the gap between bal05 and bal0 was predictable from the KKT bound)*. under misspecification, the same λ increase costs less bias.
+
+## Misspeccification + Overlap
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+
+e2  <- read_csv("E2_results.csv.gz")
+oxm <- read_csv("OVERLAP+MISSPECCIFICATION_results.csv.gz")
+raw <- bind_rows(e2, oxm)
+
+ests <- c("balnet0", "balnet05", "balnetcv", "glmcv_normal")
+bal  <- c("balnet0", "balnet05", "balnetcv")
+
+label_map <- c(
+  balnet0 = "bal(\u03bb \u2192 0)", balnet05 = "bal(\u03bb = 0.05)",
+  balnetcv = "bal(cv)", glmcv_normal = "glm(Hajek)"
+)
+color_map <- c(
+  balnet0 = "#1a7a3a", balnet05 = "#2aa198",
+  balnetcv = "#268bd2", glmcv_normal = "#dc322f"
+)
+
+summ <- raw |>
+  filter(estimator %in% ests) |>
+  group_by(n, p, misspec, outcome, overlap, estimator) |>
+  summarise(
+    m          = n(),
+    bias       = mean(tau_hat),
+    mcse_bias  = sd(tau_hat) / sqrt(m),
+    empse      = sd(tau_hat),
+    mcse_empse = empse / sqrt(2 * (m - 1)),
+    rmse       = sqrt(mean(tau_hat^2)),
+    mcse_rmse  = sd(tau_hat^2) / (2 * rmse * sqrt(m)),
+    n_extreme  = sum(abs(tau_hat) > 10),
+    .groups    = "drop"
+  )
+
+theme_sim <- theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom", strip.text = element_text(face = "bold"),
+        panel.grid.minor = element_blank())
+fmt_n <- labeller(n = \(x) paste("n =", format(as.numeric(x), big.mark = ",")))
+
+plot_overlap <- function(outcome_val, title, which_ests = ests) {
+  summ |>
+    filter(estimator %in% which_ests, outcome == outcome_val,
+           misspec == TRUE, overlap %in% c(0.25, 0.5, 0.75, 1)) |>
+    mutate(estimator = factor(estimator, names(label_map), label_map)) |>
+    ggplot(aes(overlap, rmse, colour = estimator)) +
+    geom_line(linewidth = 0.8) + geom_point(size = 2.5) +
+    facet_wrap(~ n, nrow = 1, labeller = fmt_n) +
+    scale_colour_manual(values = setNames(color_map, label_map)) +
+    scale_x_reverse(breaks = c(1, 0.75, 0.5, 0.25)) +
+    expand_limits(y = 0) +
+    labs(x = "Overlap scaler (c)", y = "RMSE", colour = "Estimator", title = title) +
+    theme_sim
+}
+
+outcomes <- c(linear = "Linear", quad1 = "Quadratic", exp = "Exponential")
+
+iwalk(outcomes, \(title, out) print(plot_overlap(out, title)))
+iwalk(outcomes, \(title, out) print(plot_overlap(out, paste(title, "(Balancing Only)"), bal)))
+
+# Delta RMSE tables (misspec - correct), n = 5000
+for (out in c("linear", "exp", "quad1")) {
+  summ |>
+    filter(outcome == out, n == 5000) |>
+    select(overlap, estimator, misspec, rmse) |>
+    pivot_wider(names_from = misspec, values_from = rmse) |>
+    mutate(delta = `TRUE` - `FALSE`) |>
+    select(overlap, estimator, delta) |>
+    pivot_wider(names_from = estimator, values_from = delta) |>
+    arrange(desc(overlap)) |>
+    kable(digits = 3,
+          col.names = c("c", "bal0", "bal05", "balCV", "glmnet-Hajek"),
+          caption = sprintf("Delta RMSE (misspec - correct) for %s (n = 5000, p = 50)", out)) |>
+    kable_styling(full_width = FALSE) |>
+    print()
+}
+
+# Delta RMSE plot
+summ |>
+  filter(n == 5000) |>
+  select(outcome, overlap, estimator, misspec, rmse) |>
+  pivot_wider(names_from = misspec, values_from = rmse) |>
+  mutate(delta = `TRUE` - `FALSE`,
+         outcome = factor(outcome, c("linear", "exp", "quad1")),
+         estimator = factor(estimator, names(label_map), label_map)) |>
+  ggplot(aes(overlap, delta, colour = estimator)) +
+  geom_line(linewidth = 0.8) + geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.4) +
+  facet_wrap(~ outcome) +
+  scale_x_reverse(breaks = c(2, 1, 0.75, 0.5, 0.25)) +
+  scale_colour_manual(values = setNames(color_map, label_map)) +
+  labs(x = "Overlap scaler (c)", y = "\u0394RMSE (misspec \u2212 correct)", colour = "Estimator") +
+  theme_sim
+
+# Extreme estimates
+summ |>
+  filter(misspec == TRUE) |>
+  mutate(type = if_else(grepl("balnet", estimator), "Balancing", "MLE")) |>
+  group_by(type) |>
+  summarise(extreme = sum(n_extreme), total = sum(m),
+            pct = round(100 * extreme / total, 2))
+
+# RMSE decomposed into bias and SD
+summ |>
+  filter(estimator %in% bal, n == 5000) |>
+  pivot_longer(c(bias, empse), names_to = "metric") |>
+  mutate(metric = factor(metric, c("bias", "empse"), c("|Bias|", "SD")),
+         misspec = ifelse(misspec, "Misspecified", "Correct")) |>
+  ggplot(aes(overlap, abs(value), colour = misspec)) +
+  geom_line() + geom_point(size = 1.5) +
+  facet_grid(metric ~ estimator + outcome, scales = "free_y") +
+  labs(x = "Overlap (c)", y = NULL, colour = NULL) +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "bottom", strip.text.x = element_text(size = 7))
+
+# Cell wins
+summ |>
+  filter(misspec == TRUE) |>
+  group_by(outcome, n, overlap) |>
+  slice_min(rmse, n = 1) |>
+  ungroup() |>
+  count(estimator, name = "cells_won")
+
+
+# MSCE (simulation noise check -  possibly comeback later if relevent)
+
+# Noisy RMSE cells (rel MCSE > 5%)
+summ |>
+  mutate(rel_mcse = mcse_rmse / rmse) |>
+  filter(rel_mcse > 0.05) |>
+  select(estimator, outcome, n, overlap, misspec, rel_mcse) |>
+  arrange(desc(rel_mcse))
+
+# Underpowered interaction effects (|z| < 3, |D_int| >= 0.05)
+int_check |>
+  filter(!estimator %in% c("glmnetcv", "oracle"),
+         abs(z) < 3, abs(D_int) >= 0.05) |>
+  select(estimator, outcome, n, overlap, D_int, z, m_needed) |>
+  arrange(desc(abs(D_int)))
+```
+
+As expected, misspecification and overlap compound, and MLE methods are considerably outperformed by balancing methods. MLE RMSE increases substantially, while the balancing estimators remain mostly flat.
+
+Under misspecification with imperfect overlap, balnet's attenuation bias is the cost of stability: RMSE stays bounded and improves with n, while MLE diverges significantly.
+
+between methods, balancing protects against MLE's divergence. Within balnet, λ is a bias–variance dial where less is better except in situations with small n and weak overlap, where cv.balnet shines. In large samples, its bias floor is too high.
+
+- **Against MLE, covariate balancing loss functions perform better across almost all cells, with advantage driven by λ selection.**
+
+  - bal0 dominates every cell (45/45). Win count declines monotonically with λ: bal05 43/45, balcv 40/45. losses are a tuning problem, not a loss-function problem.
+  - MLE only beats any balancing method at c=2, large n, with linear/exp outcomes (the 2–5 cells where glmnet's consistency overcomes balnet's attenuation bias). GLM never wins with a quadratic outcome.
+  - Over all cells, concentrated around weak overlap, MLE produces 51 extreme IPW estimaties due to inversion; balancing methods produce 0. where an extreme estimate $|\hat{\tau}| > 10$ , where $\tau$ = 0. *(no need for ad hoc weight trimming or truncation for balnet)*
+
+- **Effect of mispeccification compounds at lower overlap levels for both methods, but the interaction is substantially worse for MLE. (delta = RMSEmispec - RMSEcorrect)**
+
+  - MLE delta increases substantially as overlap weakens. (max at delta = 2.45 for quadratic outcome).
+
+    - *interaction effect grows with n for MLE, weak overlap accelerates K&S divergence . (eg: quad1 c=0.5: delta = 0.50 → 1.38 → 2.45 across n=500/1000/5000).*
+
+    - *with strong overlap (c=2) divergence is mostly suppressed when mispeccified for linear and exponential outcomes.*
+
+    - *compounding is clear for quadratic and linear outcomes; for exponential direction and ranking are clear, but the interaction is within MC noise (MCSE ≈ 0.13). Morris, White & Crowther (2019,* *Statistics in Medicine)*
+
+  - balancing estimators stay bounded, and flat near 0. (max at delta = 0.34 with linear outcome). the small interaction that exists is balnets misspec residual bias growing as overlap weakens.
+
+    - *Decomposing RMSE² into bias² + variance: misspecification shifts SD by at most 0.025 for bal0/bal05 — the penalty is almost entirely bias. balnetcv is the exception: SD falls under misspec as CV selects heavier λ, trading variance for bias.*
+
+- **Within balnet, less regularization wins: bal0 is best in 36/45 cells; CV's λ is optimal where variance dominates**.
+
+  - **balcv wins 6/45 cells:** weak overlap and low n for non linear outcomes (c≤0.5, n≤1000) These settings make CV's heavy shrinkage the right bias-variance trade. Otherwise, CV imposes an unnecessary bias floor.
+
+  - **Path truncation for bal0 and bal05.** balnet0 = balnet05 exactly in 99.5% of reps at c=0.25/n=500 and 76.5% at n=1000. the path truncates above λ=0.05, as overlap is too weak to support that level of balance.
+
+***notes:***
+
+- ***reassess including bal10, does bal10 outperform balcv?***
+
+*MSCE/simulation noise*
+
+- *balnet estimates are clean everywhere (max relative MCSE 2.6%). no interaction cell falls below z=3. all rankings, signs, and gradients are stable.*
+
+- *glm_hj point estimates are imprecise in misspec tails (rel MCSE up to 36%), but direction and ranking against balnet are never threatened — the gap between methods dwarfs the noise.*
