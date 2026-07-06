@@ -7,6 +7,7 @@ library(parallel)
 library(MASS)
 
 
+
 # --- Cluster setup ---
 
 cl <- makeCluster(detectCores() - 1)
@@ -67,18 +68,19 @@ generate_data = function(n, p, outcome = "linear", misspec = FALSE, covcor = "ii
 
 
 
-
 grid <- expand.grid(
-  n       = c(250,500,750, 1000, 2000, 3000, 4000, 5000),
-  p       = 50,
-  outcome = c("linear"),
-  misspec = TRUE,
-  covcor  = "iid",
-  overlap = 1
+  n        = c(500, 1000),
+  pn_ratio = c(0.1, 0.5, 1.0, 2.0),
+  outcome  = c("linear"),
+  misspec  = FALSE,
+  covcor   = "iid",
+  overlap  = 1
 )
+grid$p <- grid$n * grid$pn_ratio
+
 # --- Simulation Function ---
 
-run_sim = function(n, p, outcome = "linear", misspec = FALSE, covcor = "iid", overlap = 1, num.sim = 5000) {
+run_sim = function(n, p, outcome = "linear", misspec = FALSE, covcor = "iid", overlap = 1, num.sim = 1000) {
   clusterExport(cl, c("generate_data", "n", "p", "outcome", "misspec", "covcor", "overlap"), envir = environment())
   
   parSapply(cl, 1:num.sim, function(i) {
@@ -123,6 +125,7 @@ out <- list()
 for (i in seq_len(nrow(grid))) {
   cat(format(Sys.time()), "| grid", i, "of", nrow(grid), "\n")
   print(grid[i, ])
+  
   results <- run_sim(
     n       = grid$n[i],
     p       = grid$p[i],
@@ -151,13 +154,10 @@ for (i in seq_len(nrow(grid))) {
 stopCluster(cl)
 out.df <- do.call(rbind, out)
 rownames(out.df) <- NULL
-write.csv(out.df, gzfile("Mispeccified_Lineartest_results2.csv.gz"), row.names = FALSE)
+write.csv(out.df, gzfile("DimensionalityDGP1.csv.gz"), row.names = FALSE)
 
 
 str(out.df)
 head(out.df)
 table(out.df$estimator)
 table(out.df$n, out.df$outcome)
-
-
-
