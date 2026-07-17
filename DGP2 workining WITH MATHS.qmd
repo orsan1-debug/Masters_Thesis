@@ -1,0 +1,345 @@
+---
+title: "DGP 2 analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)   # ggplot2, dplyr, tidyr, purrr, stringr
+library(ggh4x)       # nested facet strips (the |Bias|/SD × estimator figure)
+library(patchwork)   # RMSE | |Bias| layout
+library(gt)          # tables
+library(kableExtra)  # tables
+
+options(readr.show_col_types = FALSE)
+
+# ── 1. Summaries: Monte Carlo performance measures (Morris, White & Crowther 2019) ──
+# Keeps ALL estimators; subsetting happens in the figure calls, never here.
+# `by` is a parameter so sections with different design columns (e.g. no `overlap`)
+# can drop them: summarise_sim(df, by = c("n","p","outcome","estimator")).
+
+summarise_sim <- function(data,
+                          by = c("n","p","misspec","covcor", "outcome","overlap","estimator")) {
+  data |>
+    group_by(across(all_of(by))) |>
+    summarise(
+      m          = dplyr::n(),
+      bias       = mean(tau_hat),
+      empse      = sd(tau_hat),
+      rmse       = sqrt(mean(tau_hat^2)),
+      mcse_bias  = empse / sqrt(m),
+      mcse_empse = empse / sqrt(2 * (m - 1)),
+      mcse_rmse  = sd(tau_hat^2) / (2 * rmse * sqrt(m)),
+      n_extreme  = sum(abs(tau_hat) > 10),
+      .groups    = "drop"
+    )
+}
+
+# ── 2. One label map + one palette (Okabe-Ito) + reusable estimator subsets ──
+lab_est <- c(balnet0="BalNet (\u03bb=0)", balnet05="BalNet (\u03bb=.05)",
+             balnet10="BalNet (\u03bb=.10)", balnetcv="BalNet (CV)",
+             glmcv_normal="GLM (Hajek)", glmnetcv="GLMNet (CV)",
+             normalised_oracle="Norm. Oracle")
+pal_est <- c(balnet0="#009E73", balnet05="#56B4E9", balnet10="#E69F00",
+             balnetcv="#0072B2", glmcv_normal="#B22222", glmnetcv="#CC79A7",
+             normalised_oracle="grey55")
+est_main <- c("balnet0","balnet05","balnet10","balnetcv","glmcv_normal")
+est_bal  <- c("balnet0","balnet05","balnet10","balnetcv")  
+oc_labs  <- c(linear="Linear", quad1="Quadratic", exp="Exponential")
+
+pal_spec <- c(Correct = "#009E73", Misspecified = "#B22222")   # specification contrast (spec_grid)
+
+
+
+# ── 3. Shared theme + reusable scale/facet pieces ──
+theme_sim <- theme_minimal(base_size = 12) +
+  theme(legend.position  = "bottom",
+        legend.title     = element_blank(),
+        strip.background = element_rect(fill = "grey90", colour = NA),
+        strip.text       = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        axis.text.x      = element_text(angle = 45, hjust = 1))
+
+scale_x_n <- scale_x_log10(breaks = c(500,1000,5000,10000,50000),
+                           labels = c("500","1k","5k","10k","50k"))
+as_c   <- function(x) factor(paste0("c = ", x),
+                             levels = paste0("c = ", sort(unique(x), decreasing = TRUE)))
+lab_n  <- as_labeller(\(x) paste0("n = ", format(as.numeric(x), big.mark = ",")))
+n_lab  <- c("100"="100","200"="200","250"="250","400"="400",
+            "500"="500","750"="750","800"="800",
+            "1000"="1k","2000"="2k","3000"="3k","4000"="4k","5000"="5k",
+            "10000"="10k","50000"="50k")
+
+
+# ── 4. Core line plot: metric vs x, coloured by estimator ──
+# y/ylab + x + ests are arguments; x-scale and facets are appended by the caller.
+line_plot <- function(data, y, ylab, x = n, ests = est_main, from_zero = TRUE) {
+  ests <- intersect(names(lab_est), ests)                 # canonical order, no ghost keys
+  p <- data |>
+    filter(estimator %in% ests) |>
+    ggplot(aes({{ x }}, {{ y }}, colour = estimator, group = estimator)) +
+    geom_line(linewidth = 0.7) + geom_point(size = 1.8) +
+    scale_colour_manual(values = pal_est, breaks = ests,
+                        labels = \(b) unname(lab_est[b])) +
+    labs(y = ylab, colour = NULL) + theme_sim
+  if (from_zero) p + expand_limits(y = 0) else p
+}
+
+# ── 5. Twin panel: RMSE | |Bias|, one shared legend ──
+panel <- function(data, oc, x = n, ests = est_main, extra = NULL,
+                  title = oc_labs[oc], from_zero = TRUE, compact = FALSE) {
+  d <- filter(data, outcome == oc)
+  drop0 <- \(x) sub("^(-?)0\\.", "\\1.", x)
+  yl <- if (compact) NULL else "RMSE"
+  yr <- if (compact) NULL else "|Bias|"
+  l <- line_plot(d, rmse,      yl, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  r <- line_plot(d, abs(bias), yr, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  if (compact) {
+    l <- l + ggtitle("RMSE") + scale_y_continuous(labels = drop0)
+    r <- r + ggtitle("|Bias|") + scale_y_continuous(labels = drop0)
+  }
+  (l | r) + plot_layout(guides = "collect") +
+    plot_annotation(title = title) & theme(legend.position = "bottom")
+}
+
+# ── 6. MSE decomposition: Bias² / Variance share, stacked area ──
+pal_comp <- c("Variance" = "#377eb8", "Bias\u00b2" = "#e41a1c")
+
+decomp_plot <- function(data, ests = est_main, x = n, cols = outcome,
+                        x_scale = scale_x_n, xlab = "n",
+                        col_lab = labeller(outcome = oc_labs, n = lab_n),
+                        title = NULL) {
+  keep <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% keep) |>
+    mutate(denom    = bias^2 + empse^2,
+           bias_sq  = bias^2  / denom,
+           variance = empse^2 / denom,
+           estimator = factor(lab_est[estimator], levels = lab_est[keep])) |>
+    pivot_longer(c(variance, bias_sq), names_to = "component", values_to = "share") |>
+    mutate(component = factor(component, c("variance","bias_sq"),
+                              c("Variance","Bias\u00b2"))) |>
+    ggplot(aes({{ x }}, share, fill = component)) +
+    geom_area() +
+    facet_grid(rows = vars(estimator), cols = vars({{ cols }}), switch = "y",
+               labeller = col_lab) +
+    x_scale +
+    scale_y_continuous(breaks = c(1), labels = scales::percent) +
+    scale_fill_manual(values = pal_comp) +
+    labs(x = xlab, y = "Share of MSE", fill = NULL, title = title) +
+    theme_sim +
+    theme(strip.text.y.left = element_text(angle = 0))
+}
+
+# ── 7. Performance table: estimators × design columns, ordered by mean metric ──
+# cols="n" → flat.  cols=c("overlap","n") → c-spanners.
+# group="outcome" → stacks all outcomes in one table with row groups.
+perf_table <- function(data, ests = est_main, cols = "n",
+                       top = "rmse", bottom = "abs_bias",
+                       digits = 2, order_by = "rmse",
+                       lab = lab_est, n_lab_tbl = n_lab,
+                       span_lab = \(x) paste0("c = ", x), span_desc = TRUE,
+                       title = "", subtitle = NULL,
+                       group = NULL, group_lab = oc_labs) {
+  stopifnot(length(cols) %in% 1:2,
+            c(top, bottom, order_by) %in% c("rmse","bias","abs_bias","empse"))
+  keep <- intersect(names(lab), ests)
+  cvar <- cols[length(cols)]
+  svar <- if (length(cols) == 2L) cols[[1]] else NULL
+  pm   <- c(rmse="RMSE", bias="Bias", abs_bias="|Bias|", empse="EmpSE")
+  f    <- paste0("%.", digits, "f")
+  grp  <- !is.null(group)
+  
+  d <- data |> filter(estimator %in% keep) |> mutate(abs_bias = abs(bias)) |> mutate(
+    Estimator = factor(unname(lab[estimator]), levels = unname(lab[keep])),
+    cell = sprintf(paste0(f, "<br><small>(", f, ")</small>"), .data[[top]], .data[[bottom]]),
+    avg  = ave(.data[[order_by]], estimator, FUN = mean),
+    .col = if (is.null(svar)) paste0(cvar, "=", .data[[cvar]])
+    else paste0(svar, "=", .data[[svar]], "|", cvar, "=", .data[[cvar]]))
+  if (grp) d <- mutate(d, Group = factor(group_lab[.data[[group]]], levels = group_lab))
+  
+  cv  <- sort(unique(d[[cvar]]))
+  sv  <- if (is.null(svar)) NULL else sort(unique(d[[svar]]), decreasing = span_desc)
+  key <- if (is.null(svar)) paste0(cvar, "=", cv)
+  else c(t(outer(sv, cv, \(s, c) paste0(svar, "=", s, "|", cvar, "=", c))))
+  
+  id_vars <- c(if (grp) "Group", "Estimator", ".col", "cell", "avg")
+  wide <- d |> distinct(across(all_of(id_vars))) |>
+    pivot_wider(names_from = .col, values_from = cell)
+  wide <- if (grp) arrange(wide, Group, avg) else arrange(wide, avg)
+  present <- intersect(key, names(wide))
+  wide <- wide |> select(any_of("Group"), Estimator, all_of(present))
+  
+  inner_lab <- \(x) { x <- sub("^[^=]*=", "", sub(".*\\|", "", x))
+  if (is.null(n_lab_tbl)) x else unname(ifelse(x %in% names(n_lab_tbl), n_lab_tbl[x], x)) }
+  
+  g <- if (grp) gt(wide, groupname_col = "Group") else gt(wide)
+  g <- g |> tab_header(title = title,
+                       subtitle = md(subtitle %||% paste0(pm[[top]], " (", pm[[bottom]], ")")))
+  for (s in sv) g <- tab_spanner(g, span_lab(s), starts_with(paste0(svar, "=", s, "|")))
+  g |>
+    cols_label_with(all_of(present), inner_lab) |>
+    fmt_markdown(all_of(present)) |> cols_align("center", all_of(present)) |>
+    tab_style(cell_text(weight = "bold"), cells_body(Estimator)) |>
+    opt_table_lines("default") |>
+    tab_source_note(md(sprintf("_Top %s / bottom %s; sorted by mean %s._",
+                               pm[[top]], pm[[bottom]], pm[[order_by]])))
+}
+
+
+# ── 8. Convergence / path-truncation table ──
+# % reps where ALL selected estimators coincide (range < tol).
+# k=2: bal0 ≡ bal05.  k≥3: full-path collapse.  Raw replicates, not summaries.
+converge_table <- function(data, ests, by = c("overlap","n"),
+                           cols = by[length(by)], tol = 1e-9,
+                           outcome_name = NULL, overlap_vals = NULL,
+                           n_lab_tbl = n_lab, title = NULL) {
+  stopifnot(length(ests) >= 2, length(cols) == 1, cols %in% by)
+  d <- filter(data, estimator %in% ests,
+              if (is.null(outcome_name)) TRUE else outcome == outcome_name,
+              if (is.null(overlap_vals)) TRUE else overlap %in% overlap_vals)
+  
+  wide <- d |>
+    group_by(across(all_of(c(by, "sim")))) |>
+    summarise(hit = (max(tau_hat) - min(tau_hat)) < tol, .groups = "drop") |>
+    group_by(across(all_of(by))) |>
+    summarise(pct = sprintf("%.1f%%", mean(hit) * 100), .groups = "drop") |>
+    pivot_wider(names_from = all_of(cols), values_from = pct, names_prefix = paste0(cols, "="))
+  
+  ord  <- grep(paste0("^", cols, "="), names(wide), value = TRUE)
+  ord  <- ord[order(as.numeric(sub(".*=", "", ord)))]
+  wide <- select(wide, all_of(setdiff(by, cols)), all_of(ord))
+  if ("overlap" %in% names(wide)) names(wide)[names(wide) == "overlap"] <- "c"
+  
+  g <- gt(wide)
+  if (!is.null(title)) g <- tab_header(g, title = md(title))
+  g |>
+    cols_label_with(all_of(ord), \(x) { v <- sub(".*=", "", x)
+    if (is.null(n_lab_tbl)) v else unname(ifelse(v %in% names(n_lab_tbl), n_lab_tbl[v], v)) }) |>
+    cols_align("center")
+}
+
+# ── 9. Misspecification helpers ──
+# ΔRMSE = misspecified − correct at matching (n, outcome, overlap, estimator).
+delta_rmse <- function(summ, ests = est_main) {
+  summ |>
+    filter(estimator %in% ests) |>
+    select(n, outcome, overlap, estimator, misspec, rmse) |>
+    pivot_wider(names_from = misspec, values_from = rmse) |>
+    mutate(delta = `TRUE` - `FALSE`)
+}
+
+# Style-(a): |Bias| and SD vs overlap, coloured by specification (Correct vs Misspecified).
+spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75, 1, 2)) {
+  ests <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% ests, n == at_n, overlap %in% ov) |>
+    pivot_longer(c(bias, empse), names_to = "metric") |>
+    mutate(metric    = factor(metric, c("bias","empse"), c("|Bias|","SD")),
+           spec      = ifelse(misspec, "Misspecified", "Correct"),
+           estimator = factor(lab_est[estimator], levels = lab_est[ests]),
+           outcome   = factor(outcome, names(oc_labs), oc_labs)) |>
+    ggplot(aes(overlap, abs(value), colour = spec)) +
+    geom_line() + geom_point(size = 1.5) +
+    facet_grid(metric ~ estimator + outcome, scales = "free_y") +
+    scale_x_continuous(breaks = c(0.25, 0.5, 1, 2), labels = c(".25", ".5", "1", "2")) +
+    scale_colour_manual(values = pal_spec) +
+    labs(x = "Overlap (c)", y = NULL, colour = NULL) +
+    theme_bw(base_size = 10) +
+    theme(legend.position = "bottom",
+          strip.text.x = element_text(size = 7),
+          axis.text.x  = element_text(angle = 45, hjust = 1, size = 7))
+}
+```
+
+# Expected Results
+
+**E1 (Correct specification, strong overlap):** Both methods should produce similar bias and RMSE. Any divergence here signals an implementation or DGP issue rather than a substantive finding. This serves as a sanity check for the simulation infrastructure [@keele2025; @tan2020b].
+
+**E2 (Overlap degradation):** As the overlap scaler $c$ decreases, bias and RMSE for `cv.glmnet` should increase faster than for `cv.balnet`. The performance gap should widen as overlap weakens [@keele2025; @chattopadhyay2020].
+
+**E3 (Misspecification):** Under misspecification via Kang--Schafer transformations, `cv.balnet` should show a clear advantage in both bias and RMSE, exceeding the gap observed under correct specification. The interaction of misspecification with weak overlap should produce the largest relative advantage. This follows from the calibration loss controlling MSRE, which bounds IPW bias via Cauchy--Schwarz, whereas the MLE loss controls KL divergence, which does not directly bound IPW bias [@tan2020b, Prop. 3].
+
+**E4 (High dimensionality):** With $s$ fixed, increasing $p$ should hurt both methods, but `cv.balnet` should be more robust. Under misspecification at high $p$, RCAL selects sparser models than RML while achieving equal or better IPW estimation [@tan2020b].
+
+**E5 (Soft sparsity):** As $s$ increases with harmonic decay coefficients, the boundary between active and inactive covariates blurs under the AR(1) covariance structure. The balancing loss should handle this more robustly because it optimises for balance rather than prediction, retaining weakly-correlated covariates that happen to improve balance. There is no direct precedent in the project literature for this experiment; it is the simulation's novel contribution.
+
+**E6 (Outcome complexity):** More complex outcome functions (quadratic, exponential) should increase RMSE for both methods, but the relative advantage of the balancing approach should persist, especially under misspecification [@tan2020b].
+
+**E7 (Lambda interpretation and fixed-lambda behaviour):** Fixed $\lambda = 0.05$ should produce tighter balance but higher variance (lower effective sample size) than $\lambda = 0.10$. The CV-selected $\lambda$ should generally fall between these. Under weak overlap, fixed $\lambda = 0.05$ may become infeasible due to path truncation, which is itself a diagnostic for positivity violations [@sverdrup2026].
+
+**E8 (Computational cost):** `cv.balnet` must fit two separate propensity score models for ATE estimation (one for each potential outcome mean), roughly doubling computation relative to `cv.glmnet`'s single model [@sverdrup2026, Remark 1].
+
+**E9 (Variable selection):** `cv.balnet` should consistently select fewer nonzero coefficients than `cv.glmnet`, especially under misspecification. This is consistent with the calibration loss requiring fewer covariates to achieve balance than the MLE loss requires for predictive accuracy [@tan2020b].
+
+# 
+
+# DGP 2
+
+### Data-Generating Process
+
+We draw $n$ observations of $p$ covariates $X_i = (X_{i1}, \dots, X_{ip})^\top \sim \mathcal{N}(0, \Sigma)$, where $\Sigma_{jk} = \rho^{|j-k|}$ with $\rho = 0$ (independent) or $\rho = 0.5$ (AR(1)). The propensity score coefficients decay with $j^{-1}$ a with the first $s$ covariates active:
+
+$$\beta_j = \frac{\sigma_j}{j}, \quad j = 1, \dots, s,
+\qquad \sigma_j = \operatorname{rep}(+1,-1,+1,+1)$$
+
+$$\eta_i = \sum_{j=1}^{s} \beta_j X_{ij}, \qquad
+e^*(X_i) = \left\{1 + \exp\!\left(
+\frac{\eta_i}{\,c\;\operatorname{sd}(\eta)\,}
+\right)\right\}^{-1}$$
+
+where $c > 0$ is an overlap scaler [@keele2025] and $\operatorname{sd}(\eta)$ normalises the linear predictor so that $c$, $s$, and $\rho$ vary independently. Treatment is assigned as $W_i \sim \operatorname{Bernoulli}(e^*(X_i))$.
+
+At $j^{-1}$ when $s=4$ the first 4 approximately match the first 4 coefficients used in tan/kang papers (1, .5, .333, .25),
+
+We draw $n$ observations of $p$ covariates $X_i = (X_{i1}, \dots, X_{ip})^\top \sim \mathcal{N}(0, \Sigma)$, where $\Sigma_{jk} = \rho^{|j-k|}$ with $\rho = 0$ (independent) or $\rho = 0.5$ (AR(1)). The true propensity score is
+
+$$e^*(X_i) = \left\{1 + \exp\!\left(\frac{\sum_{j=1}^{s} \beta_j X_{ij}}{\,c\;\sigma_\eta\,}\right)\right\}^{-1}$$
+
+where,
+
+$$\eta_i = \sum_{j=1}^{s} \beta_j X_{ij}, \qquad \sigma_\eta = \operatorname{sd}(\eta)$$
+
+where $c > 0$ is an overlap scaler [@keele2025], and treatment is assigned as $W_i \sim \text{Bernoulli}(e^*(X_i))$. Only the first four of $p$ covariates are active in the propensity score, creating a sparse signal setting consistent with @tan2020.
+
+Under the sharp null $\tau = 0$, potential outcomes are generated as
+
+$$\begin{aligned} Y_i^{\text{lin}} &= X_{i1} + 0.5\,X_{i2} + 0.5\,X_{i3} + 0.5\,X_{i4} + \varepsilon_i \\ Y_i^{\text{quad}} &= \sum_{j=1}^{4} \{\max(X_{ij}, 0)\}^2 + \varepsilon_i \\ Y_i^{\text{exp}} &= \sum_{j=1}^{4} \exp(X_{ij}/2) + \varepsilon_i \end{aligned}$$
+
+where $\varepsilon_i \sim \mathcal{N}(0, 1)$. Outcome specifications follow from @tan2020.
+
+To introduce misspecification, the analyst observes transformed covariates $\tilde{X}$ instead of $X$ [@kangschafer2007]:
+
+$$\begin{aligned} \tilde{X}_{i1} &= \exp(X_{i1}/2) \\ \tilde{X}_{i2} &= \frac{X_{i2}}{1 + \exp(X_{i1})} + 10 \\ \tilde{X}_{i3} &= (0.04\,X_{i1}\,X_{i3} + 0.6)^3 \\ \tilde{X}_{i4} &= (X_{i2} + X_{i4} + 20)^2 \end{aligned}$$
+
+where $\tilde{X}_{i1}, \dots, \tilde{X}_{i4}$ are subsequently standardized to have mean zero and unit variance, following @tan2020. For $j = 5, \dots, p$, $\tilde{X}_{ij} = X_{ij}$. Both logistic and linear regressions on $\tilde{X}$ appear adequate by standard diagnostics, yet are misspecified since the true models are linear in $X$ on the logit scale.
+
+The simulation varies sample size $n \in \{500, 1000, 5000\}$, covariate dimension $p \in \{10, 50, 100, \dots\}$, and overlap $c \in \{2, 1, 0.75, 0.5, 0.25\}$, with each experiment isolating one factor at a time.
+
+## E1: Correct Specification
+
+```{r}
+# ── E1: Correctly specified DGP (strong overlap, c = 1) ──
+df_e1 <- read_csv("DGP2correct.csv.gz")
+
+summ_e1 <- summarise_sim(df_e1) |> filter(!misspec, overlap == 1)
+est_e1  <- c(est_main, "normalised_oracle")     # 5 main estimators + normalised oracle
+
+# RMSE | |Bias| vs n, per outcome
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(summ_e1, oc, ests = est_e1, extra = scale_x_n)))
+
+# RMSE (|Bias|) tables, per outcome
+perf_table(summ_e1, ests = est_e1, group = "outcome", title = "E1: Correctly Specified")
+
+# MSE decomposition (Bias²/Variance share), estimators × outcome (no oracle)
+print(decomp_plot(summ_e1, ests = est_main,
+                  title = "MSE Decomposition (%) \u2014 Correct spec (c = 1)"))
+```
