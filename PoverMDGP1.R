@@ -7,6 +7,7 @@ library(parallel)
 library(MASS)
 
 
+
 # --- Cluster setup ---
 
 cl <- makeCluster(detectCores() - 1)
@@ -67,15 +68,17 @@ generate_data = function(n, p, outcome = "linear", misspec = FALSE, covcor = "ii
 
 
 
-# --- Grid ---
 grid <- expand.grid(
-  n       = c(100,200,400),
-  p       = c(500,1000,2000),
-  outcome = c("linear", "quad1"),
-  misspec = FALSE,
-  covcor  = "iid",
-  overlap =  1
+  n        = c(100, 200),
+  pn_ratio = c(.5, 1.0, 2.0, 10, 20),
+  outcome  = c("linear","quad1"),
+  misspec  = FALSE,
+  covcor   = "iid",
+  overlap  = 1
 )
+grid$p <- grid$n * grid$pn_ratio
+
+
 
 # --- Simulation Function ---
 
@@ -153,7 +156,7 @@ for (i in seq_len(nrow(grid))) {
 stopCluster(cl)
 out.df <- do.call(rbind, out)
 rownames(out.df) <- NULL
-write.csv(out.df, gzfile("PoverMDGP1.csv.gz"), row.names = FALSE)
+write.csv(out.df, gzfile("HighDlowM.csv.gz"), row.names = FALSE)
 
 
 str(out.df)

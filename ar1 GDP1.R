@@ -69,7 +69,7 @@ generate_data = function(n, p, outcome = "linear", misspec = FALSE, covcor = "ii
 
 # --- Grid ---
 grid <- expand.grid(
-  n       = c(500, 1000, 5000),
+  n       = c(500, 1000, 5000, 1000, 50000),
   p       = 50,
   outcome = c("linear", "quad1", "exp"),
   misspec = FALSE,

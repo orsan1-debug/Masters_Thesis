@@ -1,0 +1,829 @@
+---
+title: "Working Analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Setup
+
+```{r}
+setwd("~/Thesis 2026/Masters_Thesis")
+#| message: false
+#| warning: false
+library(tidyverse)   # ggplot2, dplyr, tidyr, purrr, stringr
+library(ggh4x)       # nested facet strips (the |Bias|/SD × estimator figure)
+library(patchwork)   # RMSE | |Bias| layout
+library(gt)          # tables
+library(kableExtra)  # tables
+
+options(readr.show_col_types = FALSE)
+
+# ── 1. Summaries: Monte Carlo performance measures (Morris, White & Crowther 2019) ──
+# Keeps ALL estimators; subsetting happens in the figure calls, never here.
+# `by` is a parameter so sections with different design columns (e.g. no `overlap`)
+# can drop them: summarise_sim(df, by = c("n","p","outcome","estimator")).
+
+summarise_sim <- function(data,
+                          by = c("n","p","misspec","covcor", "outcome","overlap","estimator")) {
+  data |>
+    group_by(across(all_of(by))) |>
+    summarise(
+      m          = dplyr::n(),
+      bias       = mean(tau_hat),
+      empse      = sd(tau_hat),
+      rmse       = sqrt(mean(tau_hat^2)),
+      mcse_bias  = empse / sqrt(m),
+      mcse_empse = empse / sqrt(2 * (m - 1)),
+      mcse_rmse  = sd(tau_hat^2) / (2 * rmse * sqrt(m)),
+      n_extreme  = sum(abs(tau_hat) > 10),
+      .groups    = "drop"
+    )
+}
+
+# ── 2. One label map + one palette (Okabe-Ito) + reusable estimator subsets ──
+lab_est <- c(balnet0="BalNet (\u03bb=0)", balnet05="BalNet (\u03bb=.05)",
+             balnet10="BalNet (\u03bb=.10)", balnetcv="BalNet (CV)",
+             glmcv_normal="GLM (Hajek)", glmnetcv="GLMNet (CV)",
+             normalised_oracle="Norm. Oracle")
+pal_est <- c(balnet0="#009E73", balnet05="#56B4E9", balnet10="#E69F00",
+             balnetcv="#0072B2", glmcv_normal="#B22222", glmnetcv="#CC79A7",
+             normalised_oracle="grey55")
+est_main <- c("balnet0","balnet05","balnet10","balnetcv","glmcv_normal")
+est_bal  <- c("balnet0","balnet05","balnet10","balnetcv")  
+oc_labs  <- c(linear="Linear", quad1="Quadratic", exp="Exponential")
+
+pal_spec <- c(Correct = "#009E73", Misspecified = "#B22222")   # specification contrast (spec_grid)
+
+
+
+# ── 3. Shared theme + reusable scale/facet pieces ──
+theme_sim <- theme_minimal(base_size = 12) +
+  theme(legend.position  = "bottom",
+        legend.title     = element_blank(),
+        strip.background = element_rect(fill = "grey90", colour = NA),
+        strip.text       = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        axis.text.x      = element_text(angle = 45, hjust = 1))
+
+scale_x_n <- scale_x_log10(breaks = c(500,1000,5000,10000,50000),
+                           labels = c("500","1k","5k","10k","50k"))
+as_c   <- function(x) factor(paste0("c = ", x),
+                             levels = paste0("c = ", sort(unique(x), decreasing = TRUE)))
+lab_n  <- as_labeller(\(x) paste0("n = ", format(as.numeric(x), big.mark = ",")))
+n_lab  <- c("100"="100","200"="200","250"="250","400"="400",
+            "500"="500","750"="750","800"="800",
+            "1000"="1k","2000"="2k","3000"="3k","4000"="4k","5000"="5k",
+            "10000"="10k","50000"="50k")
+
+
+# ── 4. Core line plot: metric vs x, coloured by estimator ──
+# y/ylab + x + ests are arguments; x-scale and facets are appended by the caller.
+line_plot <- function(data, y, ylab, x = n, ests = est_main, from_zero = TRUE) {
+  ests <- intersect(names(lab_est), ests)                 # canonical order, no ghost keys
+  p <- data |>
+    filter(estimator %in% ests) |>
+    ggplot(aes({{ x }}, {{ y }}, colour = estimator, group = estimator)) +
+    geom_line(linewidth = 0.7) + geom_point(size = 1.8) +
+    scale_colour_manual(values = pal_est, breaks = ests,
+                        labels = \(b) unname(lab_est[b])) +
+    labs(y = ylab, colour = NULL) + theme_sim
+  if (from_zero) p + expand_limits(y = 0) else p
+}
+
+# ── 5. Twin panel: RMSE | |Bias|, one shared legend ──
+panel <- function(data, oc, x = n, ests = est_main, extra = NULL,
+                  title = oc_labs[oc], from_zero = TRUE, compact = FALSE) {
+  d <- filter(data, outcome == oc)
+  drop0 <- \(x) sub("^(-?)0\\.", "\\1.", x)
+  yl <- if (compact) NULL else "RMSE"
+  yr <- if (compact) NULL else "|Bias|"
+  l <- line_plot(d, rmse,      yl, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  r <- line_plot(d, abs(bias), yr, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  if (compact) {
+    l <- l + ggtitle("RMSE") + scale_y_continuous(labels = drop0)
+    r <- r + ggtitle("|Bias|") + scale_y_continuous(labels = drop0)
+  }
+  (l | r) + plot_layout(guides = "collect") +
+    plot_annotation(title = title) & theme(legend.position = "bottom")
+}
+
+# ── 6. MSE decomposition: Bias² / Variance share, stacked area ──
+pal_comp <- c("Variance" = "#377eb8", "Bias\u00b2" = "#e41a1c")
+
+decomp_plot <- function(data, ests = est_main, x = n, cols = outcome,
+                        x_scale = scale_x_n, xlab = "n",
+                        col_lab = labeller(outcome = oc_labs, n = lab_n),
+                        title = NULL) {
+  keep <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% keep) |>
+    mutate(denom    = bias^2 + empse^2,
+           bias_sq  = bias^2  / denom,
+           variance = empse^2 / denom,
+           estimator = factor(lab_est[estimator], levels = lab_est[keep])) |>
+    pivot_longer(c(variance, bias_sq), names_to = "component", values_to = "share") |>
+    mutate(component = factor(component, c("variance","bias_sq"),
+                              c("Variance","Bias\u00b2"))) |>
+    ggplot(aes({{ x }}, share, fill = component)) +
+    geom_area() +
+    facet_grid(rows = vars(estimator), cols = vars({{ cols }}), switch = "y",
+               labeller = col_lab) +
+    x_scale +
+    scale_y_continuous(breaks = c(1), labels = scales::percent) +
+    scale_fill_manual(values = pal_comp) +
+    labs(x = xlab, y = "Share of MSE", fill = NULL, title = title) +
+    theme_sim +
+    theme(strip.text.y.left = element_text(angle = 0))
+}
+
+# ── 7. Performance table: estimators × design columns, ordered by mean metric ──
+# cols="n" → flat.  cols=c("overlap","n") → c-spanners.
+# group="outcome" → stacks all outcomes in one table with row groups.
+perf_table <- function(data, ests = est_main, cols = "n",
+                       top = "rmse", bottom = "abs_bias",
+                       digits = 2, order_by = "rmse",
+                       lab = lab_est, n_lab_tbl = n_lab,
+                       span_lab = \(x) paste0("c = ", x), span_desc = TRUE,
+                       title = "", subtitle = NULL,
+                       group = NULL, group_lab = oc_labs) {
+  stopifnot(length(cols) %in% 1:2,
+            c(top, bottom, order_by) %in% c("rmse","bias","abs_bias","empse"))
+  keep <- intersect(names(lab), ests)
+  cvar <- cols[length(cols)]
+  svar <- if (length(cols) == 2L) cols[[1]] else NULL
+  pm   <- c(rmse="RMSE", bias="Bias", abs_bias="|Bias|", empse="EmpSE")
+  f    <- paste0("%.", digits, "f")
+  grp  <- !is.null(group)
+  
+  d <- data |> filter(estimator %in% keep) |> mutate(abs_bias = abs(bias)) |> mutate(
+    Estimator = factor(unname(lab[estimator]), levels = unname(lab[keep])),
+    cell = sprintf(paste0(f, "<br><small>(", f, ")</small>"), .data[[top]], .data[[bottom]]),
+    avg  = ave(.data[[order_by]], estimator, FUN = mean),
+    .col = if (is.null(svar)) paste0(cvar, "=", .data[[cvar]])
+    else paste0(svar, "=", .data[[svar]], "|", cvar, "=", .data[[cvar]]))
+  if (grp) d <- mutate(d, Group = factor(group_lab[.data[[group]]], levels = group_lab))
+  
+  cv  <- sort(unique(d[[cvar]]))
+  sv  <- if (is.null(svar)) NULL else sort(unique(d[[svar]]), decreasing = span_desc)
+  key <- if (is.null(svar)) paste0(cvar, "=", cv)
+  else c(t(outer(sv, cv, \(s, c) paste0(svar, "=", s, "|", cvar, "=", c))))
+  
+  id_vars <- c(if (grp) "Group", "Estimator", ".col", "cell", "avg")
+  wide <- d |> distinct(across(all_of(id_vars))) |>
+    pivot_wider(names_from = .col, values_from = cell)
+  wide <- if (grp) arrange(wide, Group, avg) else arrange(wide, avg)
+  present <- intersect(key, names(wide))
+  wide <- wide |> select(any_of("Group"), Estimator, all_of(present))
+  
+  inner_lab <- \(x) { x <- sub("^[^=]*=", "", sub(".*\\|", "", x))
+  if (is.null(n_lab_tbl)) x else unname(ifelse(x %in% names(n_lab_tbl), n_lab_tbl[x], x)) }
+  
+  g <- if (grp) gt(wide, groupname_col = "Group") else gt(wide)
+  g <- g |> tab_header(title = title,
+                       subtitle = md(subtitle %||% paste0(pm[[top]], " (", pm[[bottom]], ")")))
+  for (s in sv) g <- tab_spanner(g, span_lab(s), starts_with(paste0(svar, "=", s, "|")))
+  g |>
+    cols_label_with(all_of(present), inner_lab) |>
+    fmt_markdown(all_of(present)) |> cols_align("center", all_of(present)) |>
+    tab_style(cell_text(weight = "bold"), cells_body(Estimator)) |>
+    opt_table_lines("default") |>
+    tab_source_note(md(sprintf("_Top %s / bottom %s; sorted by mean %s._",
+                               pm[[top]], pm[[bottom]], pm[[order_by]])))
+}
+
+
+# ── 8. Convergence / path-truncation table ──
+# % reps where ALL selected estimators coincide (range < tol).
+# k=2: bal0 ≡ bal05.  k≥3: full-path collapse.  Raw replicates, not summaries.
+converge_table <- function(data, ests, by = c("overlap","n"),
+                           cols = by[length(by)], tol = 1e-9,
+                           outcome_name = NULL, overlap_vals = NULL,
+                           n_lab_tbl = n_lab, title = NULL) {
+  stopifnot(length(ests) >= 2, length(cols) == 1, cols %in% by)
+  d <- filter(data, estimator %in% ests,
+              if (is.null(outcome_name)) TRUE else outcome == outcome_name,
+              if (is.null(overlap_vals)) TRUE else overlap %in% overlap_vals)
+  
+  wide <- d |>
+    group_by(across(all_of(c(by, "sim")))) |>
+    summarise(hit = (max(tau_hat) - min(tau_hat)) < tol, .groups = "drop") |>
+    group_by(across(all_of(by))) |>
+    summarise(pct = sprintf("%.1f%%", mean(hit) * 100), .groups = "drop") |>
+    pivot_wider(names_from = all_of(cols), values_from = pct, names_prefix = paste0(cols, "="))
+  
+  ord  <- grep(paste0("^", cols, "="), names(wide), value = TRUE)
+  ord  <- ord[order(as.numeric(sub(".*=", "", ord)))]
+  wide <- select(wide, all_of(setdiff(by, cols)), all_of(ord))
+  if ("overlap" %in% names(wide)) names(wide)[names(wide) == "overlap"] <- "c"
+  
+  g <- gt(wide)
+  if (!is.null(title)) g <- tab_header(g, title = md(title))
+  g |>
+    cols_label_with(all_of(ord), \(x) { v <- sub(".*=", "", x)
+    if (is.null(n_lab_tbl)) v else unname(ifelse(v %in% names(n_lab_tbl), n_lab_tbl[v], v)) }) |>
+    cols_align("center")
+}
+
+# ── 9. Misspecification helpers ──
+# ΔRMSE and Δ|Bias| = misspecified − correct at matching (n, outcome, overlap, estimator).
+delta_ms <- function(summ, ests = est_main) {
+  summ |>
+    filter(estimator %in% ests) |>
+    mutate(absbias = abs(bias)) |>
+    select(n, outcome, overlap, estimator, misspec, rmse, absbias) |>
+    pivot_wider(names_from = misspec, values_from = c(rmse, absbias)) |>
+    mutate(d_rmse = rmse_TRUE - rmse_FALSE,
+           d_bias = absbias_TRUE - absbias_FALSE)
+}
+
+delta_rmse <- function(summ, ests = est_main)
+  delta_ms(summ, ests) |> transmute(n, outcome, overlap, estimator, delta = d_rmse)
+
+# Style-(a): |Bias| and SD vs overlap, coloured by specification (Correct vs Misspecified).
+spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75, 1, 2)) {
+  ests <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% ests, n == at_n, overlap %in% ov) |>
+    pivot_longer(c(bias, empse), names_to = "metric") |>
+    mutate(metric    = factor(metric, c("bias","empse"), c("|Bias|","SD")),
+           spec      = ifelse(misspec, "Misspecified", "Correct"),
+           estimator = factor(lab_est[estimator], levels = lab_est[ests]),
+           outcome   = factor(outcome, names(oc_labs), oc_labs)) |>
+    ggplot(aes(overlap, abs(value), colour = spec)) +
+    geom_line() + geom_point(size = 1.5) +
+    facet_grid(metric ~ estimator + outcome, scales = "free_y") +
+    scale_x_continuous(breaks = c(0.25, 0.5, 1, 2), labels = c(".25", ".5", "1", "2")) +
+    scale_colour_manual(values = pal_spec) +
+    labs(x = "Overlap (c)", y = NULL, colour = NULL) +
+    theme_bw(base_size = 10) +
+    theme(legend.position = "bottom",
+          strip.text.x = element_text(size = 7),
+          axis.text.x  = element_text(angle = 45, hjust = 1, size = 7))
+}
+```
+
+## Expected Results
+
+**E1 (Correct specification, strong overlap):** Both methods should produce similar bias and RMSE. Any divergence here signals an implementation or DGP issue rather than a substantive finding. This serves as a sanity check for the simulation infrastructure [@keele2025; @tan2020b].
+
+**E2 (Overlap degradation):** As the overlap scaler $c$ decreases, bias and RMSE for `cv.glmnet` should increase faster than for `cv.balnet`. The performance gap should widen as overlap weakens [@keele2025; @chattopadhyay2020].
+
+**E3 (Misspecification):** Under misspecification via Kang--Schafer transformations, `cv.balnet` should show a clear advantage in both bias and RMSE, exceeding the gap observed under correct specification. The interaction of misspecification with weak overlap should produce the largest relative advantage. This follows from the calibration loss controlling MSRE, which bounds IPW bias via Cauchy--Schwarz, whereas the MLE loss controls KL divergence, which does not directly bound IPW bias [@tan2020b, Prop. 3].
+
+**E4 (High dimensionality):** With $s$ fixed, increasing $p$ should hurt both methods, but `cv.balnet` should be more robust. Under misspecification at high $p$, RCAL selects sparser models than RML while achieving equal or better IPW estimation [@tan2020b].
+
+**E5 (Soft sparsity):** As $s$ increases with harmonic decay coefficients, the boundary between active and inactive covariates blurs under the AR(1) covariance structure. The balancing loss should handle this more robustly because it optimises for balance rather than prediction, retaining weakly-correlated covariates that happen to improve balance. There is no direct precedent in the project literature for this experiment; it is the simulation's novel contribution.
+
+**E7 (Lambda interpretation and fixed-lambda behaviour):** Fixed $\lambda = 0.05$ should produce tighter balance but higher variance (lower effective sample size) than $\lambda = 0.10$. The CV-selected $\lambda$ should generally fall between these. Under weak overlap, fixed $\lambda = 0.05$ may become infeasible due to path truncation, which is itself a diagnostic for positivity violations [@sverdrup2026].
+
+**E8 (Computational cost):** `cv.balnet` must fit two separate propensity score models for ATE estimation (one for each potential outcome mean), roughly doubling computation relative to `cv.glmnet`'s single model [@sverdrup2026, Remark 1].
+
+**E9 (Variable selection):** `cv.balnet` should consistently select fewer nonzero coefficients than `cv.glmnet`, especially under misspecification. This is consistent with the calibration loss requiring fewer covariates to achieve balance than the MLE loss requires for predictive accuracy [@tan2020b].
+
+# DGP 1
+
+### Data-Generating Process
+
+We draw $n$ observations of $p$ covariates $X_i = (X_{i1}, \dots, X_{ip})^\top \sim \mathcal{N}(0, \Sigma)$, where $\Sigma_{jk} = \rho^{|j-k|}$ with $\rho = 0$ (independent) or $\rho = 0.5$ (AR(1)). The true propensity score is
+
+$$e^*(X_i) = \left\{1 + \exp\left(\frac{X_{i1} - 0.5\,X_{i2} + 0.25\,X_{i3} + 0.1\,X_{i4}}{c}\right)\right\}^{-1}$$
+
+where $c > 0$ is an overlap scaler [@keele2025], and treatment is assigned as $W_i \sim \text{Bernoulli}(e^*(X_i))$. Only the first four of $p$ covariates are active in the propensity score, creating a sparse signal setting consistent with @tan2020.
+
+Under the sharp null $\tau = 0$, potential outcomes are generated as
+
+$$\begin{aligned}
+Y_i^{\text{lin}} &= X_{i1} + 0.5\,X_{i2} + 0.5\,X_{i3} + 0.5\,X_{i4} + \varepsilon_i \\
+Y_i^{\text{quad}} &= \sum_{j=1}^{4} \{\max(X_{ij}, 0)\}^2 + \varepsilon_i \\
+Y_i^{\text{exp}} &= \sum_{j=1}^{4} \exp(X_{ij}/2) + \varepsilon_i
+\end{aligned}$$
+
+where $\varepsilon_i \sim \mathcal{N}(0, 1)$. Outcome specifications follow from @tan2020.
+
+To introduce misspecification, the analyst observes transformed covariates $\tilde{X}$ instead of $X$ [@kangschafer2007]:
+
+$$\begin{aligned}
+\tilde{X}_{i1} &= \exp(X_{i1}/2) \\
+\tilde{X}_{i2} &= \frac{X_{i2}}{1 + \exp(X_{i1})} + 10 \\
+\tilde{X}_{i3} &= (0.04\,X_{i1}\,X_{i3} + 0.6)^3 \\
+\tilde{X}_{i4} &= (X_{i2} + X_{i4} + 20)^2
+\end{aligned}$$
+
+where $\tilde{X}_{i1}, \dots, \tilde{X}_{i4}$ are subsequently standardized to have mean zero and unit variance, following @tan2020. For $j = 5, \dots, p$, $\tilde{X}_{ij} = X_{ij}$. Both logistic and linear regressions on $\tilde{X}$ appear adequate by standard diagnostics, yet are misspecified since the true models are linear in $X$ on the logit scale.
+
+The simulation varies sample size $n \in \{500, 1000, 5000\}$, covariate dimension $p \in \{10, 50, 100, \dots\}$, and overlap $c \in \{2, 1, 0.75, 0.5, 0.25\}$, with each experiment isolating one factor at a time.
+
+## Replicate Tan in RCAL (same DGP)
+
+#### **Tan's core result replicates.**
+
+Under misspecification, balnet outperforms glmnet across all three outcome functions, with the advantage growing with n and largest for quad1 (5.6×) and exp (2.6×). RML-HT deteriorates with n while RCAL stays flat. This validates simulation infrastructure and the calibration loss advantage.
+
+| $n$ | Tan RCAL $\times \sqrt{2}$ | bal0  | bal05 | balnetcv |
+|-----|----------------------------|-------|-------|----------|
+| 200 | 0.198                      | 0.173 | 0.206 | 0.231    |
+| 400 | 0.127                      | 0.124 | 0.173 | 0.192    |
+| 800 | 0.085                      | 0.089 | 0.156 | 0.176    |
+
+: Convergence comparison: RMSE under correct specification ($p=4$, linear outcome, $c=1$, iid covariates, 1000 replications). Tan RCAL values from Tan (2020, Table S3) scaled by $\sqrt{2}$ for the ATE estimand.\
+\
+**bal0 recovers Tan's convergence rate exactly.** After √2 scaling for the ATE vs μ¹ estimand difference, bal0 RMSE at (200/400/800, p=4, correct spec, linear) is 0.173/0.124/0.089 versus the expected 0.198/0.127/0.085.
+
+- **bal0 converges with Tan**; bal05 and balnetcv flatten out.
+  - This isolates the attenuation to cv.balnet's λ selection and confirms the balnet loss function itself is correct.
+- Tan's CV behaves somewhere between bal0 and bal05 depending on the outcome, but consistently below balcv's selected λ.
+- From Tan (2020, p.19), his CV minimises the held-out calibration loss over a discrete grid. **change CV criterion?**
+
+## E1: Correct Specification
+
+```{r}
+# ── E1: Correctly specified DGP (strong overlap, c = 1) ──
+df_e1 <- read_csv("E1_results.csv.gz")
+
+summ_e1 <- summarise_sim(df_e1) |> filter(!misspec, overlap == 1)
+est_e1  <- c(est_main, "normalised_oracle")     # 5 main estimators + normalised oracle
+
+# RMSE | |Bias| vs n, per outcome
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(summ_e1, oc, ests = est_e1, extra = scale_x_n)))
+
+# RMSE (|Bias|) tables, per outcome
+perf_table(summ_e1, ests = est_e1, group = "outcome", title = "E1: Correctly Specified")
+
+# MSE decomposition (Bias²/Variance share), estimators × outcome (no oracle)
+print(decomp_plot(summ_e1, ests = est_main,
+                  title = "MSE Decomposition (%) \u2014 Correct spec (c = 1)"))
+```
+
+**Balancing vs MLE**
+
+- **bal0 is more efficient than the normalized oracle at every n,** consistent with Wager (2024). This confirms the calibration loss function is correctly implemented.
+
+  - *It also outperforms every other estimator (including the non-normalized oracle).*
+
+- **at small n,** balancing methods generally outperform MLE.
+
+- **as n increases,** glmnets MLE consistency causes it to eventually outperform balancing estimators with set $\lambda_{min}$, as well as balnet.cv *(suggests issues with CV criterion)*.
+
+  - bal05 outperforms glmnet at $n \leq 1000$**.** As $n$ increases, bal05's fixed attenuation bias means the consistent glmnet MLE estimator outperforms it , with crossover by $n=5000$.
+
+**Within Balancing Estimators**
+
+- **balnet.cv over-regularizes, erasing the loss function advantage.**
+
+  - This suggests it's CV criterion *(out of sample balancing loss)*, may converge to a $\lambda_{cv}$ above the optimal $\lambda$ for ATE estimation.
+
+  - while sample size increases reduce its RMSE/bias, the slope of this improvement is very slow.
+
+    - *check? CV-selected λ at each n. Would quantify how much CV over-regularizes and connect directly to the KKT interpretation (λ = max allowable imbalance).*
+
+- **outcome complexity improves balnet.cv's relative performance.** Under non-linear specifications balnet.cv overtakes bal05 from $n \geq 5000$.
+
+**Notes:**
+
+- **outcome complexity:** effects attenuation magnitude, not ranking.
+
+  - quadratic: *increases variance for all estimators.*
+
+  - exponential: *reduces bias for balancing estimators.*
+
+- Under correct specification non-normalized MLE *(glmHT)* and normalized MLE *(glmHajek)* are competitive. However, introducing mispeccification causes *glmHT's* RMSE and bias to explode, so we will only use the normalised version for our analysis.
+
+  - *will also use normalized oracle.*
+
+## With Overlap
+
+```{r}
+# ── E2: Correct specification, degrading overlap ──
+df_e2 <- read_csv("E2_results.csv.gz")
+summ_e2 <- summarise_sim(df_e2) |> filter(!misspec)
+
+ov_show <- c(1, 0.5, 0.25)                     # panels & tables exclude c = 2 and c = 0.75
+e2_show  <- summ_e2 |> filter(overlap %in% ov_show) |> mutate(overlap = as_c(overlap))
+
+# - RMSE | |Bias| plots - 
+
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(e2_show, oc, ests = est_main,
+                       extra = list(scale_x_n,
+                                    facet_wrap(~overlap, nrow = 1, scales = "free_y")))))
+
+# 2) Efficiency check: bal0 vs normalised oracle (RMSE, faceted by overlap)
+
+walk(c("linear","quad1","exp"),
+     \(oc) print(
+       line_plot(filter(e2_show, outcome == oc), rmse, "RMSE",
+                 ests = c("balnet0","normalised_oracle")) +
+         scale_x_n + facet_wrap(~overlap, nrow = 1, scales = "free_y") +
+         labs(title = oc_labs[oc])))
+
+# ── E2 tables: RMSE (|Bias|) tables  ──
+perf_table(filter(summ_e2, overlap %in% ov_show),
+           cols = c("overlap","n"), group = "outcome", title = "E2: Degrading Overlap")
+
+# 3) MSE decomposition, estimators × overlap (all overlap values)
+
+walk(c("linear","quad1","exp"),
+     \(oc) print(
+       decomp_plot(filter(summ_e2, outcome == oc) |> mutate(overlap = as_c(overlap)),
+                   ests = c("balnet0","balnet05","balnetcv","glmcv_normal"),
+                   cols = overlap,
+                   title = paste("MSE Decomposition (%) \u2014", oc_labs[oc]))))
+
+
+
+
+# ── Path truncation: % of reps where bal0 ≡ bal05 (raw data, linear) ──
+converge_table(df_e2, c("balnet0","balnet05"),
+               by = c("overlap","n"), outcome_name = "linear",
+               overlap_vals = c(0.25, 0.5),
+               title = "Path truncation: % reps bal0 \u2261 bal05 (linear)")
+```
+
+**summary:** our expectation that under weak overlap balancing estimators performance would degrade at a reduced rate compared to MLE holds. As expected MLE degrades primarily though variance as overlap degrades and the balancing estimators degrade primarily through bias. Truncation between bal05 and bal10 also supports our expectation that balnet's regularization path will truncate earlier as overlap weakens.
+
+**Best Estimator**
+
+- **Bal0 is the best estimator, consistently outperforming or matching other estimators.**
+
+  - beats normalized oracle at every overlap level, supporting Wagers efficiency result.
+
+  - *loses once, marginally, to bal05 once* $n=500, c=0.5$ *with exponential outcome.*
+
+#### Balancing vs MLE
+
+- **Covariate balancing outperforms MLE over every overlap level, and for every** $n$**.**
+
+  - **MLE never beats bal0\***, and the only level it decisively beats bal05 at is when $c=0.5$ and $n=10,000$ for linear and exponential outcomes.
+
+    - one exception, when c=2.
+
+  - bal05 outperforms glmnet at every sample size when overlap is weak (c = 0.25)
+
+  - Despite over-regularizing, cv.balnet still outperforms glmnet-Hajek in the majority of weak-overlap cells.
+
+- **As overlap degrades, the convergence of the MLE estimator degrades with it.**
+
+  - performs best under exponential outcomes:
+
+    - For $c=0.5$, MLE beats balnet.cv and bal10 between $n=1000$ and $n=5000$ (cros*sover point not specified, but gradient implies before* $n=5000$). Beats bal05 by $n=10,000$.
+
+    - *same ranking for linear and quadratic, but relative magnitude reduced and MLE only ties bal05 under quadratic.*
+
+      - *the difference between linear and exponential is marginal.*
+
+  - MLE never wins at $c=0.25$
+
+- **MLE bias seems to be more competitive,** implying its RMSE performance losses are variance driven.
+
+  - *under linear outcomes:* for $c=.25$ its bias beats balnet.cv and bal10 by $n=10,000$, ties with cv.balnet at $n=5000$
+
+  - *under quadratic outcomes:* for $c=.25$, beats balnet.cv by $n=1000$, bal10 by $n=5000$, and marginally beats bal05 by $n=10,000$.
+
+  - f*or exponential outcomes:* same as quadratic, except it never beats bal05.
+
+#### **Within Balancing**
+
+- **balnet.cv becomes less competitive against bal0 and bal05 as overlap degrades:** this calls into question its CV criterion.
+- **Bal05 is the only estimator competitive with Bal0:** Bal0 generally either outperforms or matches bal05, but in smaller samples as overlap degrades bal05 becomes increasingly competitive, especially under non-linear outcomes.
+  - **path truncation:** For $n \leq 1000$ bal0 = bal05 for approximately all $c=.25$ reps. For $n=500$ and $c=.5$ they truncate for 17.2% of reps (for $n>1000$ bal0 always wins).
+
+    - *same mechanism behind bal10's improved relative performance at weak overlap.*
+
+  - **For exponential outcomes it claims one win**, marginally outperforms bal0 under $c=.5$ at $n=500$, *(RMSE is 0.199 vs 0.203).* by $n=1000$ bal0 wins marginally (*its MCSE z-score is not significant, so may be a tie*).
+
+    - at $c=0.25$ their performance ties until $n=10,000$, where balnet wins.
+
+    - *bal0 has consistently lower bias, even when bal05 wins (exception is a tie at c=.25 up to n=1000).*
+
+    - *note: double check MSCE z-scores later.*
+
+  - Under quadratic outcomes: the two tie under $c=.5$, when $n=500$. otherwise, the same pattern generally holds.
+
+  - for linear outcomes: bal0 wins over all regimes, aside from tying with bal05 for $c=0.25$ upto $n=1000$.
+- **bal10's relative performance improves as overlap degrades:** for both bias and RMSE.
+  - likely indicates the minimum viable $\lambda_{endpoint}$ truncates somwhere close to $.1$ as overlap declines.
+
+**Notes:**
+
+- **Outcome complexity:** does effect ranking under different overlap levels, both between estimation methods (MLE/balancing), and within balancing estimators.
+
+- **bal05 attenuation bias is stable and invariant to overlap, likely predictable with AIPW:** for exponential, across all$n$ at $c=.5$ and for large $n$ at $c=.25$ bias $\approx .11$ and \$ \approx .12\$ respectively. For linear, across all$n$ at $c=.5$ and for large $n$ at $c=.25$ bias $\approx .14 \to .15$ respectively. Results at $c=1$ at high $n$ also converge to around $.14$.
+
+- no extreme results for any MLE or balnet estimators under overlap degredation.
+
+- Hajek is still efficient and converges at every overlap condition, just slower than when correctly specified at $c=1$
+
+## With Misspeccification
+
+```{r}
+# ── Misspecification: misspecified DGP, p = 50, c = 1 ──
+raw_ms   <- read_csv("Mispeccified_results.csv.gz", show_col_types = FALSE)
+raw_ms2  <- read_csv("Mispeccified_Lineartest_results2.csv.gz", show_col_types = FALSE)
+summ_ms  <- summarise_sim(raw_ms)
+summ_ms2 <- summarise_sim(raw_ms2)
+
+# - RMSE | |Bias| plots - #
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(filter(summ_ms, misspec, overlap == 1), oc, extra = scale_x_n)))
+
+#Linear from fine grid (5k reps, n up to 5000)
+print(panel(filter(summ_ms2, misspec, overlap == 1), "linear",
+            extra = scale_x_log10(breaks = c(250,500,750,1000,2000,3000,4000,5000),
+                                  labels = c("250","500","750","1k","2k","3k","4k","5k"))))
+
+
+# between balancing plots
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(filter(summ_ms, misspec, overlap == 1), oc,
+                       ests = est_bal, extra = scale_x_n, from_zero = FALSE)))
+
+# - Bias (RMSE) tables — linear from fine grid, quad/exp from main - #
+perf_table(filter(summ_ms, misspec, overlap == 1),
+           top = "bias", bottom = "rmse", digits = 3,
+           group = "outcome", title = "Misspecified (c = 1)")
+
+# - MSE decomposition: estimators × outcome - #
+decomp_plot(filter(summ_ms, misspec, overlap == 1),
+            cols = outcome,
+            title = "MSE Decomposition (%) \u2014 Misspecified (c = 1)")
+
+
+```
+
+As expected, under misspecification balancing methods outperformed RMSE estimates against the MLE approach consistently. Unlike under correct specification, here balancing estimators stay bounded while RMSE for MLE methods increase with n. However, at lower $n$ MLE bias either matches or outperforms balancing estimators before exploding as $n \to \infty$ *(under a linear outcome function bias remains below balancing methods at n=50,000 )*. This reflects the RMSE decomposition, where balancing estimators are bias driven and MLE ones are variance driven with bias increasing with sample size.
+
+Under doubly robust estimators, it would be interesting to see how balancing methods inherent negative bias is accounted for, and if these results change.
+
+Within the balnet package, it seems like under misspeccification alone that setting $\lambda=0$ balnet reaches the optimum truncation point, producing the best results consistently. However, cv.balnet has improved comparitivly to when the model was correctly specified.
+
+#### Balancing vs MLE
+
+- **bal0 RMSE outperforms every feasible estimator in all cells, with one tie:**
+
+- balancing loss function advantage holds under misspecification.
+
+- *in E1 bal0 wins on efficiency (beats the oracle); in E3 it wins on robustness (bounded while MLE diverges, but the misspec bias floor means it no longer consistently beats the oracle\*).*
+
+- *\*still beats oracle under quad1*
+
+- *bal10 edges bal0 in the most variance dominated cell, quad1 n=500 (ahead by 0.002, 0.5 mcse - consistent with simulation noise; resolving it would take \~45k reps). everywhere else bal0 wins outright.*
+
+- **normalised MLE diverges with n under misspecification (K&S amplification); balnet variants stay bounded.**
+
+  - Generally for MLE, RMSE divergence is primarily variance driven. For nonlinear outcomes, bias also grows with n, compounding the divergence.
+
+  - *Divergence form is outcome dependent. Bias explodes for nonlinear outcomes (+1.15 at n=50000 for quad1, +0.38 exp). For linear, divergence is variance driven, bias approaches zero around n=5000 before increasing, and remains below all balnet variants through n=50000.*
+
+  - *In the exponential case, bias only overtakes balnet after n≈10000, while for quadratic MLE bias overtakes balnet earlier around n≈1000.*
+
+  - non normalised MLE explodes, will be excluded from further analysis.
+
+  - **for balancing estimators mispeccification introduced its own bias, seperate from regularization attenuation:** *bal0 bias doesn't vanish under misspec (Linear worsens, -0.18 → −0.21, quad1 improves −0.10 → −0.04, exp stable at−0.12), where for correctly specified* *bal0 → 0.*
+
+- **MLE RMSE is primarily variance driven while balancing estimator RMSE is bias driven**
+
+#### Within Balancing
+
+- **For balancing estimators, larger λ means larger rmse: bal0 wins in every cell\***
+
+  - varience reduction from increasing $\lambda$ is small, effect on RMSE is outweighed by increase in bias.
+
+    - \**exception is with a quadratic outcome at n=500, where bal10 RMSE* $\approx$ *bal0 RMSE.*
+
+    - *at n=500 for nonlinear outcomes, bal05 bias is* $\approx$ *bal10, but bal10 has slightly less variance from stronger regularization. So bal10 wins. bal0 has meaningfully less bias than both, so it still wins overall.*
+
+- **the criterion cv.balnet uses (balancing loss) fails to select** $\lambda$ **competitive against optimal** $\lambda$ **path endpoint.**
+
+  - cv.balnet's $\lambda_{cv}$ shrinks toward the path endpoint as n grows under misspec, unlike under correct spec where $\lambda_{cv}$ is independent of n.
+
+  - still outperforms MLE estimators.
+
+  - worse than bal05 at small n, improves with large n but doesnt approach bal0.
+
+- **regularisation is cheaper when the model is mispeccified.**
+
+  - under correct specification, doubling λ roughly doubled the bias cost *(the gap between bal05 and bal0 was predictable from the KKT bound)*. under misspecification, the same λ increase costs less bias.
+
+## Misspeccification + Overlap
+
+```{r}
+# ── Misspecification + Overlap ──
+raw_mo   <- bind_rows(read_csv("E2_results.csv.gz"),
+                      read_csv("OVERLAP+MISSPECCIFICATION_results.csv.gz"))
+summ_mo  <- summarise_sim(raw_mo)
+ov_ax    <- c(0.25, 0.5, 0.75, 1)
+mo_ms    <- filter(summ_mo, misspec, overlap %in% ov_ax)
+ov_extra <- list(scale_x_reverse(breaks = ov_ax), facet_wrap(~n, nrow = 1, labeller = lab_n))
+ov_extra_free <- list(scale_x_reverse(breaks = ov_ax),
+                      facet_wrap(~n, nrow = 1, labeller = lab_n, scales = "free_y"))
+
+#- | |Bias| vs overlap plot #
+
+walk(c("linear","quad1","exp"), \(oc) print(panel(mo_ms, oc, x = overlap, extra = ov_extra)))
+
+#balnet only
+#| fig-width: 14
+walk(c("linear","quad1","exp"), \(oc) print(
+  panel(mo_ms, oc, x = overlap, ests = est_bal, from_zero = FALSE,
+        extra = ov_extra, compact = TRUE)))
+
+
+#  RMSE/bias performance tables - #
+perf_table(filter(summ_mo, misspec, overlap %in% ov_ax),
+           cols = c("overlap","n"), group = "outcome", title = "Misspecified")
+
+
+
+# - MSE decomposition — #
+walk(c("linear","quad1","exp"), \(oc) print(
+  decomp_plot(filter(summ_mo, misspec, outcome == oc) |> mutate(overlap = as_c(overlap)),
+              cols = overlap,
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc], "(Misspecified)"))))
+
+#---- ΔRMSE (misspec − correct) ----#
+delta_mo <- delta_ms(summ_mo) |> filter(overlap %in% ov_ax)
+
+# ΔRMSE plot (n = 5000)
+line_plot(filter(delta_mo, n == 5000) |> mutate(outcome = factor(outcome, names(oc_labs), oc_labs)),
+          d_rmse, "\u0394RMSE (misspec \u2212 correct)", x = overlap, from_zero = FALSE) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.4) +
+  scale_x_reverse(breaks = ov_ax) + facet_wrap(~outcome)
+
+
+# ΔRMSE table (misspec − correct), n = 5000 
+delta_rmse(summ_mo) |>
+  filter(n == 5000) |>
+  mutate(estimator = factor(lab_est[estimator], levels = lab_est[est_main]),
+         outcome   = factor(outcome, names(oc_labs), oc_labs)) |>
+  select(outcome, overlap, estimator, delta) |>
+  pivot_wider(names_from = estimator, values_from = delta) |>
+  arrange(outcome, desc(overlap)) |>
+  gt(groupname_col = "outcome", rowname_col = "overlap") |>
+  tab_header(title = md("\u0394RMSE (misspecified \u2212 correct), n = 5,000")) |>
+  tab_stubhead(label = "c") |>
+  fmt_number(decimals = 3) |>
+  cols_align("center")
+
+
+# |Bias| and SD vs overlap: Correct vs Misspecified (n = 5000)
+spec_grid(summ_mo)
+
+
+
+# Extreme estimates
+summ_mo |> filter(misspec) |>
+  mutate(type = if_else(grepl("balnet", estimator), "Balancing", "MLE")) |>
+  group_by(type) |>
+  summarise(extreme = sum(n_extreme), total = sum(m), pct = round(100 * extreme / total, 2))
+```
+
+As expected, misspecification and overlap compound, and MLE methods are considerably outperformed by balancing methods. MLE RMSE increases substantially, while the balancing estimators remain mostly flat.
+
+Under misspecification with imperfect overlap, balnet's attenuation bias is the cost of stability: RMSE stays bounded and improves with n, while MLE diverges significantly.
+
+between methods, balancing protects against MLE's divergence. Within balnet, λ is a bias–variance dial where less is better except in situations with small n and weak overlap, where cv.balnet shines. In large samples, its bias floor is too high.
+
+**Between Methods (MLE vs Balancing)**
+
+- **RMSE: Balancing consistently outperforms MLE at degraded overlap.**
+  - For MLE, increases in $n$ and decreases in $c$ degrade RMSE across all outcomes; for balancing, increases in $n$ reduce RMSE.
+  - **Strong overlap shields MLE from misspecification.** At $c = 2, n \geq 1000$, MLE only loses to bal0 under linear and exponential outcomes, at quadratic it loses to all *(potentially intestesting to see at higher C).*
+  - Balancing RMSE gradients across $c$ are smooth and stable across $n$ (intercept shifts down; effect varies by outcome complexity). MLE gradients are jagged and inconsistent across $n$.
+  - Divergence between methods is clearest under quadratic, then exponential outcomes.
+  - Under linear outcomes, the balancing slope across $c$ decreases noticeably with $n$, and intercept reductions are smaller.
+- **BIAS: MLE is generally less biased than balancing when** $n \leq 5000$, with exceptions:
+  - *Linear:* at $n = 500$, bal0 and bal05 less biased at $c = 0.25$. At $n = 5000$, bal0 less biased at $c = 0.50$ (not $c = 0.25$).
+  - *Quadratic:* at $n = 1000$, MLE only less biased at $c \leq 0.25$; all balancing less biased at $c \geq 0.50$. At $n = 5000$, MLE more biased than all balancing at all degraded overlap.
+  - *Exponential:* at $n = 5000$, MLE more biased than all balancing at all degraded overlap.
+  - *Motivation for AIPW to correct balancing estimators' native bias.*
+
+<!-- -->
+
+- **Decomp:** RMSE for balancing estimators are overwhelmingly more bias driven than MLE estimators. However, RMSE decompositions are effected heavily by **outcome complexity.**
+
+  - For balancing estimators, RMSE becomes increasingly variance-driven as linear \> exp \> quadratic.
+
+  - For MLE, this ordering holds at small $n$ but reverses at $n=5000$ when it begins to converge to the wrong $\tau$ (quadratic most bias-driven, linear least).
+
+  - MLE is mostly variance-driven at $c < 2$ from $n \geq 1000$; at $c=2$ predominantly bias-driven for linear.
+
+- MLE produces 51 extreme IPW estimates *(concentrated around quadratic outcomes and weak overlap, likely due to inversion)*, balancing methods produce 0. Where an extreme estimate $|\hat{\tau}| > 10$ *(no need for ad hoc weight trimming or truncation for balnet)*
+
+- **Effect of mispeccification compounds at lower overlap levels for both methods, but the interaction is substantially worse for MLE. (delta = RMSEmispec - RMSEcorrect)**
+
+  - MLE delta increases substantially as overlap weakens. (max at delta = 2.45 for quadratic outcome).
+
+    - *interaction effect grows with n for MLE, weak overlap accelerates K&S divergence . (eg: quad1 c=0.5: delta = 0.50 → 1.38 → 2.45 across n=500/1000/5000).*
+
+    - *with strong overlap (c=2) divergence is mostly suppressed when mispeccified for linear and exponential outcomes.*
+
+    - *compounding is clear for quadratic and linear outcomes; for exponential direction and ranking are clear, but the interaction is within MC noise (MCSE ≈ 0.13). Morris, White & Crowther (2019,* *Statistics in Medicine)*
+
+  - balancing estimators stay bounded, and flat near 0. (max at delta = 0.34 with linear outcome). the small interaction that exists is balnets misspec residual bias growing as overlap weakens.
+
+    - *Decomposing RMSE² into bias² + variance: misspecification shifts SD by at most 0.025 for bal0/bal05 — the penalty is almost entirely bias. balnetcv is the exception: SD falls under misspec as CV selects heavier λ, trading variance for bias.*
+
+- **Within balnet, less regularization wins: bal0 is best in 36/45 cells; CV's λ is optimal where variance dominates**.
+
+  - **balcv wins 6/45 cells:** weak overlap and low n for non linear outcomes (c≤0.5, n≤1000) These settings make CV's heavy shrinkage the right bias-variance trade. Otherwise, CV imposes an unnecessary bias floor.
+
+  - **Path truncation for bal0 and bal05.** balnet0 = balnet05 exactly in 99.5% of reps at c=0.25/n=500 and 76.5% at n=1000. the path truncates above λ=0.05, as overlap is too weak to support that level of balance.
+
+***notes:***
+
+- ***reassess including bal10, does bal10 outperform balcv?***
+
+*MSCE/simulation noise*
+
+- *balnet estimates are clean everywhere (max relative MCSE 2.6%). no interaction cell falls below z=3. all rankings, signs, and gradients are stable.*
+
+- *glm_hj point estimates are imprecise in misspec tails (rel MCSE up to 36%), but direction and ranking against balnet are never threatened — the gap between methods dwarfs the noise.*
+
+## High Dimensionality
+
+```{r}
+# ── Dimensionality: correct spec, p/n sweep (c = 1) ──
+dfm <- bind_rows(read_csv("DimensionalityLinearDGP1.csv.gz"),
+                 read_csv("DimensionalityQuadDGP1.csv.gz"),
+                 read_csv("DimensonalityexpMACdgp1.csv.gz"))
+summ_dim  <- summarise_sim(dfm) |> mutate(pn = round(p/n, 2))
+dim_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "p/n"))
+
+# RMSE | |Bias| vs p/n, faceted by n — all, then BalNet-only
+walk(c("linear","quad1","exp"), \(oc) print(
+  panel(summ_dim, oc, x = factor(pn), extra = dim_extra)))
+
+
+#- table - #
+perf_table(summ_dim, cols = c("pn","n"),
+           span_lab = \(x) paste0("p/n = ", x), span_desc = FALSE,
+           group = "outcome", title = "Dimensionality (c = 1)")
+
+
+#- MSCE decomp -#
+walk(c("linear","quad1","exp"), \(oc) print(
+  decomp_plot(filter(summ_dim, outcome == oc),
+              x = pn, cols = n, xlab = "p/n",
+              x_scale = scale_x_log10(breaks = c(0.1, 0.5, 1, 2)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc]))))
+```
+
+As expected, balancing estimators (using the balnet package) are more robust to high-dimensionality than MLE estimation. Bal0 ($\lambda_{min} = 0$) is still the best performing estimator.
+
+Under high dimensionality, Bal05 performs similarly to Bal0, especially in low sample sizes. Increases in sample size increase the edge bal0 has over bal05 and other balancing estimators.
+
+The stability of bal10, and that bal0 and bal05 converge toward it, suggest that the feasible $\lambda_{endpoint}$ converges to $\lambda \leq 0.1$ as $p/n$ increases. Balnet.cv consistently selects $\lambda$ higher than this, and performs similarly to the normalized MLE estimator (glmnet.cv).
+
+These results support that the balnet.cv cross validation criterion *(out-of-sample covariate balancing loss)* is suboptimal.
+
+**1: Bal0 is still the strongest estimator\***,
+
+- loses its edge in lower samples, where $n=500$ bal0 converges with bal05 by $p/n =.5$ , and $p/n = 1$ when $n=1000$.
+
+  - these are the two estimators the with the least bias dominated RMSE.
+
+    - *bal05 consistently beats glm.*
+
+    - **for all estimators,** RMSE becomes more bias driven as $p/n$ increases. glmnet/bal10 are the most bias dominated estimators, and start off almost completely bias dominated in linear specifications.
+
+- as $p/n$ increases bal0 loses its efficiency against the normalized oracle as regularisation binds bal0's allowed balance level, $\lambda$, higher. efficiency result survives for quadratic specifications.
+
+  - *now loses to the normalized oracle under linear specifications when* $p/n \ge 1$*. it also loses to the normalized oracle under exponential specifications at* $n=1000$ *and* $p/n = 2$*, at* $p/n = 1$ *they approximately tie.*
+
+**2: bal10 has stable variance and bias across all** $p/n$ **levels.**
+
+- bal10's bias is stable across $p/n$ as KKT conditions bound the maximum covariate imbalance to $\lambda=.1$ (Sverdrup and Hastie 2026, eq. 10).
+
+- bal10's flatness and that bal0 and bal05 converge towards it as $p/n$ increases, indicating the feasible $\lambda_{endpoint}$ converges with $p/n$ increases to somewhere close (but below) $\lambda = .1$ *(can log regularisation path in future to determine where).*
+
+  - for all $p/n ≥ 1$ the $\lambda_{endpoint}$ exceeds 0.05, so bal05 and bal0 produce identical estimates.
+
+**3: at** $p/n \ge 0.5$ **Balnet.cv and MLE and are consistently the worst performers.** their comparitve performance depends on outcome complexity.
+
+- balcv degrades *faster* than glmnet as p grows and crosses below glm_hj . The loss function survives dimensionality, but the CV rule doesn't. **strong evidence against balnet.cv.**
+
+  - at $p/n$ = 0.1, balcv still outperforms bal10 and glm.
+
+    - *CV still adapts at p/n = 0.1 but detaches by p/n = 0.5. **FUTURE:** logging λ_cv across the path will map the transition.*
+
+- Under high dimensionality, once $p/n = 1$ MLE outperforms balnet.cv decicivly for linear and moderatly for quadratic outcomes, approximatley tied under exponential outcomes.
+
+- increases in $n$ reduce their variance, causing them to converge towards bal10.
+
+**4: larger samples reduces\* RMSE for all estimators across all** $p/n$
+
+- \*for bal10, variance reduces with $n$ while bias slightly increases. RMSE is also flat across the linear specification where RMSE is constantly $\approx$ 0.25 .
+
+**5: outcome complexity effects bias/RMSE differently.**
+
+- **exponential:** reduces bias/RMSE for all estimators *(the one exception is bal0 at* $p/n =$ *.1)* , ranking remains the same.
+
+- **quadratic:** increases RMSE at low $p/n$, but **reduces it for the most biased estimators (balcv, glm) at high** $\mathbf{p}/\mathbf{n}$, where the bias reduction outweighs the higher outcome variance.
+
+  - *at* $n=1000$ *bal.cv equivelent to glm.cv but loses to bal10 at* $p/n = .5$
