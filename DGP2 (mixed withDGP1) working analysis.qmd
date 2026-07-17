@@ -1,0 +1,732 @@
+---
+title: "Working Analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+
+library(dplyr)
+library(tidyr)      # pivot_wider/longer
+library(ggplot2)
+library(patchwork)  # (l | r) panels
+library(gt)
+library(scales)     # percent labels
+library(tibble)     # tribble (lam_meta)
+
+# pin dplyr verbs against masking (MASS, stats, etc.)
+select <- dplyr::select
+filter <- dplyr::filter
+
+options(readr.show_col_types = FALSE)
+
+
+# ============================================================================
+# analysis_setup_patch.R
+# PART A: replace the matching blocks in the existing setup (sections 1-2).
+# PART B: append as new sections 11-16.
+# Every existing figure/table call (E1-E5 scripts) runs unchanged on old AND
+# new files; the new logging columns are only touched by sections 11-16.
+# ============================================================================
+
+# ── A0. New DGP logs diagnostics as rows of `estimator`; name them once ──
+diag_stats <- c("lam_balcv1","lam_balcv0","lam_end1","lam_end0","lam_glmcv",
+                "trunc05","nnz_balcv1","nnz_balcv0","nnz_glm",
+                "smd1_05","smd0_05","smd1_cv","smd0_cv","err")
+
+# ── A1. Section 1 replacement: summarise_sim ──
+# Changes, all no-ops on old files:
+#   (i)   diagnostic rows dropped — never summarised as estimators
+#   (ii)  s, strength join the default `by` (intersect() drops them when the
+#         columns are absent, so old summaries are identical)
+#   (iii) n_extreme gains na.rm = TRUE (old files screened at 0 NAs)
+#   (iv)  new n_na column for the NA screen; bias/empse/rmse still propagate
+#         NA loudly by design — screen first, as usual
+summarise_sim <- function(data,
+                          by = c("n","p","s","misspec","covcor","outcome",
+                                 "overlap","signs","strength","estimator")) {
+  by <- intersect(by, names(data))
+  data |>
+    filter(!estimator %in% diag_stats) |>
+    group_by(across(all_of(by))) |>
+    summarise(
+      m          = dplyr::n(),
+      bias       = mean(tau_hat),
+      empse      = sd(tau_hat),
+      rmse       = sqrt(mean(tau_hat^2)),
+      mcse_bias  = empse / sqrt(m),
+      mcse_empse = empse / sqrt(2 * (m - 1)),
+      mcse_rmse  = sd(tau_hat^2) / (2 * rmse * sqrt(m)),
+      n_extreme  = sum(abs(tau_hat) > 10, na.rm = TRUE),
+      n_na       = sum(is.na(tau_hat)),
+      .groups    = "drop"
+    )
+}
+
+# ── A2. Section 2 replacement: label map + palette gain balnetrate ──
+# est_main / est_bal untouched, so every existing call renders identically.
+lab_est <- c(balnet0="BalNet (\u03bb=0)", balnet05="BalNet (\u03bb=.05)",
+             balnet10="BalNet (\u03bb=.10)", balnetcv="BalNet (CV)",
+             balnetrate="BalNet (\u221a(log p/n))",
+             glmcv_normal="GLM (Hajek)", glmnetcv="GLMNet (CV)",
+             normalised_oracle="Norm. Oracle", oracle="oracle")
+pal_est <- c(balnet0="#009E73", balnet05="#56B4E9", balnet10="#E69F00",
+             balnetcv="#0072B2", balnetrate="#D55E00",
+             glmcv_normal="#B22222", glmnetcv="#CC79A7",
+             normalised_oracle="grey55", oracle="#404040")
+est_main <- c("balnet0","balnet05","balnet10","balnetcv","glmcv_normal")
+est_bal  <- c("balnet0","balnet05","balnet10","balnetcv")
+est_rate <- c("balnet0","balnetcv","balnetrate","glmcv_normal")  # rate-\u03bb contrast
+
+lab_signs <- c(ks = "K&S (+,\u2212,+,+)", pos = "All positive", mixed = "Alternating")
+
+# Sections 3-10 unchanged.
+
+# ── 3. Shared theme + reusable scale/facet pieces ──
+theme_sim <- theme_minimal(base_size = 12) +
+  theme(legend.position  = "bottom",
+        legend.title     = element_blank(),
+        strip.background = element_rect(fill = "grey90", colour = NA),
+        strip.text       = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        axis.text.x      = element_text(angle = 45, hjust = 1))
+
+scale_x_n <- scale_x_log10(breaks = c(500,1000,5000,10000,50000),
+                           labels = c("500","1k","5k","10k","50k"))
+as_c   <- function(x) factor(paste0("c = ", x),
+                             levels = paste0("c = ", sort(unique(x), decreasing = TRUE)))
+lab_n  <- as_labeller(\(x) paste0("n = ", format(as.numeric(x), big.mark = ",")))
+n_lab  <- c("100"="100","200"="200","250"="250","400"="400",
+            "500"="500","750"="750","800"="800",
+            "1000"="1k","2000"="2k","3000"="3k","4000"="4k","5000"="5k",
+            "10000"="10k","50000"="50k")
+oc_labs <- c(linear = "Linear", quad1 = "Quadratic", exp = "Exponential")
+
+
+# ── 4. Core line plot: metric vs x, coloured by estimator ──
+# y/ylab + x + ests are arguments; x-scale and facets are appended by the caller.
+line_plot <- function(data, y, ylab, x = n, ests = est_main, from_zero = TRUE) {
+  ests <- intersect(names(lab_est), ests)                 # canonical order, no ghost keys
+  p <- data |>
+    filter(estimator %in% ests) |>
+    ggplot(aes({{ x }}, {{ y }}, colour = estimator, group = estimator)) +
+    geom_line(linewidth = 0.7) + geom_point(size = 1.8) +
+    scale_colour_manual(values = pal_est, breaks = ests,
+                        labels = \(b) unname(lab_est[b])) +
+    labs(y = ylab, colour = NULL) + theme_sim
+  if (from_zero) p + expand_limits(y = 0) else p
+}
+
+# ── 5. Twin panel: RMSE | |Bias|, one shared legend ──
+panel <- function(data, oc, x = n, ests = est_main, extra = NULL,
+                  title = oc_labs[oc], from_zero = TRUE, compact = FALSE) {
+  d <- filter(data, outcome == oc)
+  drop0 <- \(x) sub("^(-?)0\\.", "\\1.", x)
+  yl <- if (compact) NULL else "RMSE"
+  yr <- if (compact) NULL else "|Bias|"
+  l <- line_plot(d, rmse,      yl, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  r <- line_plot(d, abs(bias), yr, x = {{ x }}, ests = ests, from_zero = from_zero) + extra +
+    theme(legend.position = "none")
+  if (compact) {
+    l <- l + ggtitle("RMSE") + scale_y_continuous(labels = drop0)
+    r <- r + ggtitle("|Bias|") + scale_y_continuous(labels = drop0)
+  }
+  (l | r) + plot_layout(guides = "collect") +
+    plot_annotation(title = title) & theme(legend.position = "bottom")
+}
+
+# ── 6. MSE decomposition: Bias² / Variance share, stacked area ──
+pal_comp <- c("Variance" = "#377eb8", "Bias\u00b2" = "#e41a1c")
+
+decomp_plot <- function(data, ests = est_main, x = n, cols = outcome,
+                        x_scale = scale_x_n, xlab = "n",
+                        col_lab = labeller(outcome = oc_labs, n = lab_n),
+                        title = NULL) {
+  keep <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% keep) |>
+    mutate(denom    = bias^2 + empse^2,
+           bias_sq  = bias^2  / denom,
+           variance = empse^2 / denom,
+           estimator = factor(lab_est[estimator], levels = lab_est[keep])) |>
+    pivot_longer(c(variance, bias_sq), names_to = "component", values_to = "share") |>
+    mutate(component = factor(component, c("variance","bias_sq"),
+                              c("Variance","Bias\u00b2"))) |>
+    ggplot(aes({{ x }}, share, fill = component)) +
+    geom_area() +
+    facet_grid(rows = vars(estimator), cols = vars({{ cols }}), switch = "y",
+               labeller = col_lab) +
+    x_scale +
+    scale_y_continuous(breaks = c(1), labels = scales::percent) +
+    scale_fill_manual(values = pal_comp) +
+    labs(x = xlab, y = "Share of MSE", fill = NULL, title = title) +
+    theme_sim +
+    theme(strip.text.y.left = element_text(angle = 0))
+}
+
+# ── 7. Performance table: estimators × design columns, ordered by mean metric ──
+# cols="n" → flat.  cols=c("overlap","n") → c-spanners.
+# group="outcome" → stacks all outcomes in one table with row groups.
+perf_table <- function(data, ests = est_main, cols = "n",
+                       top = "rmse", bottom = "abs_bias",
+                       digits = 2, order_by = "rmse",
+                       lab = lab_est, n_lab_tbl = n_lab,
+                       span_lab = \(x) paste0("c = ", x), span_desc = TRUE,
+                       title = "", subtitle = NULL,
+                       group = NULL, group_lab = oc_labs) {
+  stopifnot(length(cols) %in% 1:2,
+            c(top, bottom, order_by) %in% c("rmse","bias","abs_bias","empse"))
+  keep <- intersect(names(lab), ests)
+  cvar <- cols[length(cols)]
+  svar <- if (length(cols) == 2L) cols[[1]] else NULL
+  pm   <- c(rmse="RMSE", bias="Bias", abs_bias="|Bias|", empse="EmpSE")
+  f    <- paste0("%.", digits, "f")
+  grp  <- !is.null(group)
+  
+  d <- data |> filter(estimator %in% keep) |> mutate(abs_bias = abs(bias)) |> mutate(
+    Estimator = factor(unname(lab[estimator]), levels = unname(lab[keep])),
+    cell = sprintf(paste0(f, "<br><small>(", f, ")</small>"), .data[[top]], .data[[bottom]]),
+    avg  = ave(.data[[order_by]], estimator, FUN = mean),
+    .col = if (is.null(svar)) paste0(cvar, "=", .data[[cvar]])
+    else paste0(svar, "=", .data[[svar]], "|", cvar, "=", .data[[cvar]]))
+  if (grp) d <- mutate(d, Group = factor(group_lab[.data[[group]]], levels = group_lab))
+  
+  cv  <- sort(unique(d[[cvar]]))
+  sv  <- if (is.null(svar)) NULL else sort(unique(d[[svar]]), decreasing = span_desc)
+  key <- if (is.null(svar)) paste0(cvar, "=", cv)
+  else c(t(outer(sv, cv, \(s, c) paste0(svar, "=", s, "|", cvar, "=", c))))
+  
+  id_vars <- c(if (grp) "Group", "Estimator", ".col", "cell", "avg")
+  wide <- d |> distinct(across(all_of(id_vars))) |>
+    pivot_wider(names_from = .col, values_from = cell)
+  wide <- if (grp) arrange(wide, Group, avg) else arrange(wide, avg)
+  present <- intersect(key, names(wide))
+  wide <- wide |> select(any_of("Group"), Estimator, all_of(present))
+  
+  inner_lab <- \(x) { x <- sub("^[^=]*=", "", sub(".*\\|", "", x))
+  if (is.null(n_lab_tbl)) x else unname(ifelse(x %in% names(n_lab_tbl), n_lab_tbl[x], x)) }
+  
+  g <- if (grp) gt(wide, groupname_col = "Group") else gt(wide)
+  g <- g |> tab_header(title = title,
+                       subtitle = md(subtitle %||% paste0(pm[[top]], " (", pm[[bottom]], ")")))
+  for (s in sv) g <- tab_spanner(g, span_lab(s), starts_with(paste0(svar, "=", s, "|")))
+  g |>
+    cols_label_with(all_of(present), inner_lab) |>
+    fmt_markdown(all_of(present)) |> cols_align("center", all_of(present)) |>
+    tab_style(cell_text(weight = "bold"), cells_body(Estimator)) |>
+    opt_table_lines("default") |>
+    tab_source_note(md(sprintf("_Top %s / bottom %s; sorted by mean %s._",
+                               pm[[top]], pm[[bottom]], pm[[order_by]])))
+}
+
+
+# ── 8. Convergence / path-truncation table ──
+# % reps where ALL selected estimators coincide (range < tol).
+# k=2: bal0 ≡ bal05.  k≥3: full-path collapse.  Raw replicates, not summaries.
+converge_table <- function(data, ests, by = c("overlap","n"),
+                           cols = by[length(by)], tol = 1e-9,
+                           outcome_name = NULL, overlap_vals = NULL,
+                           n_lab_tbl = n_lab, title = NULL) {
+  stopifnot(length(ests) >= 2, length(cols) == 1, cols %in% by)
+  d <- filter(data, estimator %in% ests,
+              if (is.null(outcome_name)) TRUE else outcome == outcome_name,
+              if (is.null(overlap_vals)) TRUE else overlap %in% overlap_vals)
+  
+  wide <- d |>
+    group_by(across(all_of(c(by, "sim")))) |>
+    summarise(hit = (max(tau_hat) - min(tau_hat)) < tol, .groups = "drop") |>
+    group_by(across(all_of(by))) |>
+    summarise(pct = sprintf("%.1f%%", mean(hit) * 100), .groups = "drop") |>
+    pivot_wider(names_from = all_of(cols), values_from = pct, names_prefix = paste0(cols, "="))
+  
+  ord  <- grep(paste0("^", cols, "="), names(wide), value = TRUE)
+  ord  <- ord[order(as.numeric(sub(".*=", "", ord)))]
+  wide <- select(wide, all_of(setdiff(by, cols)), all_of(ord))
+  if ("overlap" %in% names(wide)) names(wide)[names(wide) == "overlap"] <- "c"
+  
+  g <- gt(wide)
+  if (!is.null(title)) g <- tab_header(g, title = md(title))
+  g |>
+    cols_label_with(all_of(ord), \(x) { v <- sub(".*=", "", x)
+    if (is.null(n_lab_tbl)) v else unname(ifelse(v %in% names(n_lab_tbl), n_lab_tbl[v], v)) }) |>
+    cols_align("center")
+}
+
+# ── 9. Misspecification helpers ──
+# ΔRMSE and Δ|Bias| = misspecified − correct at matching (n, outcome, overlap, estimator).
+delta_ms <- function(summ, ests = est_main) {
+  summ |>
+    filter(estimator %in% ests) |>
+    mutate(absbias = abs(bias)) |>
+    select(n, outcome, overlap, estimator, misspec, rmse, absbias) |>
+    pivot_wider(names_from = misspec, values_from = c(rmse, absbias)) |>
+    mutate(d_rmse = rmse_TRUE - rmse_FALSE,
+           d_bias = absbias_TRUE - absbias_FALSE)
+}
+
+delta_rmse <- function(summ, ests = est_main)
+  delta_ms(summ, ests) |> transmute(n, outcome, overlap, estimator, delta = d_rmse)
+
+# §9 — compact ΔRMSE | Δ|Bias| twin, faceted by n, walked over outcomes
+delta_panel <- function(data, oc, ests = est_main, ov = c(0.25, 0.5, 0.75, 1),
+                        title = oc_labs[oc]) {
+  drop0 <- \(x) sub("^(-?)0\\.", "\\1.", x)
+  d <- filter(data, outcome == oc, overlap %in% ov)
+  shared <- list(
+    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.4),
+    scale_x_reverse(breaks = ov),
+    facet_wrap(~n, labeller = lab_n),
+    scale_y_continuous(labels = drop0))
+  l <- line_plot(d, d_rmse, NULL, x = overlap, ests = ests, from_zero = FALSE) +
+    ggtitle("\u0394RMSE") + shared + theme(legend.position = "none")
+  r <- line_plot(d, d_bias, NULL, x = overlap, ests = ests, from_zero = FALSE) +
+    ggtitle("\u0394|Bias|") + shared + theme(legend.position = "none")
+  (l | r) + plot_layout(guides = "collect") +
+    plot_annotation(title = title) & theme(legend.position = "bottom")
+}
+
+# Style-(a): |Bias| and SD vs overlap, coloured by specification (Correct vs Misspecified).
+spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75, 1, 2)) {
+  ests <- intersect(names(lab_est), ests)
+  data |>
+    filter(estimator %in% ests, n == at_n, overlap %in% ov) |>
+    pivot_longer(c(bias, empse), names_to = "metric") |>
+    mutate(metric    = factor(metric, c("bias","empse"), c("|Bias|","SD")),
+           spec      = ifelse(misspec, "Misspecified", "Correct"),
+           estimator = factor(lab_est[estimator], levels = lab_est[ests]),
+           outcome   = factor(outcome, names(oc_labs), oc_labs)) |>
+    ggplot(aes(overlap, abs(value), colour = spec)) +
+    geom_line() + geom_point(size = 1.5) +
+    facet_grid(metric ~ estimator + outcome, scales = "free_y") +
+    scale_x_continuous(breaks = c(0.25, 0.5, 1, 2), labels = c(".25", ".5", "1", "2")) +
+    scale_colour_manual(values = pal_spec) +
+    labs(x = "Overlap (c)", y = NULL, colour = NULL) +
+    theme_bw(base_size = 10) +
+    theme(legend.position = "bottom",
+          strip.text.x = element_text(size = 7),
+          axis.text.x  = element_text(angle = 45, hjust = 1, size = 7))
+}
+
+
+# ── 10. Extreme-estimate heatmap: reps with |tau_hat| > 10, overlap × n, faceted by outcome ──
+# Tile colour + numerator = `est`'s extreme count per cell; denominator = `est`'s total across
+# the whole figure. Labels only where the cell has ≥1 (empty cells left blank).
+extreme_heat <- function(data, est = "glmcv_normal", ov = NULL,
+                         high = "#B22222", title = NULL) {
+  d <- data |>
+    filter(estimator == est, if (is.null(ov)) TRUE else overlap %in% ov)
+  total <- sum(d$n_extreme)                       # est's extreme estimates across the figure
+  cells <- d |>
+    group_by(outcome, n, overlap) |>
+    summarise(extreme = sum(n_extreme), .groups = "drop") |>
+    mutate(fill_val = if_else(extreme > 0, extreme, NA_real_),
+           outcome  = factor(outcome, names(oc_labs), oc_labs),
+           n        = factor(n, sort(unique(n))),
+           overlap  = factor(overlap, sort(unique(overlap), decreasing = TRUE)))
+  ggplot(cells, aes(overlap, n, fill = fill_val)) +
+    geom_tile(colour = "white", linewidth = 0.6) +
+    geom_text(aes(label = if_else(extreme > 0, sprintf("%.0f/%.0f", extreme, total), "")),
+              size = 3) +
+    facet_wrap(~outcome) +
+    scale_fill_gradient(low = "white", high = high, name = "Extreme\n(count)", na.value = "white") +
+    scale_y_discrete(labels = n_lab) +
+    labs(x = "Overlap (c)", y = "n",
+         title = title %||% sprintf("%s: extreme estimates (|\u03c4\u0302| > 10)",
+                                    unname(lab_est[est]))) +
+    theme_sim +
+    theme(panel.grid = element_blank(), legend.position = "right")
+}
+
+# ============================================================================
+# PART B — NEW SECTIONS (\u03bb paths, truncation, SMD/KKT, active set)
+# ============================================================================
+
+# ── 11. Diagnostics infrastructure ──
+# Raw output is long (one row per rep x stat). diag_wide() lifts the
+# diagnostic rows to one row per rep with named columns; as_diag() accepts
+# either form so every helper below can be fed raw replicate data directly.
+design_cols <- c("n","p","s","misspec","covcor","outcome",
+                 "overlap","signs","strength")
+
+diag_wide <- function(data) {
+  id <- intersect(c(design_cols, "sim"), names(data))
+  d  <- filter(data, estimator %in% diag_stats)
+  if (!nrow(d)) stop("no diagnostic rows: file predates the logging DGP")
+  pivot_wider(d, id_cols = all_of(id), names_from = estimator,
+              values_from = tau_hat)
+}
+
+as_diag <- function(data)
+  if (any(diag_stats %in% names(data))) data else diag_wide(data)
+
+# Cell-level summaries: med / q10 / q90 of every logged quantity, plus
+# convergence-failure count and truncation share.
+summarise_diag <- function(data, by = design_cols) {
+  dw <- as_diag(data)
+  by <- intersect(by, names(dw))
+  dw |>
+    group_by(across(all_of(by))) |>
+    summarise(
+      m         = dplyr::n(),
+      n_err     = sum(err == 1, na.rm = TRUE),
+      p_trunc05 = mean(trunc05, na.rm = TRUE),
+      across(matches("^(lam|nnz|smd)"),
+             list(med = \(x) median(x, na.rm = TRUE),
+                  q10 = \(x) quantile(x, .10, na.rm = TRUE, names = FALSE),
+                  q90 = \(x) quantile(x, .90, na.rm = TRUE, names = FALSE))),
+      .groups = "drop"
+    )
+}
+# error screen:  summarise_diag(df) |> filter(n_err > 0)
+
+# ── 12. \u03bb regularisation path / rate tracking ──
+# Median (optional q10-q90 ribbon) of CV-selected \u03bb, attained path-endpoint \u03bb,
+# and glmnet \u03bb.min vs n. Dashed black reference = \u221a(log p / n) (Wager 2024,
+# section 7.2); dotted lines at the fixed-\u03bb marks. Colour = quantity,
+# linetype = arm (CB loss fits one model per arm).
+lam_meta <- tibble::tribble(
+  ~stat,        ~quantity,           ~arm,
+  "lam_balcv1", "CV \u03bb",         "treated",
+  "lam_balcv0", "CV \u03bb",         "control",
+  "lam_end1",   "path endpoint",     "treated",
+  "lam_end0",   "path endpoint",     "control",
+  "lam_glmcv",  "glmnet \u03bb.min", "single fit"
+)
+pal_lam <- c("CV \u03bb" = "#0072B2", "path endpoint" = "#009E73",
+             "glmnet \u03bb.min" = "#B22222")
+lt_arm  <- c(treated = "solid", control = "42", "single fit" = "solid")
+
+lambda_plot <- function(dg, x = n, stats = lam_meta$stat,
+                        ribbon = FALSE, rate = TRUE, ref_fixed = c(.05, .10)) {
+  # rate reference assumes x = n; set rate = FALSE for any other x
+  d <- dg |>
+    pivot_longer(matches("^lam_[a-z0-9]+_(med|q10|q90)$"),
+                 names_to = c("stat", ".value"),
+                 names_pattern = "^(lam_[a-z0-9]+)_(med|q10|q90)$") |>
+    filter(stat %in% stats) |>
+    left_join(lam_meta, by = "stat")
+  p <- ggplot(d, aes({{ x }}, med, colour = quantity, linetype = arm,
+                     group = interaction(quantity, arm)))
+  if (ribbon)
+    p <- p + geom_ribbon(aes(ymin = q10, ymax = q90, fill = quantity,
+                             group = interaction(quantity, arm)),
+                         alpha = .12, colour = NA)
+  if (rate) {
+    rd <- dg |> distinct(across(any_of(design_cols))) |>
+      mutate(med = sqrt(log(p) / n))
+    p <- p + geom_line(data = rd, aes({{ x }}, med), inherit.aes = FALSE,
+                       linetype = "dashed", colour = "black", linewidth = .5)
+  }
+  if (!is.null(ref_fixed))
+    p <- p + geom_hline(yintercept = ref_fixed, linetype = "dotted",
+                        colour = "grey45")
+  p +
+    geom_line(linewidth = .7) + geom_point(size = 1.5) +
+    scale_colour_manual(values = pal_lam) +
+    scale_fill_manual(values = pal_lam, guide = "none") +
+    scale_linetype_manual(values = lt_arm) +
+    scale_y_log10() +
+    labs(y = "\u03bb", colour = NULL, linetype = NULL) + theme_sim
+}
+# dg <- summarise_diag(df)
+# lambda_plot(dg) + scale_x_n +
+#   facet_grid(overlap ~ outcome, labeller = labeller(outcome = oc_labs))
+# CV-\u03bb level vs spread (slow decay vs CV-criterion instability):
+# lambda_plot(dg, stats = c("lam_balcv1","lam_balcv0"), ribbon = TRUE) +
+#   scale_x_n + facet_wrap(~outcome, labeller = as_labeller(oc_labs))
+
+# ── 13. Path-truncation table (positivity diagnostic) ──
+# % reps where the attained endpoint sits ABOVE \u03bb = 0.05 in either arm
+# (trunc05 as logged). Direct replacement for inferring truncation from
+# bal0 = bal05 estimate coincidence (converge_table, section 8, kept for
+# old files).
+trunc_table <- function(data, by = c("overlap","n"), cols = by[length(by)],
+                        outcome_name = NULL, n_lab_tbl = n_lab, title = NULL) {
+  dw <- as_diag(data)
+  by <- intersect(by, names(dw))
+  stopifnot(length(cols) == 1, cols %in% by)
+  d <- dw |> filter(if (is.null(outcome_name)) TRUE else outcome == outcome_name)
+  wide <- d |>
+    group_by(across(all_of(by))) |>
+    summarise(pct = sprintf("%.1f%%", 100 * mean(trunc05, na.rm = TRUE)),
+              .groups = "drop") |>
+    pivot_wider(names_from = all_of(cols), values_from = pct,
+                names_prefix = paste0(cols, "="))
+  ord <- grep(paste0("^", cols, "="), names(wide), value = TRUE)
+  ord <- ord[order(as.numeric(sub(".*=", "", ord)))]
+  wide <- select(wide, all_of(setdiff(by, cols)), all_of(ord))
+  if ("overlap" %in% names(wide)) names(wide)[names(wide) == "overlap"] <- "c"
+  g <- gt(wide)
+  if (!is.null(title)) g <- tab_header(g, title = md(title))
+  g |>
+    cols_label_with(all_of(ord), \(x) { v <- sub(".*=", "", x)
+    if (is.null(n_lab_tbl)) v else unname(ifelse(v %in% names(n_lab_tbl),
+                                                 n_lab_tbl[v], v)) }) |>
+    cols_align("center")
+}
+# trunc_table(df, by = c("overlap","n"), outcome_name = "linear",
+#             title = "P(path endpoint \u03bb > 0.05)")
+
+# ── 14. KKT / attained-imbalance check (balnet eq 10) ──
+# Bound: attained max|SMD| <= \u03bb per arm. Reports the worst gap and the share
+# of reps exceeding the bound by > tol. Gaps <= 0 with slack shrinking in n
+# are the fixed-\u03bb plateau mechanism (imbalance converging up to the ceiling).
+# NB the DGP logs a self-normalised SMD; small positive gaps may reflect that
+# definitional mismatch rather than solver failure — confirm against the raw
+# KKT form before flagging (open item noted in the run script).
+kkt_check <- function(data, tol = 1e-6, by = design_cols) {
+  dw <- as_diag(data)
+  by <- intersect(by, names(dw))
+  dw |>
+    mutate(gap05 = pmax(smd1_05, smd0_05) - 0.05,
+           gapcv = pmax(smd1_cv - lam_balcv1, smd0_cv - lam_balcv0)) |>
+    group_by(across(all_of(by))) |>
+    summarise(m           = dplyr::n(),
+              max_gap_05  = max(gap05, na.rm = TRUE),
+              pct_viol_05 = 100 * mean(gap05 > tol, na.rm = TRUE),
+              max_gap_cv  = max(gapcv, na.rm = TRUE),
+              pct_viol_cv = 100 * mean(gapcv > tol, na.rm = TRUE),
+              .groups = "drop")
+}
+
+# Attained imbalance vs the fixed-\u03bb ceiling: med (q10-q90) of max|SMD| by
+# arm; hline at .05 for at = "05". For at = "cv" the bound varies per rep —
+# read jointly with kkt_check / lambda_plot.
+smd_plot <- function(dg, x = n, at = "05", ribbon = TRUE) {
+  d <- dg |>
+    pivot_longer(matches(paste0("^smd[01]_", at, "_(med|q10|q90)$")),
+                 names_to = c("stat", ".value"),
+                 names_pattern = "^(smd[01]_[a-z0-9]+)_(med|q10|q90)$") |>
+    mutate(arm = ifelse(startsWith(stat, "smd1"), "treated", "control"))
+  yl <- if (at == "05") "attained max |SMD| at \u03bb = .05"
+  else "attained max |SMD| at CV \u03bb"
+  p <- ggplot(d, aes({{ x }}, med, linetype = arm, group = arm))
+  if (ribbon) p <- p + geom_ribbon(aes(ymin = q10, ymax = q90, group = arm),
+                                   alpha = .12, colour = NA)
+  if (at == "05") p <- p + geom_hline(yintercept = .05, linetype = "dotted",
+                                      colour = "grey45")
+  p + geom_line(colour = "#0072B2", linewidth = .7) +
+    geom_point(colour = "#0072B2", size = 1.5) +
+    scale_linetype_manual(values = c(treated = "solid", control = "42")) +
+    labs(y = yl, linetype = NULL) + theme_sim
+}
+
+# ── 15. Active-set size ──
+lab_nnz <- c(nnz_balcv1 = "BalNet CV (treated)",
+             nnz_balcv0 = "BalNet CV (control)",
+             nnz_glm    = "glmnet \u03bb.min")
+nnz_plot <- function(dg, x = n) {
+  d <- dg |>
+    pivot_longer(matches("^nnz_[a-z0-9]+_med$"),
+                 names_to = "stat", values_to = "med") |>
+    mutate(stat = sub("_med$", "", stat))
+  ggplot(d, aes({{ x }}, med, colour = stat, group = stat)) +
+    geom_line(linewidth = .7) + geom_point(size = 1.5) +
+    scale_colour_manual(values = c(nnz_balcv1 = "#0072B2",
+                                   nnz_balcv0 = "#56B4E9",
+                                   nnz_glm    = "#B22222"),
+                        labels = \(b) unname(lab_nnz[b])) +
+    labs(y = "non-zero coefficients", colour = NULL) + the
+```
+
+## AR1: Correct Specification
+
+```{r}
+#| message: false
+#| warning: false
+# ── E1: Correctly specified DGP (strong overlap, c = 1) ──
+df_e1 <- read_csv("ar1GDP1.csv.gz")
+
+summ_e1 <- summarise_sim(df_e1) |> filter(!misspec, overlap == 1)
+est_e1  <- c(est_main, "normalised_oracle")     # 5 main estimators + normalised oracle
+
+# RMSE | |Bias| vs n, per outcome
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(summ_e1, oc, ests = est_e1, extra = scale_x_n)))
+
+
+# RMSE (|Bias|) tables, per outcome
+perf_table(summ_e1, ests = est_e1, group = "outcome", title = "E1: Correctly Specified")
+
+# MSE decomposition (Bias²/Variance share), estimators × outcome (no oracle)
+print(decomp_plot(summ_e1, ests = est_main,
+                  title = "MSE Decomposition (%) \u2014 Correct spec (c = 1)"))
+```
+
+**Balancing vs MLE**
+
+- **Under linear outcomes:** MLE and Set $\lambda \leq .05$ balancing estimators perform better under AR(1) correlation than when iid is assumed, both relatively and in absolute magnitude. Only Balnet (CV) is degraded ie:
+
+  - at n=500 Bal0 estimated RMSE is 0.11, and 0.13 for iid and ar1 respecitvely. for bias, 0.01 vs 0.02.
+
+  - at n=1000 normalized glmnet has RMSE 0.17 vs 0.2 with Bias 0.15 vs .18, ar1 and iid respectively.
+
+  - CVbalnet: n=500, RMSE = 0.28 vs 0.24, Bias 0.25 vs 0.18, ar1 and iid respectively.
+
+  - bal05 $\lambda_{endpoint}$ the same, convergence rate quicker. bal10 $\lambda_{endpoint}$ slightly higher.
+
+  - by n=0,000)GLM (Hajek
+
+  - gains are stronger for balancing estimators relative to MLE (bal05 outperforms MLE up to n=5000).
+
+- **Under quadratic outcomes:** AR(1) correlation degrades, set Set $\lambda \leq .05$ balancing estimators perform better relative to MLE.
+
+  - for bal0 and bal05 RMSE and bias absolute magnitude vs their iid equivilent are only moderately degraded, and could be sampling artifacts.
+
+  - *for bal0, by n=50,000, it slightly outperforms iid \*pending MSCE decomp.*
+
+  - MLE is degraded vs when iid at $n \leq 1000$
+
+- exponential results are effectively the same as under linear outcomes.
+
+## P\>N\>M
+
+```{r}
+# ── Dimensionality: correct spec, p/n sweep (c = 1) ──
+dfm2 <- read_csv("HighDlowM.csv.gz")
+summ_dim2 <- summarise_sim(dfm2) |> mutate(pn = round(p / n, 2))
+dim_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n, scales = "free_y"),
+                  labs(x = "p/n"))
+walk(c("linear", "quad1"), \(oc) print(
+  panel(summ_dim2, oc, x = factor(pn), extra = dim_extra, from_zero = FALSE)))
+
+
+perf_table(summ_dim2, cols = c("pn", "n"),
+           span_lab = \(x) paste0("p/n = ", x), span_desc = FALSE,
+           group = "outcome", title = "Dimensionality (c = 1)")
+
+walk(c("linear", "quad1"), \(oc) print(
+  decomp_plot(filter(summ_dim2, outcome == oc),
+              x = pn, cols = n, xlab = "p/n",
+              x_scale = scale_x_log10(breaks = c(0.5, 1, 2, 10, 20)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc]))))
+```
+
+Findings from n 500 to 1000 extended. minimum feasible $\lambda_{endpoint}$ associated with the balancing bias floor shrinks with $n$. by $p/n$ 20,
+
+#### Between all
+
+- **best estimators, bal0 and bal05,** perform identically across every p/n ration.
+
+  - Bal10 is competitive at n=100. increases in n, decrease the $\lambda_{endpoint}$
+
+- **Balnet. CV is the worst estimator.** MLE and bal.cv perform similarly under low n and high dimensionality. as sample size increases, MLE gains the edge .
+
+- outcome complexity only has effect on magnitude and slope, not ranking.
+
+## DGP2 CORRECT
+
+```{r}
+# ── Sign-pattern robustness (correct spec, c = 1, p = 50) ──
+df_e1   <- read_csv("DGP2correct.csv.gz")
+
+
+summ_e1 <- summarise_sim(df_e1) |> filter(!misspec, overlap == 1)
+est_e1  <- c(est_main, "normalised_oracle")     # 5 main estimators + normalised oracle
+
+# RMSE | |Bias| vs n, per outcome
+walk(c("linear","quad1","exp"),
+     \(oc) print(panel(summ_e1, oc, ests = est_e1, extra = scale_x_n)))
+
+# RMSE (|Bias|) tables, per outcome
+perf_table(summ_e1, ests = est_e1, group = "outcome", title = "E1: Correctly Specified")
+
+# MSE decomposition (Bias²/Variance share), estimators × outcome (no oracle)
+print(decomp_plot(summ_e1, ests = est_main,
+                  title = "MSE Decomposition (%) \u2014 Correct spec (c = 1)"))
+
+
+```
+
+- setting a minimum for $bal.cv$ with `fit_cv <- cv.balnet(X, W, nfolds = 5, max.imbalance = 1e-4)` causes its relative performance to increase, with RMSE crossover happening at a earlier level.
+
+  - Also confirms the $bal0$ bias flor was a tuning artifact, results are consistent with Wagner.
+
+- changes in relative performance are due to overlap changing from sd-normalization.
+
+## EFFECT OF SIGNS
+
+```{r}
+#overlap check
+# e*(X) = {1 + exp(\u03b7 / (c\u00b7sd(\u03b7)))}^{-1},  \u03b7 = \u03a3_{j\u2264s} (\u03c3_j / j) X_j
+sgn <- function(pat, s = 4)
+  switch(pat, ks = c(1,-1,1,1)[1:s], pos = rep(1, s), mixed = rep(c(1,-1), length.out = s))
+
+e_star <- function(X, pat, c = 1, s = 4) {
+  eta <- drop(X[, 1:s, drop = FALSE] %*% (sgn(pat, s) / seq_len(s)))
+  1 / (1 + exp(eta / (c * sd(eta))))
+}
+
+set.seed(1); N <- 1e5
+X <- matrix(rnorm(N * 50), N, 50)          # iid, p = 50, as in the grid
+
+bind_rows(lapply(names(lab_signs), \(sg) {
+  e <- e_star(X, sg, c = 1)
+  tibble(signs = lab_signs[[sg]],
+         sd_index = sd(qlogis(1 - e)),                       # = 1/c exactly
+         min_e = min(e), q01 = quantile(e, .01),
+         q99 = quantile(e, .99), max_e = max(e),
+         p_lt_10 = mean(e < .10), p_gt_90 = mean(e > .90))
+}))
+
+tibble(signs = rep(names(lab_signs), each = N),
+       e     = unlist(lapply(names(lab_signs), \(sg) e_star(X, sg)))) |>
+  mutate(signs = factor(lab_signs[signs], lab_signs)) |>
+  ggplot(aes(e, colour = signs)) + geom_density(linewidth = .7) +
+  labs(x = "true e*(X)", y = "density",
+       title = "Overlap by sign pattern (iid, p = 50, c = 1)") + theme_sim
+```
+
+```{r}
+# ── Sign-pattern robustness (correct spec, c = 1, iid, p = 50) ──
+df_sg <- read_csv("DGP2covsign.csv.gz")                     
+lab_signs <- c(ks = "K&S (+,\u2212,+,+)", pos = "All +", mixed = "Alternating")
+
+summ_sg <- summarise_sim(df_sg) |>
+  filter(signs %in% names(lab_signs)) |>
+  mutate(signs = factor(signs, names(lab_signs), lab_signs))
+est_sg <- c(est_main, "normalised_oracle")
+
+# RMSE | |Bias| vs n, faceted by sign pattern, walked over outcomes
+walk(c("linear","quad1"),
+     \(oc) print(panel(summ_sg, oc, ests = est_sg,
+                       extra = list(scale_x_n, facet_wrap(~signs)))))
+
+# RMSE (|Bias|) table: outcome row-groups, sign spanners over n
+perf_table(summ_sg |> filter(n %in% c(500, 5000,10000, 50000)),
+           ests = est_sg, cols = c("signs","n"), group = "outcome",
+           span_lab = identity, span_desc = FALSE,
+           title = "Sign-pattern robustness: correct spec (c = 1)")
+
+# MSE decomposition: estimators × sign pattern, per outcome
+walk(c("linear","quad1"),
+     \(oc) print(decomp_plot(filter(summ_sg, outcome == oc),
+                             ests = est_main, cols = signs,
+                             title = paste0("MSE Decomposition (%) \u2014 ",                                                               oc_labs[oc], " (c = 1)"))))
+
+
+```
+
+**Bal0's performance is invariant to sign changes,** confirming that exact balancing is insensitive to confounding alignment (the degree to which propensity coefficient signs match outcome coefficient signs).
+
+**For our baseline-covariate sign profiles moving forward, we will use the fully aligned case,** $\bf \sigma = (1,1,....,1)$, where the sign of outcome and propensity score coefficients match perfectly. This is where the normalized MLE's relative performance over balancing is strongest (exception at small $n$, but doesnt change observed crossovers).
+
+- MLE's relative advantage increases with $n$, and at low $n$ its performance gaps are actually the most pronounced.
+
+**balnet.cv** as alignment *increases*, balnetcv improves relative to bal05/bal10 (their bias explodes faster than its own)
+
+- no reason to worry about sign effects again, summarise this all better in the appendix.
+
+- prior results with DGP 1 use (K&S from tan paper).
+
+`DGP2corsignTEST` shows thats under AR(1) correlated covariates these sign can effects generally hold (interaction effects change sign)
+
+## SPARSITY AND SIGNAL 
+
+NOTE: d
