@@ -68,14 +68,18 @@ generate_data = function(n, p, outcome = "linear", misspec = FALSE, covcor = "ii
 
 
 
+# --- Grid ---
 grid <- expand.grid(
-  n       = c(500, 1000, 5000, 10000, 50000),
-  p       = 50,
-  outcome = c("linear", "quad1", "exp"),
-  misspec = TRUE,
-  covcor  = "iid",
-  overlap = 1
+  n        = c(500, 1000),
+  pn_ratio = c(0.1, 1.0),
+  outcome  = c("linear", "exp"),
+  misspec  = TRUE,
+  covcor   = "iid",
+  overlap  = c(0.5, 1)
 )
+
+grid$p <- grid$n * grid$pn_ratio
+
 # --- Simulation Function ---
 
 run_sim = function(n, p, outcome = "linear", misspec = FALSE, covcor = "iid", overlap = 1, num.sim = 1000) {
@@ -122,7 +126,7 @@ out <- list()
 
 for (i in seq_len(nrow(grid))) {
   cat(format(Sys.time()), "| grid", i, "of", nrow(grid), "\n")
-  print(grid[i, ])data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAAbElEQVR4Xs2RQQrAMAgEfZgf7W9LAguybljJpR3wEse5JOL3ZObDb4x1loDhHbBOFU6i2Ddnw2KNiXcdAXygJlwE8OFVBHDgKrLgSInN4WMe9iXiqIVsTMjH7z/GhNTEibOxQswcYIWYOR/zAjBJfiXh3jZ6AAAAAElFTkSuQmCC
+  print(grid[i, ])
   
   results <- run_sim(
     n       = grid$n[i],
@@ -152,13 +156,9 @@ for (i in seq_len(nrow(grid))) {
 stopCluster(cl)
 out.df <- do.call(rbind, out)
 rownames(out.df) <- NULL
-write.csv(out.df, gzfile("Mispeccified_results.csv.gz"), row.names = FALSE)
-
+write.csv(out.df, gzfile("mispec+overlap+dimension.csv.gz"), row.names = FALSE)
 
 str(out.df)
 head(out.df)
 table(out.df$estimator)
 table(out.df$n, out.df$outcome)
-
-
-
