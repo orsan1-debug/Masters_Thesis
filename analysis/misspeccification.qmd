@@ -1,0 +1,253 @@
+---
+title: "MISPECCIFICATION (DGP2 locked, all-positive signs)"
+format: html
+embed-resources: true
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+library(purrr)
+source("Analysis.R")
+
+# DGP2, pos signs, iid, p=50, s=4, c=1, n ∈ {500..50k} × 1000 reps.
+# The two files are seed-shared, so misspec − correct is matched.
+
+res <- if (dir.exists("results")) "results/" else "../results/"
+
+df_e2 <- bind_rows(
+  load_sim(paste0(res, "correctspecDGP2.csv.gz")),
+  load_sim(paste0(res, "misspecDGP2.csv.gz")),
+  .id = "spec"
+) |> mutate(misspec = spec == "2", p = 50)
+
+summ_e2 <- summarise_sim(df_e2)
+est_e2 <- c(est_main, "glmnetcv_ht", "oracle_hajek", "oracle_ht")
+
+# screen: full reps, no NAs, no errors
+stopifnot(all(summ_e2$m == 1000), sum(summ_e2$n_na) == 0, all(df_e2$err == ""))
+```
+
+note# fix cv.loss overflow in run script.
+
+# Correct vs Misspeccified
+
+```{r}
+# RMSE | |Bias| vs n, correct vs misspecified, per outcome
+walk(names(oc_labs), \(oc) print(
+  panel(summ_e2, oc, ests = c(est_main, "oracle_hajek"),
+        extra = list(scale_x_n, facet_wrap(~misspec, labeller = label_both)))))
+
+perf_table(summ_e2, ests = est_e2, cols = c("misspec", "n"), group = "outcome",
+           span_lab = \(s) ifelse(s, "Misspecified", "Correct"), span_desc = FALSE,
+           title = "E2: correct vs misspecified (DGP2, c = 1)")
+
+
+#RMSE DECOMP
+walk(c(FALSE, TRUE), \(ms)
+     print(decomp_plot(filter(summ_e2, misspec == .env$ms), ests = est_main,
+                       title = paste0("MSE decomposition (%) \u2014 ",
+                                      ifelse(ms, "misspecified", "correct")))))
+#extreme values for normalised under misspecc
+summ_e2 |> filter(misspec, n_extreme > 0, estimator == "glmnetcv_hajek") |>
+  select(outcome, n, n_extreme)
+```
+
+\
+
+As expected, under misspecification balancing methods outperformed RMSE estimates against the MLE approach consistently. Unlike under correct specification, here balancing estimators stay bounded while RMSE for MLE methods increase with n. However, at larger $n$ MLE bias either matches or outperforms balancing estimators before exploding under nonlinear outcomes *(under a linear outcome function bias remains below balancing methods at n=50,000 )*. This reflects the RMSE decomposition, where balancing estimators are bias driven and MLE ones are variance driven with bias increasing with sample size.
+
+Under doubly robust estimators, it would be interesting to see how balancing methods inherent negative bias is accounted for, and if these results change.
+
+Within the balnet package, it seems like under misspeccification alone that setting $\lambda=0$ balnet reaches the optimum truncation point, producing the best results consistently. However, cv.balnet has improved comparitivly to when the model was correctly specified.
+
+#### Balancing vs MLE
+
+- **bal0 RMSE outperforms every feasible estimator in all cells, with no ties:**
+
+- balancing loss function advantage holds under misspecification.
+
+- *in E1 bal0 wins on efficiency (beats the oracle); undermisspecification it wins on robustness (bounded while MLE diverges, but the misspec bias floor means it no longer consistently beats the oracle\*).*
+
+  - *bal0 beats the normalized oracle under quad1 only, for n ≤ 1000 (0.182 vs 0.212 at 1k; oracle takes it by 5000, 0.111 vs 0.091, and decisively at 50k, 0.082 vs 0.031).*
+
+- *bal10 no longer edges bal0 anywhere. In the most variance dominated cell, quad1 n=500, bal0 wins outright (0.261 vs 0.559). The all-positive sign pattern lifts the fixed-λ bias ceiling and removes the tie.*
+
+  - *bal0 still beats oracle when* $n \leq 1000$ *for quadratic outcomes*
+
+- **normalised MLE diverges significantly with n under misspecification (K&S amplification); balnet variants stay bounded.**
+
+  - Generally for MLE, RMSE divergence is primarily variance driven. For nonlinear outcomes, bias also grows with n, compounding the divergence.
+
+  - *Divergence form is outcome dependent. Bias explodes for nonlinear outcomes (+0.51 at n=50000 for quad1, +0.09 exp). For linear, divergence is variance driven, bias is still approaching zero at n=50000 (−0.026) and remains below balancing approaches.*
+
+  - *In the exponential case, MLE bias falls below bal0 from n=5000 and stays there through n=50000, while for quadratic MLE bias exceeds balnet at every n, dipping at n=5000 (0.111 vs 0.093) before exploding.*
+
+  - **for balancing estimators mispeccification introduced its own bias, seperate from regularization attenuation:** *bal0 bias doesn't vanish under misspec (Linear worsens, -0.18 → −0.21, quad1 improves −0.15 → −0.08, exp stable at −0.14), where for correctly specified* *bal0 → 0.*
+
+- **MLE RMSE is primarily variance driven while balancing estimator RMSE is bias driven** *(at n=50000, bias² is 93–100% of MSE for balnet variants against 1–10% for MLE). Exception for cv.balnet, which has large variance component, and balnet(pathfloor)*
+
+- glmnet extreme values rise with n, appearing for quadratic outcomes and once for exponential at n=50000. no extreme values for balnet.
+
+#### Within Balancing
+
+- **For balancing estimators, larger λ means larger rmse: bal0 wins in every cell**
+
+  - varience reduction from increasing $\lambda$ is small, effect on RMSE is outweighed by increase in bias.
+
+    - *the quadratic n=500 exception is gone: bal05 and bal10 bias are now clearly separated (−0.336 vs −0.530), so the stronger regularisation no longer buys a variance discount large enough to compete.*
+
+- **the criterion cv.balnet uses (balancing loss) fails to select** $\lambda$ **competitive against optimal** $\lambda$ **path endpoint.**
+
+  - *with* $\lambda$ now logged, cv.balnet's $\lambda_{cv}$ does **not** shrink toward the path endpoint faster under misspecification: median $\lambda_{cv}$ runs 0.0093 → 0.0056 correctly specified and 0.0093 → 0.0054 misspecified, against $\lambda_{endpoint}$ = 1e-4 throughout. Its relative improvement comes from bal05's bias worsening, not from better selection.
+
+  - still outperforms MLE estimators.
+
+  - worse than bal05 at small n, improves with large n but doesnt approach bal0. *The crossover with bal05 moves earlier under misspecification, from n ≈ 50000 correctly specified to n ≈ 10000 for linear and exponential.*
+
+- **regularisation is cheaper when the model is mispeccified.**
+
+  - under correct specification, doubling λ roughly doubled the bias cost *(the gap between bal05 and bal0 was predictable from the KKT bound)*. under misspecification, the same λ increase costs less bias *(linear n=500: bal05−bal0 = 0.176 and bal10−bal0 = 0.347, against 0.237 and 0.464 correctly specified)*.
+
+# 4. Effect of Misspec (Delta)
+
+```{r}
+
+delta_ms(summ_e2, ests = est_e2) |>
+  transmute(Group = factor(oc_labs[outcome], oc_labs),
+            Estimator = factor(lab_est[estimator], lab_est[est_e2]), n,
+            cell = sprintf("%.2f<br><small>(%.2f)</small>", d_rmse, d_bias)) |>
+  pivot_wider(names_from = n, values_from = cell) |>
+  arrange(Group, Estimator) |>
+  gt(groupname_col = "Group") |>
+  tab_header(title = "Cost of misspecification: \u0394RMSE (\u0394|Bias|)") |>
+  fmt_markdown(-Estimator) |> cols_align("center", -Estimator) |>
+  cols_label_with(everything(), n_relabel)
+```
+
+#### Balancing Vs MLE
+
+- as $n$ increases, MLE estimators are effected by magnitudes of upto 8.61 for RMSE and 1.13 for Bias. The effect of misspeccification is increased as outcome complexity increases, quadratic\>exponential\>linear. Estimating with Hajek normalisation offsets this significantly, but Hajek is still more effected than balancing estimators.
+
+#### Within Balancing
+
+- Balnet (pathfloor), is more effected than bal05 and bal.CV by misspeccification, as it is likely converging towards the $\lambda$ associated with minimum attainable covartiate imbalance. Bal 10 appears the most stable, and bal05 is also stable, confirming the attainable $\lambda \leq .05$ (median $\lambda_{end}$ = 1e-4, no truncation in any cell).
+
+# 5. Diagnostics
+
+```{r}
+# CV lambda selection (misspecified batch)
+
+dg <- summarise_diag(df_e2) |> filter(misspec, outcome == "linear")
+lambda_plot(dg, stats = c("lam_balcv1", "lam_balcv0"), ribbon = TRUE) + scale_x_n
+
+dg |> summarise(cv  = coef(lm(log(lam_balcv1_med) ~ log(n)))[2],
+                glm = coef(lm(log(lam_glmcv_med)  ~ log(n)))[2])
+
+# Held-out CB loss at the path endpoint relative to the CV-selected λ
+as_diag(df_e2) |> filter(misspec, outcome == "linear") |>
+  mutate(r = cvloss_end1 / cvloss_cv1) |>
+  group_by(n) |>
+  summarise(med = median(r, na.rm = TRUE),
+            p10 = mean(r > 10, na.rm = TRUE)) |>
+  mutate(med = ifelse(med >= 100, sprintf("%.0f", med), sprintf("%.2f", med)),
+         p10 = drop0(sprintf("%.2f", p10))) |>
+  rename(`Median r` = med, `P(r > 10)` = p10) |>
+  pivot_longer(-n, names_to = "stat") |>
+  pivot_wider(names_from = n, values_from = value, names_prefix = "n=") |>
+  gt() |> cols_label(stat = "") |>
+  cols_label_with(starts_with("n="), \(x) n_relabel(sub(".*=", "", x))) |>
+  cols_align("center", starts_with("n=")) |>
+  tab_source_note(md("_Treated arm; medians only (endpoint loss overflows at n = 500)._"))
+
+## CV curves
+load_cv <- function(csv, rds) {
+  cells  <- distinct(tibble::as_tibble(data.table::fread(csv, select = c("n", "overlap"))))
+  curves <- readRDS(rds)
+  stopifnot(nrow(cells) == length(curves))
+  bind_rows(lapply(seq_along(curves), \(ci) bind_cols(
+    cells[ci, ],
+    bind_rows(lapply(seq_along(curves[[ci]]), \(r) {
+      x <- curves[[ci]][[r]]; if (is.null(x)) return(NULL)
+      bind_rows(lapply(c("treated", "control"), \(a)
+                       tibble(rep = r, arm = a, lambda = x$lambda[[a]], cv = x$cv.mean[[a]])))
+    })))))
+}
+
+f_mis <- list.files("..", "^misspecDGP2\\.csv\\.gz$", recursive = TRUE, full.names = TRUE)
+stopifnot(length(f_mis) == 1)
+cur <- load_cv(f_mis, sub("\\.csv\\.gz$", "_cvcurves.rds", f_mis))
+
+sel_lam <- as_diag(df_e2) |> filter(misspec, outcome == "linear") |>
+  mutate(lam_cv = (lam_balcv1 + lam_balcv0) / 2) |>
+  group_by(n) |>
+  summarise(lam_cv = median(lam_cv, na.rm = TRUE), .groups = "drop")
+
+cur |>
+  group_by(n, rep, arm) |> filter(min(cv) > 0) |>   # drops 2-3 curves, n = 500 only
+  mutate(rel = cv / min(cv)) |>
+  ungroup() |>
+  mutate(bin = round(log10(lambda) * 6) / 6) |>
+  group_by(n, bin) |> summarise(rel = median(rel), .groups = "drop") |>
+  ggplot(aes(10^bin, rel, colour = factor(n))) +
+  geom_line(linewidth = .7) +
+  geom_point(data = sel_lam, aes(lam_cv, 1, colour = factor(n)),
+             shape = 17, size = 2.2, inherit.aes = FALSE) +
+  scale_x_log10() + scale_y_log10() +
+  scale_colour_viridis_d(end = .85, labels = n_relabel) +
+  labs(x = "\u03bb", y = "CV loss / curve minimum", colour = "n") +
+  theme_sim
+
+
+
+## Degree: RMSE ratio and bias² share, balnetcv vs bal0/bal05
+df_e2 |> filter(misspec, estimator %in% c("balnetcv", "balnet0", "balnet05")) |>
+  group_by(estimator, outcome, n) |>
+  summarise(mse = mean(tau_hat^2), v = var(tau_hat), .groups = "drop") |>
+  mutate(bias2_pct = 100 * (mse - v) / mse) |>
+  select(-v) |>
+  pivot_wider(names_from = estimator, values_from = c(mse, bias2_pct)) |>
+  transmute(outcome = factor(oc_labs[outcome], oc_labs), n,
+            `vs bal0`  = sqrt(mse_balnet0  / mse_balnetcv),
+            `vs bal05` = sqrt(mse_balnet05 / mse_balnetcv),
+            balnetcv = bias2_pct_balnetcv,
+            bal0     = bias2_pct_balnet0,
+            bal05    = bias2_pct_balnet05) |>
+  arrange(outcome, n) |>
+  gt(groupname_col = "outcome") |>
+  fmt_number(c(`vs bal0`, `vs bal05`), decimals = 2) |>
+  fmt_number(c(balnetcv, bal0, bal05), decimals = 0) |>
+  cols_label(n = "") |>
+  cols_label_with(everything(), \(x) x) |>
+  tab_spanner("RMSE ratio (comp / CV)", c(`vs bal0`, `vs bal05`)) |>
+  tab_spanner("Bias\u00b2 share of MSE (%)", c(balnetcv, bal0, bal05)) |>
+  cols_align("center", -outcome) |>
+  tab_source_note(md(paste0(
+    "_Ratios below 1 favour the comparator. Bias\u00b2 = MSE \u2212 var ",
+    "(true \u03c4 = 0). n relabelled per n_relabel if desired._")))
+
+
+## corr(λ_cv, tau) across replications
+as_diag(df_e2) |> filter(misspec, outcome == "linear") |>
+  transmute(n, sim, lam_cv = (lam_balcv1 + lam_balcv0) / 2) |>
+  inner_join(df_e2 |> filter(misspec, outcome == "linear", estimator == "balnetcv") |>
+               select(n, sim, tau_hat), by = c("n", "sim")) |>
+  group_by(n) |>
+  summarise(cor = cor(tau_hat, lam_cv, use = "complete.obs"))
+```
+
+- BalNet (CV) does not share the fixed-λ estimators' variance behaviour: fixed-λ variance decays at the standard rate, so their bias² share of MSE rises toward 100%, while BalNet (CV)'s plateaus below it. This is true across all outcomes."
+
+  - balnet.cv carries \~1.8x bal0's RMSE on linear/exponential at every n, up to 3.4x on quadratic where the gap widens with n. vs bal05 it only pulls ahead after \~5k, and by ≤11%.
+
+- misspeccification appears to not effect where the CV selected $\lambda$ lands, or its spread over replications.
+
+- Cross-validation targeting CB loss rejects the best-performing λ at small n, and is indifferent to it at large n.
+
+- At n=500 with small λ, the fitted coefficients are large. bal0 uses them once, on the same data they were fit to, and the estimate stays fine. CV takes those coefficients to a held-out fold, where they don't balance anything, and the exponential loss overflows. So CV scores small λ as catastrophic and never selects it — the λ region that actually works.
+
+- at large n, CV selected lambda still too high but is flatter, less varied.
+
+- correlation($\lambda_{cv}, \hat\tau$) is almost 1 for 1 in magnitude, increases with sample size. suggests balnet.cv variance is CV $\lambda$ selection noise, as sampling noise shrinks with n while the variance on balnet.cv reduces only slightly (leftover variance is from selection)

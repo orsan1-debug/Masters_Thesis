@@ -1,0 +1,100 @@
+---
+title: "Working Analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+As expected, misspecification and overlap compound, and MLE methods are considerably outperformed by balancing methods. MLE RMSE increases substantially and with its bias behaving erratically as converges to the wrong prediction, and extreme behawhile the balancing estimators
+
+between methods, balancing protects against MLE's divergence, it's balnet's attenuation bias is the cost of stability. RMSE stays bounded and improves with $n$, while MLE diverges at increasing rates with overlap degredation.
+
+Within balnet, $\lambda$ is a bias/variance dial where less is better except in situations with small $n$ and weak overlap, where balcv provides evidence for using cross validation (just likely with a different criterion). In large samples, its bias floor is too high. Still no evidence supporting for setting $\lambda > 0$.
+
+*MCSE (Morris 2019) can be used to determine between crossover/convergance later. A lot of estimates are under 0.05 in magnitude, assumed now to be convergence unless clear divergence.*
+
+### Between Methods
+
+**RMSE:** balancing consistently outperforms MLE at degraded overlap.
+
+- as overlap degrades, increases in $n$ and decreases in $c$ degrade MLE RMSE across all outcomes, while balancing RMSE decreases with $n$.
+
+- at $n$ decreases and overlap degrades bal0 becomes increasingly competitive with the oracle, as the gap between its driven primarily by its reduced relative variance. It is always more biased, with one exception under quadratic outcomes, at $n = 5000$.
+
+- strong overlap, increases in $c$, shield MLE from misspecification, vur at best it ties with bal05. *worth testing at higher* $c$?
+
+- balancing RMSE gradients across $c$ are smooth and stable across $n$, with intercepts declining (magnitude varies by outcome). MLE gradients are jagged and inconsistent across $n$.
+
+- divergence is clearest under quadratic outcomes, followed by exponential. under linear outcomes, balancing slopes decrease noticeably with $n$ and intercept reductions are smaller.
+
+**Bias:** MLE is generally less biased than balancing when $n \leq 5000$, with exceptions:
+
+- linear: at $n = 500$, bal0 and bal05 less biased at $c = 0.25$. at $n = 5000$, bal0 less biased at $c = 0.50$ but not $c = 0.25$.
+
+- quadratic: at $n = 1000$, MLE only less biased at $c \leq 0.25$; all balancing less biased at $c \geq 0.50$. at $n = 5000$, MLE more biased than all balancing at all degraded overlap.
+
+- exponential: at $n = 5000$, MLE more biased than all balancing at all degraded overlap.
+
+- *motivation for AIPW to mitigate balancing estimators' native bias.*
+
+**Decomposition:** balancing RMSE is overwhelmingly bias-driven; MLE is variance-driven. Outcome complexity matters:
+
+- for balancing, RMSE becomes increasingly variance-driven as linear $>$ exp $>$ quadratic.
+
+- for MLE, this ordering holds at small $n$ but reverses at $n = 5000$ as it converges to the wrong $\tau$ (quadratic most bias-driven, linear least). MLE is mostly variance-driven at $c < 2$ from $n \geq 1000$; at $c = 2$, predominantly bias-driven for linear.
+
+**Extremes:** MLE produces 51 extreme estimates ($|\hat{\tau}| > 10$), concentrated in quadratic outcomes and weak overlap. Balancing produces 0. *No need for ad hoc weight trimming/truncation with balnet.*
+
+### Within Balancing
+
+**bal0 is the best estimator overall,** but its edge is reduced and outcome-dependent. Relative performance increases with $n$ (least biased). Degrades under nonlinear outcomes.
+
+*RMSE:*
+
+- linear: converges with bal05 at $c = 0.25$ for $n < 5000$.
+
+- exponential: loses to balcv at $c = 0.25$, $n \leq 1000$. converges with set-$\lambda$ estimators somewhere in $500 < n < 1000$.
+
+- quadratic: at $n = 500$, converges with set-$\lambda$ estimators by $c = 0.50$, outperformed by balcv. at $n = 1000$, $c = 0.25$: converges with bal05, beaten by balcv. at $n = 5000$, beats balcv.
+
+*Bias:*
+
+- linear: at lower $n$, converges with set-$\lambda$ estimators by $c = 0.25$. by $n = 5000$, lower than all others.
+
+- exponential: same pattern at reduced relative magnitude.
+
+- quadratic: similar, except bal0 bias approaches zero at large $n$ and weak overlap while set-$\lambda$ estimators retain their bias floors.
+
+- pre/post convergence pattern: bal0 outperforms set-$\lambda$ estimators until it converges with them at $\lambda_{\text{end}}$. a minimum $\lambda$ either doesn't bind (truncated regime, irrelevant) or does bind and imposes a bias floor that grows costly with $n$.
+
+- **idea:** simulate with the true $\lambda_{\min}$ fixed around 0.05 and 0.10.
+
+**balcv is second-best within balnet,** winning 6/45 cells. Wins concentrate at nonlinear outcomes, $c \leq 0.50$, $n \leq 1000$ (variance-discount regime).
+
+- exponential: outperforms bal0 at $n = 500$, $c \leq 0.50$; underperforms at $c \geq 0.75$.
+
+- quadratic: smaller RMSE and bias than bal0 at $n = 500$, $c = 0.25$. by $n = 5000$, only outperforms bal10.
+
+- provides some support for balcv as a practical choice, though CV criterion performance is questionable.
+
+**bal10 illustrates the cost of setting** $\lambda$ above the true minimum. Clearest under linear outcomes: as $n$ increases, bal10 RMSE stays flat while other balancing estimators improve.
+
+### Interactive Effects
+
+$\delta_c(x) = \text{RMSE}_{\text{mispecc}}(c, x) - \text{RMSE}_{\text{correct}}(c, x)$
+
+**Between methods:**
+
+- *linear RMSE:* at $n = 500$, misspec hurts balancing more than MLE at all $c$. by $n = 1000$, MLE delta overtakes at $c \geq 0.50$. by $n = 5000$, MLE delta larger everywhere.
+
+- *quadratic and exponential RMSE:* MLE deltas explode as $n$ increases and $c$ degrades. Balancing deltas are flat and small. Bias is similar but outcome-dependent: quad1 flips sign at $n = 1000$, $c = 0.50$; exp stays negative through $n = 1000$ but flips by $n = 5000$.
+
+**Within balancing:**
+
+- *linear:* bias and RMSE interaction gradients have similar shape (bias-dominated decomp). bal10 slope and intercept roughly constant at $c \geq 0.50$ (grows at $c = 0.25$). balcv has the flattest slope. bal0 intercept shifts up with $n$ while slope flattens.
+
+- *quadratic:* interaction effects generally improve performance, becoming increasingly negative with $n$ for all estimators except bal0 (stays near zero/positive). bal10 most uniformly negative. balcv has the sharpest reductions at weak overlap.
+
+- *exponential:* most stable across $n$ of the three outcomes. balcv nearly constant in slope and intercept. Others shift moderately.

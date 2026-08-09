@@ -1,0 +1,45 @@
+---
+title: "Working Analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+**Balancing vs MLE**
+
+- **Balnet** $(\bf \lambda = 0)$ **RMSE dominates the non-normalized oracle at every** $\bf n$**,** consistent with Wager (2024).
+
+  - **Hits a bias floor around 0.01**. This does not contradict Wager's consistency results. The bias floor is a tuning artifact where Balnet$(\lambda=0)$ is the package's default path floor, $\lambda = \frac{\lambda_{max}} {100} \approx 0.004$ (*confirmed in* (`WagnertestE1.R`)).
+
+  - DGP and solver are correctly implemented. Bias floor removed with `max.imbalance` $= 10^{-6}$; implied bias $\approx 0$ across 20 seeds (`WagnertestE1.R`).
+
+- **at small** $\bf n$**,** balancing methods generally outperform MLE.
+
+- **as** $\bf n$ **increases,** penalized MLE `glmnet.cv` constistancy property wins out.
+
+  - fixed $\lambda < .1$ estimators outperform `glmnet` at $n \leq 1000$**.** As $n$ increases, `bal05` and `bal10` are outperformed by `glmnet` as they converge to their set maximum imbalance, $\lambda$.
+  - `balnet.cv` may be consistent, but regardless, it converges at a significantly slower rate. *(suggests issues with CV criterion)*.
+
+**Within Balancing Estimators**
+
+- **balnet.cv over-regularizes, erasing the loss function advantage.**
+
+  - This suggests it's CV criterion *(out of sample balancing loss)*, may converge to a $\lambda_{cv}$ above the optimal $\lambda$ for ATE estimation. *\*consistent with Wyss 2026 findings.*
+
+  - while sample size increases reduce its RMSE/bias, the slope of this improvement is very slow.
+
+    - ***\***redo with* $\lambda$ *logging on next sim. Establish convergence rate, quantify how much CV over-regularizes and connect directly to the KKT interpretation (λ = max allowable imbalance).*
+
+- **outcome complexity improves balnet.cv's relative performance.** Under non-linear specifications balnet.cv overtakes bal05 from $n \geq 5000$.
+
+**Notes:**
+
+- **outcome complexity:** generally effects attenuation magnitude, not ranking. (exception at `bal05` vs `balcv`)
+
+- `glmHT` (non normalised `glmnet`) exclusion: balancing weights are normalized by construction, so Hajek is the like-for-like comparison (Chattopadhyay et al. 2020).
+
+  - Under correct specification non-normalized MLE *(glmHT)* and normalized MLE *(glmHajek)* are competitive. However, introducing mispeccification causes *glmHT's* RMSE and bias to explode.
+
+- balnetcv SD slopes (−0.13 to −0.25) are sub-√n; all other estimators achieve −0.50. Variance pathology distinct from bias. Check with λ logging next DGP.
