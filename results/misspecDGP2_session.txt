@@ -11,8 +11,7 @@ Random number generation:
  Sample:  Rejection 
  
 locale:
-[1] LC_COLLATE=English_Australia.utf8  LC_CTYPE=English_Australia.utf8    LC_MONETARY=English_Australia.utf8 LC_NUMERIC=C                      
-[5] LC_TIME=English_Australia.utf8    
+[1] LC_COLLATE=English_Australia.utf8  LC_CTYPE=English_Australia.utf8    LC_MONETARY=English_Australia.utf8 LC_NUMERIC=C                       LC_TIME=English_Australia.utf8    
 
 time zone: Australia/Sydney
 tzcode source: internal
@@ -20,16 +19,10 @@ tzcode source: internal
 attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
-other attached packages:
-[1] data.table_1.18.2.1 glmnet_4.1-10       Matrix_1.7-4        balnet_0.0.1       
-
 loaded via a namespace (and not attached):
- [1] vctrs_0.7.1       cli_3.6.5         rlang_1.1.7       purrr_1.2.2       generics_0.1.4    furrr_0.4.0       glue_1.8.0        listenv_0.10.1    rsconnect_1.8.0  
-[10] grid_4.5.2        tibble_3.3.1      MASS_7.3-65       foreach_1.5.2     lifecycle_1.0.5   compiler_4.5.2    dplyr_1.2.1       codetools_0.2-20  pkgconfig_2.0.3  
-[19] Rcpp_1.1.1        rstudioapi_0.18.0 future_1.70.0     R.oo_1.27.1       R.utils_2.13.0    lattice_0.22-7    digest_0.6.39     R6_2.6.1          tidyselect_1.2.1 
-[28] pillar_1.11.1     parallelly_1.47.0 parallel_4.5.2    splines_4.5.2     shape_1.4.6.1     magrittr_2.0.4    R.methodsS3_1.8.2 tools_4.5.2       iterators_1.0.14 
-[37] globals_0.19.1    survival_3.8-3   
-balnet: 0.0.1
+ [1] digest_0.6.39       codetools_0.2-20    furrr_0.4.0         magrittr_2.0.4      parallel_4.5.2      lifecycle_1.0.5     cli_3.6.5           parallelly_1.47.0   future_1.70.0       vctrs_0.7.1         data.table_1.18.2.1 compiler_4.5.2     
+[13] purrr_1.2.2         globals_0.19.1      rstudioapi_0.18.0   tools_4.5.2         listenv_0.10.1      rlang_1.1.7        
+balnet: 0.0.3
 glmnet: 4.1.10
 base_seed: 202
-date: 2026-08-07 00:43:04.597092
+date: 2026-08-10 22:05:15.568069

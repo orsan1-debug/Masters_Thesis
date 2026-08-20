@@ -13,55 +13,36 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-library(purrr)
 source("Analysis.R")
-res <- if (dir.exists("results")) "results/" else "../results/"
-
-# tag spec on load so delta_ms / spec_grid can pair on `misspec`
 df_ov <- bind_rows(
-  mutate(load_sim(paste0(res, "overlapDGP2.csv.gz")),        misspec = FALSE),
-  mutate(load_sim(paste0(res, "overlapmisspecDGP2.csv.gz")), misspec = TRUE))
+  mutate(load_sim("../results/overlapDGP2.csv.gz"),        misspec = FALSE),
+  mutate(load_sim("../results/overlapmisspecDGP2.csv.gz"), misspec = TRUE))
 summ_ov <- summarise_sim(df_ov)
-
-# balnetcv quarantined (cv.balnet bug); CV/diagnostic exhibits deferred to patch
-est_ov   <- setdiff(est_main, "balnetcv")
-est_balo <- setdiff(est_bal,  "balnetcv")
-est_keep <- setdiff(intersect(names(lab_est), unique(summ_ov$estimator)), "balnetcv")
-
-
 ```
 
 # Correct specification: degrading overlap
 
 ```{r}
-co <- filter(summ_ov, !misspec, overlap %in% ov_show) |>
-  mutate(cf = factor(overlap, ov_show))          # facets read 1 -> .25
-ov_facets <- facet_wrap(~cf, nrow = 1, scales = "free_y", labeller = lab_c)
+# ── E3: Correct specification, degrading overlap (DGP2) ──
+ov_show <- c(1, 0.5, 0.25)                    # excludes c = 2 and c = 0.75
+co      <- summ_ov |> filter(!misspec) |> mutate(cf = as_c(overlap))
+co_show <- filter(co, overlap %in% ov_show)
+ov_facets <- list(scale_x_n, facet_wrap(~cf, nrow = 1, scales = "free_y"))
 
-walk(names(oc_labs), \(oc) print(
-  panel(co, oc, ests = est_ov, extra = list(scale_x_n, ov_facets))))
+#plots>RMSE decomp
+for (oc in names(oc_labs)) {
+  print(panel(co_show, oc, ests = est_main, extra = ov_facets))
+  print(panel(co_show, oc, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+              extra = ov_facets))                                  
+  print(decomp_plot(filter(co, outcome == oc), ests = est_main, cols = cf,
+                    title = paste("RMSE Decomposition (%),", oc_labs[oc])))
+}
 
-# efficiency check: bal0 vs oracles
-walk(names(oc_labs), \(oc) print(
-  panel(co, oc, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
-        extra = list(scale_x_n, ov_facets))))
-
-perf_table(co, ests = est_ov, cols = c("overlap", "n"), group = "outcome",
-           title = "Correct spec: degrading overlap (DGP2)")
-
-# MSE decomposition, all overlap values
-walk(names(oc_labs), \(oc) print(
-  decomp_plot(filter(summ_ov, !misspec, outcome == oc), ests = est_ov,
-              cols = overlap, col_lab = lab_c,
-              title = paste0("MSE decomposition (%) \u2014 ",
-                             oc_labs[oc], " (correct)"))))
-
-
-#extreme values
-extreme_heat(filter(summ_ov, !misspec), ov = ov_ax)
+#table
+perf_table(co_show, cols = c("overlap", "n"), group = "outcome",
+           title = "E3: Degrading Overlap (DGP2)")
+extreme_heat(co)
 ```
-
-**NOTE: ALL CV.BALNET ESTIMATES/DIAGNOSTICS INVALID UNTIL BUG FIXED**
 
 **summary:** our expectation that under weak overlap balancing estimators performance would degrade at a reduced rate compared to MLE holds. all n.
 
@@ -105,7 +86,11 @@ As expected, overlap degradation inflates variance most steeply for MLE. The bia
 
 #### Within Balancing
 
-- **balnet.cv becomes less competitive against bal0 and bal05 as overlap degrades:** this calls into question its CV criterion.
+- **CV. Balnet's relative performance is degraded against fixed balancing estimators with reductions in overlap.**
+
+  - **balnet.cv becomes less competitive against bal0 and bal05 as overlap degrades:** this calls into question its CV criterion.
+
+<!-- -->
 
 - **Path truncation mechanism: Bal05 is the only estimator competitive with Bal0, due to path truncation.** As overlap degradrs, the $\lambda_{endpoint}$ increases, and with increases in $n$ it decreases. Bal0 generally either outperforms or matches bal05, but in smaller samples as overlap degrades bal05 becomes increasingly competitive.
 
@@ -132,28 +117,25 @@ As expected, overlap degradation inflates variance most steeply for MLE. The bia
 # Misspecification x overlap
 
 ```{r}
-mo <- filter(summ_ov, misspec, overlap %in% ov_ax)
-ov_extra <- list(scale_x_reverse(breaks = ov_ax),
-                 facet_wrap(~n, nrow = 1, labeller = lab_n))
+# ── E3: Correct specification, degrading overlap (DGP2) ──
+ov_show <- c(1, 0.5, 0.25)                    # excludes c = 2 and c = 0.75
+co      <- summ_ov |> filter(misspec) |> mutate(cf = as_c(overlap))
+co_show <- filter(co, overlap %in% ov_show)
+ov_facets <- list(scale_x_n, facet_wrap(~cf, nrow = 1, scales = "free_y"))
 
-walk(names(oc_labs), \(oc) print(
-  panel(mo, oc, x = overlap, ests = est_ov,   extra = ov_extra)))
-walk(names(oc_labs), \(oc) print(
-  panel(mo, oc, x = overlap, ests = est_balo, extra = ov_extra)))
-walk(names(oc_labs), \(oc) print(
-  panel(mo, oc, x = overlap, ests = c("balnet0", "oracle_hajek"),
-        extra = ov_extra)))
+#plots>RMSE decomp
+for (oc in names(oc_labs)) {
+  print(panel(co_show, oc, ests = est_main, extra = ov_facets))
+  print(panel(co_show, oc, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+              extra = ov_facets))                                  
+  print(decomp_plot(filter(co, outcome == oc), ests = est_main, cols = cf,
+                    title = paste("RMSE Decomposition (%),", oc_labs[oc])))
+}
 
-perf_table(mo, ests = est_ov, cols = c("overlap", "n"), group = "outcome",
-           title = "Misspecified: degrading overlap (DGP2)")
-
-walk(names(oc_labs), \(oc) print(
-  decomp_plot(filter(summ_ov, misspec, outcome == oc), ests = est_ov,
-              cols = overlap, col_lab = lab_c,
-              title = paste0("MSE decomposition (%) \u2014 ",
-                             oc_labs[oc], " (misspecified)"))))
-
-extreme_heat(filter(summ_ov, misspec), ov = ov_ax)
+#table
+perf_table(co_show, cols = c("overlap", "n"), group = "outcome",
+           title = "E3: Degrading Overlap + Misspec (DGP2)")
+extreme_heat(co)
 ```
 
 As expected, misspecification and overlap compound, and MLE methods are considerably outperformed by balancing methods. MLE RMSE increases substantially, with its bias behaving erratically as it converges to the wrong prediction (sign flips under quadratic), and extreme behaviour concentrated under quadratic outcomes, while the balancing estimators remain stable.
@@ -234,16 +216,18 @@ Within balnet, $\lambda$ is a bias/variance dial where less is better at every $
 
 ```{r}
 # base_seed = 203 in both batches: pairs are seed-shared
-d_mo <- delta_ms(summ_ov, ests = est_ov) |> filter(!is.na(d_rmse))
-walk(names(oc_labs), \(oc) print(delta_panel(d_mo, oc, ests = est_ov)))
-walk(names(oc_labs), \(oc) print(delta_panel(d_mo, oc, ests = est_balo)))
+d_ov <- delta_ms(summ_ov, ests = est_main) |> filter(!is.na(d_rmse))
 
-# deltaRMSE table, n = 5000
-delta_table(d_mo, ests = est_ov, at_n = 1000)
-delta_table(d_mo, ests = est_ov)
+for (oc in names(oc_labs)) {
+  print(delta_panel(d_ov, oc, ests = est_main))
+  print(delta_panel(d_ov, oc, ests = est_bal))
+}
+
+delta_table(d_ov, ests = est_main, at_n = 1000)
+delta_table(d_ov, ests = est_main)                 # n = 5000
 
 # |Bias| and SD vs overlap, correct vs misspecified (n = 5000, all c)
-spec_grid(summ_ov, ests = est_balo)
+spec_grid(summ_ov, ests = est_bal)
 ```
 
 \
@@ -265,7 +249,7 @@ Under exponential outcomes
 
 - same pattern as quadratic at reduced magnitude: MLE most affected at $0.50 \leq c \leq 1$ from $n = 1000$, around 3x bal0 at large $n$. at $c = 0.25$ it is less affected than bal0 at $n \leq 1000$ and only slightly more by $n \geq 5000$. at $c = 2$, deltas are small and bal0's is the largest.
 
-- $\delta(\text{MSE}) = \delta(\text{bias}^2) + \delta(\text{variance})$: balancing deltas are bias-driven throughout. MLE's delta is variance-driven at $c < 2$ for $n \geq 5000$ (at every $n$ under quadratic), bias-driven at small $n$ under linear and exponential, and bias-driven at $c = 2$. MLE's misspec bias flips sign between $n = 1000$ and $5000$ under quadratic at $0.50 \leq c \leq 1$ (by $n = 10000$ at $c = 0.25$) and by $n = 10000$ under exponential at $c \in \{0.50, 0.75\}$. oracle delta is zero by construction (shared draws).
+- $\delta(\text{RMSE}) = \delta(\text{bias}^2) + \delta(\text{variance})$: balancing deltas are bias-driven throughout. MLE's delta is variance-driven at $c < 2$ for $n \geq 5000$ (at every $n$ under quadratic), bias-driven at small $n$ under linear and exponential, and bias-driven at $c = 2$. MLE's misspec bias flips sign between $n = 1000$ and $5000$ under quadratic at $0.50 \leq c \leq 1$ (by $n = 10000$ at $c = 0.25$) and by $n = 10000$ under exponential at $c \in \{0.50, 0.75\}$.
 
 **BIAS**
 

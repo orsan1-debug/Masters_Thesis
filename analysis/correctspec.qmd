@@ -13,6 +13,10 @@ embed-resources: true
 library(purrr)
 source("Analysis.R")
 
+df_sg <- imap(batches, \(f, b)
+              mutate(load_sim(paste0(res, f, ".csv.gz")), batch = b)) |>
+  bind_rows()
+
 res <- if (dir.exists("results")) "results/" else "../results/"
 batches <- c(DGP1 = "correctspecDGP1", DGP2_ks = "correctspecDGP2_ks",
              DGP2_mixed = "correctspecDGP2_mixed", DGP2_pos = "correctspecDGP2_pos")
@@ -310,3 +314,42 @@ par(mfrow = c(1, 1))
 ```
 
 - confirmed our fix, taking the average over rows, produces 1 smooth curved row.
+
+```{r}
+## Reprex: rebuild per-fold held-out losses manually, same foldid/settings/path
+# v is fold-major: stored cv.mean = column-major reshape (bug); fold mean = fix
+library(balnet)
+set.seed(1)
+n <- 800; p <- 10                       # changed: held-out fold size 80, matches 5-fold reprex
+X <- matrix(rnorm(n * p), n, p)
+W <- rbinom(n, 1, plogis(X[, 1]))
+nfolds <- 10                            # changed
+foldid <- sample(rep(seq_len(nfolds), length.out = n))
+cvfit <- cv.balnet(X, W, nfolds = nfolds, foldid = foldid, max.imbalance = 1e-2)
+lam <- cvfit$`_lambda`
+v <- unlist(lapply(seq_len(nfolds), \(k) {
+  tr <- foldid != k
+  f  <- balnet(X[tr, ], W[tr], standardize = ".inplace", max.imbalance = 1e-2)
+  balnet:::get_balance_loss(f, X[!tr, , drop = FALSE], W[!tr],
+                            rep(1, sum(!tr)), lam)$treated
+}))
+L   <- length(lam$treated)
+bug <- colMeans(matrix(v, nfolds, L))   # cv.balnet.R lines 79/84
+fix <- rowMeans(matrix(v, L, nfolds))   # fold mean at each lambda
+isTRUE(all.equal(cvfit$`_cv.info`$cv.mean$treated, bug))
+cvfit$lambda.min$treated                # selected
+lam$treated[which.min(fix)]             # correct
+## Visual: stored vector vs corrected criterion
+num  <- function(z) as.numeric(unlist(z, use.names = FALSE))
+cv   <- num(cvfit$`_cv.info`$cv.mean$treated)
+lamT <- num(lam$treated)
+blk  <- L / nfolds                      # changed: boundaries from L, not hardcoded
+par(mfrow = c(1, 2))
+plot(cv, log = "y", type = "l", xlab = "path index", ylab = "held-out CB loss",
+     main = "stored cv.mean")
+abline(v = seq_len(nfolds - 1) * blk + 0.5, lty = 3)
+plot(lamT, fix, log = "xy", type = "l", xlab = "lambda", ylab = "",
+     main = "fold mean (fix)")
+abline(v = c(num(cvfit$lambda.min$treated), lamT[which.min(fix)]), lty = c(3, 1))
+par(mfrow = c(1, 1))
+```

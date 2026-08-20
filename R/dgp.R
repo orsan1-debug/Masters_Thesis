@@ -61,6 +61,7 @@ dgp1 <- function(n, p, outcome = "linear", misspec = FALSE,
 #   treat_prop:       target treated proportion of population P(W=1)
 #   outcome_set:      [fixed4/track_s] fixed4 = Tan outcomes on X_1..X_4 (default, reproduces DGP1).
 #                     track_s = outcome loadings j^(-decay) on X_1..X_s, normalised + centered, all s covariates confounders
+#                     strength = 1, signal to noise ration, increasing increases SNR (signal to noise ration on outcome). 
 
 #   idx_ps/idx_out:   which covariates affect treatment / outcome; allows instruments and
 #                     propensity-only covariates (Shortreed & Ertefaie 2017)  #### !!!!! - TEST - !!!!! IMPLEMENTATION !!!!!
@@ -69,7 +70,6 @@ dgp1 <- function(n, p, outcome = "linear", misspec = FALSE,
 # weak instruments added by increasing s>4, and setting outcome to fixed4.
 
 #   eta sd-normalized to Var(eta) = 1/overlap^2.Isolates overlap changes to overlap knob.
-#note: removed strength (SNR knob, multiplier on outcome function), maybe relevent for AIPW.
 
 dgp2 <- function(n, p, s = 4,
                           outcome     = "linear",
@@ -78,12 +78,14 @@ dgp2 <- function(n, p, s = 4,
                           overlap     = 1,
                           signs       = c("pos", "neg", "mixed", "ks"),  #ks similar but not the same at decay = 1, (1,-.5, 0.333, 0.25)
                           decay_ps = 1, 
+                 
                           decay_out = 1,
                           outcome_set = c("fixed4", "track_s"),
                           idx_ps = NULL,
                           idx_out = NULL,
                           treat_prop  = 0.5,
-                          tau = 0) {
+                          tau = 0,
+                          strength = 1){
   outcome     <- match.arg(outcome, c("linear", "quad1", "exp"), several.ok = TRUE)   #shared error draws: no effect on estimates, reduces compute time
   covcor      <- match.arg(covcor)
   signs       <- match.arg(signs)
@@ -141,7 +143,7 @@ dgp2 <- function(n, p, s = 4,
   }
   
   eps <- rnorm(n)
-  Y <- vapply(outcome, function(o) tau * W + f(o) + eps, numeric(n))
+  Y <- vapply(outcome, function(o) tau * W + strength * f(o) + eps, numeric(n))
   
   if (misspec) {
     j <- idx_ps[1:4]
