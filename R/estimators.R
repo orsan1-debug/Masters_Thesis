@@ -70,9 +70,9 @@ estimate_all <- function(data,
   ## scalar diagnostics (identical across outcome columns)
   xbar <- colMeans(X)
   sdx  <- apply(X, 2, sd) * sqrt((n - 1) / n)   # balnet's standardisation scale
-  cv1  <- log(cv_loss(fit_bal, "treated"))
-  cv0  <- log(cv_loss(fit_bal, "control"))
-
+  cv1  <- cv_loss(fit_bal, "treated")
+  cv0  <- cv_loss(fit_bal, "control")
+  
   smd_fix <- numeric(0)
   for (nm in names(lambdas)) {
     smd_fix[paste0("smd1_", nm)] <- max_smd(w_fix[[nm]]$treated, X, xbar, sdx)
@@ -87,8 +87,8 @@ estimate_all <- function(data,
     lam_glmcv  = fit_glm$lambda.min,
     trunc05    = as.numeric(min(fit_bal$lambda$treated) > 0.05 |
                               min(fit_bal$lambda$control) > 0.05),  # bal05 infeasible
-    nnz_balcv1 = sum(coef(fit_bal)$treated$betas != 0),
-    nnz_balcv0 = sum(coef(fit_bal)$control$betas != 0),
+    nnz_balcv1 = sum(coef(fit_bal)$treated[-1, ] != 0),
+    nnz_balcv0 = sum(coef(fit_bal)$control[-1, ] != 0),
     nnz_glm    = sum(coef(fit_glm, s = "lambda.min")[-1] != 0),
     smd1_cv    = max_smd(w_cv$treated, X, xbar, sdx),
     smd0_cv    = max_smd(w_cv$control, X, xbar, sdx),
@@ -98,10 +98,9 @@ estimate_all <- function(data,
     emax       = max(e1),
     nout05     = sum(e1 < 0.05 | e1 > 0.95),
     nout01     = sum(e1 < 0.01 | e1 > 0.99),
-    logcvloss_cv1  = cv1[1], logcvloss_cv0  = cv0[1],
-    logcvloss_end1 = cv1[2], logcvloss_end0 = cv0[2]
+    cvloss_cv1  = cv1[1], cvloss_cv0  = cv0[1],
+    cvloss_end1 = cv1[2], cvloss_end0 = cv0[2]
   )
-  
   ## estimator rows + diagnostics, one matrix per replication
   out <- rbind(
     balnetcv       = ate_bal(Y, w_cv),

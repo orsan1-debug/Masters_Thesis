@@ -1,4 +1,3 @@
-r
 ## OVERLAP + OVERLAP-MISSPEC DGP2 ---------------------------------------------
 ## DGP2, correct + misspec, iid, p = 50, overlap grid, 1000 reps.
 ## Rerun territory of failed dgp2mo (err=1 batch); driver now stores conditionMessage.

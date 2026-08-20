@@ -1,0 +1,269 @@
+---
+title: "CV FIX CHECK (DGP2, bugged vs patched cv.balnet, correct + misspec)"
+format: html
+embed-resources: true
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+library(purrr)
+source("Analysis.R")
+res <- if (dir.exists("results")) "results/" else "../results/"
+ld <- \(f, m, b) mutate(load_sim(paste0(res, f, ".csv.gz")),
+                        misspec = m, build = factor(b, c("bug", "fix")))
+df_fx <- bind_rows(
+  ld("correctspecDGP2",      FALSE, "bug"),
+  ld("correctspecDGP2cvfix", FALSE, "fix"),
+  ld("misspecDGP2",          TRUE,  "bug"),
+  ld("misspecDGP2cvfix",     TRUE,  "fix")) |>
+  filter(estimator == "balnetcv" | build == "bug")  # fix's other rows bit-identical to bug's
+
+# patched CV enters as its own estimator so every helper works unchanged;
+# without this summarise_sim pools the builds (m = 2000 on balnetcv)
+df_fx <- mutate(df_fx, estimator = if_else(
+  estimator == "balnetcv" & build == "fix", "balnetcv_fix", estimator))
+lab_est <- append(lab_est, c(balnetcv_fix = "BalNet (CV, patched)"),
+                  after = match("balnetcv", names(lab_est)))
+lab_est["balnetcv"] <- "BalNet (CV, bugged)"
+pal_est <- c(pal_est, balnetcv_fix = "#CC79A7")
+
+summ_fx <- summarise_sim(df_fx) |>
+  mutate(spec = factor(if_else(misspec, "Misspecified", "Correct"),
+                       c("Correct", "Misspecified")))
+stopifnot(all(df_fx$err == ""),
+          all(filter(summ_fx, estimator %in% est_main)$m == 1000),
+          all(filter(summ_fx, estimator == "balnetcv_fix")$m == 1000))
+
+```
+
+Same base_seed (202) and rng scheme in all four runs; balnet version string is 0.0.1 in both builds, so builds are distinguished by batch_id + pinned SHA in the registry, not by version.
+
+# Build isolation (seed-sharing check)
+
+```{r}
+# Per estimator row: max |fix - bug| across all reps and outcomes.
+# Only balnetcv and its diagnostics should differ; everything else must be 0.
+cv_rows <- c("balnetcv", "lam_balcv0", "lam_balcv1",
+             "logcvloss_cv0", "logcvloss_cv1", "logcvloss_end0", "logcvloss_end1",
+             "smd0_cv", "smd1_cv", "nnz_balcv0", "nnz_balcv1")
+
+iso <- df_fx |>
+  select(spec, build, n, sim, estimator, outcome, tau_hat) |>
+  pivot_wider(names_from = build, values_from = tau_hat) |>
+  group_by(spec, estimator) |>
+  summarise(max_abs_delta = max(abs(fix - bug)), .groups = "drop")
+
+stopifnot(all(filter(iso, !estimator %in% cv_rows)$max_abs_delta == 0))
+iso |> filter(max_abs_delta > 0) |> arrange(spec, estimator)
+```
+
+- Only `balnetcv` and its diagnostics (`lam_balcv`, `logcvloss_cv`, `logcvloss_end`, `smd_cv`, `nnz_balcv`) differ between builds; every other row is identical to full precision in both specs *(verified byte-identical on the raw files)*. Seed sharing worked, so any performance change below is attributable to the CV fix alone.
+- `lam_end` identical but `logcvloss_end` differs: the lambda path itself is unchanged, the endpoint held-out loss is read off the corrected `cv.mean` vector.
+
+# balnetcv: bug vs fix
+
+```{r}
+# Correct spec ------------------------------------------------------
+d_cor <- filter(summ_fx, spec == "correct")
+
+walk(names(oc_labs), \(oc) print(
+  panel(d_cor, oc, ests = c(est_main, "oracle_hajek"),
+        extra = list(scale_x_n, facet_wrap(~build)))))
+
+perf_table(d_cor, ests = c("balnetcv", "balnet0", "balnet05", "glmnetcv_hajek",
+                           "oracle_hajek"),
+           cols = c("build", "n"), group = "outcome", span_desc = FALSE,
+           title = "Correct spec, c = 1: bugged vs patched cv.balnet")
+
+# Misspec -----------------------------------------------------------
+d_mis <- filter(summ_fx, spec == "misspec")
+
+walk(names(oc_labs), \(oc) print(
+  panel(d_mis, oc, ests = c(est_main, "oracle_hajek"),
+        extra = list(scale_x_n, facet_wrap(~build)))))
+
+perf_table(d_mis, ests = c("balnetcv", "balnet0", "balnet05", "glmnetcv_hajek",
+                           "oracle_hajek"),
+           cols = c("build", "n"), group = "outcome", span_desc = FALSE,
+           title = "Misspec: bugged vs patched cv.balnet")
+
+# Paired per-rep z on squared errors (fix - bug), matched draws -----
+df_fx |> filter(estimator == "balnetcv") |>
+  select(spec, build, outcome, n, sim, tau_hat) |>
+  pivot_wider(names_from = build, values_from = tau_hat) |>
+  mutate(d = fix^2 - bug^2) |>
+  group_by(spec, outcome, n) |>
+  summarise(ratio = sqrt(mean(fix^2) / mean(bug^2)),
+            z = mean(d) / (sd(d) / sqrt(n())), .groups = "drop") |>
+  mutate(cell = sprintf("%.2f (%+.0f)", ratio, z)) |>
+  select(spec, outcome, n, cell) |>
+  pivot_wider(names_from = outcome, values_from = cell) |>
+  gt(groupname_col = "spec") |> cols_label(n = "") |>
+  cols_align("center", -spec) |>
+  tab_source_note(md(paste0(
+    "_RMSE ratio fix / bug (paired z in parentheses). Ratios below 1 favour ",
+    "the fix. z is Monte Carlo precision, sign at |z| > 2, not substantive ",
+    "significance. Same (X, W, Y) draws per rep; only lambda selection differs._")))
+```
+
+*(provisional until the formal MCSE pass on the locked DGP)*
+
+- **the fix hurts at** $\bf n=500$ *(RMSE up \~25 to 35% in both specs)*, is roughly even at 1000, then wins decisively from 5000 on. fix/bug RMSE ratio at 50k: \~0.16 to 0.18 correct spec, \~0.47 to 0.71 misspec.
+- **the balnetcv vs bal05 crossover moves earlier.** On the bugged run it sat in (1000, 5000\] for quad1/exp and \~10k for linear; under the fix it lands inside (1000, 5000\] for every outcome in both specs.
+- small-n deterioration is coherent with the overflow story from the correct-spec notes: the corrected criterion is now actually comparing lambdas on held-out loss, and at n=500 held-out CB loss genuinely favours heavier regularisation.
+
+# Diagnostics
+
+```{r}
+# CV lambda selection: bug vs fix ----------------------------------
+walk(names(batches), \(b) print(
+  lambda_plot(summarise_diag(filter(df_fx, batch == b)) |>
+                filter(outcome == "linear"),
+              stats = c("lam_balcv1", "lam_balcv0"), ribbon = TRUE) +
+    scale_x_n + ggtitle(b)))
+
+imap(split(df_fx, df_fx$batch), \(d, b) {
+  dg <- summarise_diag(d) |> filter(outcome == "linear")
+  tibble(batch = b,
+         cv  = coef(lm(log(lam_balcv1_med) ~ log(n), dg))[2],
+         glm = coef(lm(log(lam_glmcv_med)  ~ log(n), dg))[2])
+}) |> bind_rows()
+
+# Held-out CB loss at the path endpoint vs the CV-selected lambda
+diag_fx <- imap(split(df_fx, df_fx$batch), \(d, b)
+    mutate(as_diag(d) |> filter(outcome == "linear"), batch = b)) |>
+  bind_rows() |>
+  mutate(batch = factor(batch, names(batches)))
+
+diag_fx |>
+  mutate(r = exp(logcvloss_end1 - logcvloss_cv1)) |>
+  group_by(batch, n) |>
+  summarise(med = median(r, na.rm = TRUE),
+            p10 = mean(r > 10, na.rm = TRUE),
+            n_na = sum(is.na(r)), .groups = "drop") |>
+  mutate(med = ifelse(med >= 100, sprintf("%.0f", med), sprintf("%.2f", med)),
+         p10 = drop0(sprintf("%.2f", p10)), n_na = as.character(n_na)) |>
+  rename(`Median r` = med, `P(r > 10)` = p10, `NA reps` = n_na) |>
+  pivot_longer(-c(batch, n), names_to = "stat") |>
+  pivot_wider(names_from = n, values_from = value, names_prefix = "n=") |>
+  gt(groupname_col = "batch") |> cols_label(stat = "") |>
+  cols_label_with(starts_with("n="), \(x) n_relabel(sub(".*=", "", x))) |>
+  cols_align("center", starts_with("n=")) |>
+  tab_source_note(md(paste0(
+    "_Treated arm; r = exp(logcvloss_end \u2212 logcvloss_cv). ",
+    "Overflow reps land as NA and are excluded._")))
+
+## corr(lambda_cv, tau) across replications
+diag_fx |>
+  transmute(batch, n, sim, lam_cv = (lam_balcv1 + lam_balcv0) / 2) |>
+  inner_join(df_fx |> filter(outcome == "linear", estimator == "balnetcv") |>
+               select(batch, n, sim, tau_hat),
+             by = c("batch", "n", "sim")) |>
+  group_by(batch, n) |>
+  summarise(cor = cor(tau_hat, lam_cv, use = "complete.obs"), .groups = "drop") |>
+  pivot_wider(names_from = n, values_from = cor)
+
+## Degree: RMSE ratio and bias2 share, balnetcv vs bal0/bal05, per batch
+degree_tbl <- \(d, b) d |>
+  filter(estimator %in% c("balnetcv", "balnet0", "balnet05")) |>
+  group_by(estimator, outcome, n) |>
+  summarise(mse = mean(tau_hat^2), v = var(tau_hat), .groups = "drop") |>
+  mutate(bias2_pct = 100 * (mse - v) / mse) |>
+  select(-v) |>
+  pivot_wider(names_from = estimator, values_from = c(mse, bias2_pct)) |>
+  transmute(outcome = factor(oc_labs[outcome], oc_labs), n,
+            `vs bal0`  = sqrt(mse_balnet0  / mse_balnetcv),
+            `vs bal05` = sqrt(mse_balnet05 / mse_balnetcv),
+            balnetcv = bias2_pct_balnetcv,
+            bal0     = bias2_pct_balnet0,
+            bal05    = bias2_pct_balnet05) |>
+  arrange(outcome, n) |>
+  gt(groupname_col = "outcome") |>
+  fmt_number(c(`vs bal0`, `vs bal05`), decimals = 2) |>
+  fmt_number(c(balnetcv, bal0, bal05), decimals = 0) |>
+  cols_label(n = "") |>
+  tab_spanner("RMSE ratio (comp / CV)", c(`vs bal0`, `vs bal05`)) |>
+  tab_spanner("Bias\u00b2 share of MSE (%)", c(balnetcv, bal0, bal05)) |>
+  cols_align("center", -outcome) |>
+  tab_header(b) |>
+  tab_source_note(md(
+    "_Ratios below 1 favour the comparator. Bias\u00b2 = MSE \u2212 var (true \u03c4 = 0)._"))
+
+walk(names(batches), \(b) print(degree_tbl(filter(df_fx, batch == b), b)))
+```
+
+- **the CV-rate critique was substantially a bug artifact.** Median $\lambda_{cv}$ decay under the fix is $\approx n^{-0.53}$ (correct) and $\approx n^{-0.50}$ (misspec), against $\approx n^{-0.11}$ on the bugged runs; it now matches `cv.glmnet`'s $\approx n^{-0.52}$. The E8 / CV-critique text (rate channel) needs rewriting before any of it goes in the draft.
+- still to check on the fixed runs before reusing the old claims: the **level** channel (is $\lambda_{cv}$ still above the RMSE-optimal $\lambda$, cite Wyss 2026 + Ertefaie for that channel only) and the **selection-noise variance** channel (does cor($\lambda_{cv}, \hat\tau$) still approach $-1$, and does bias$^2$ share still plateau below 100%).
+- misspecification effect on where $\lambda_{cv}$ lands: re-examine under the fix; the bugged-run conclusion (no effect) does not carry over automatically.
+
+# CV CURVE
+
+```{r}
+## CV curves: x = lambda path, y = held-out CB loss
+# CV criterion: cv.balnet selects the lambda minimising this.
+load_cv <- function(csv, rds) {
+  cells  <- distinct(tibble::as_tibble(data.table::fread(csv, select = c("n", "overlap"))))
+  curves <- readRDS(rds)
+  stopifnot(nrow(cells) == length(curves))
+  bind_rows(lapply(seq_along(curves), \(ci) bind_cols(
+    cells[ci, ],
+    bind_rows(lapply(seq_along(curves[[ci]]), \(r) {
+      x <- curves[[ci]][[r]]; if (is.null(x)) return(NULL)
+      bind_rows(lapply(c("treated", "control"), \(a)
+                       tibble(rep = r, arm = a, lambda = x$lambda[[a]], cv = x$cv.mean[[a]])))
+    })))))
+}
+
+f_bug <- paste0(res, "correctspecDGP2.csv.gz")
+f_fix <- paste0(res, "correctspecDGP2cvfix.csv.gz")
+stopifnot(file.exists(f_bug), file.exists(f_fix))
+cur <- bind_rows(
+  bug = load_cv(f_bug, sub("\\.csv\\.gz$", "_cvcurves.rds", f_bug)),
+  fix = load_cv(f_fix, sub("\\.csv\\.gz$", "_cvcurves.rds", f_fix)),
+  .id = "build")
+# (swap in misspecDGP2 / misspecDGP2cvfix to check the misspec curves)
+
+## same curve, both builds (L=100, K=5, L/K = 20)
+cur |> filter(n == 500, rep == 1, arm == "treated") |>
+  group_by(build) |> mutate(idx = row_number()) |> ungroup() |>
+  ggplot(aes(idx, cv)) + geom_line() +
+  geom_vline(xintercept = c(20.5, 40.5, 60.5, 80.5), linetype = 3) +
+  scale_y_log10() + facet_wrap(~build, scales = "free_y") + theme_sim
+
+## All curves: locate >20x single-step drops, per build
+# (ratio threshold 20 is arbitrary; unrelated to the period 20 = 100/nfolds)
+cur |>
+  group_by(build, n, overlap, rep, arm) |>
+  mutate(idx = row_number()) |>
+  filter(cv < lag(cv) / 20) |>
+  ungroup() |> count(build, idx, sort = TRUE)
+```
+
+- expected: the fixed build shows one smooth curve, no period-20 sawtooth, zero (or near-zero) \>20x single-step drops; the bugged build reproduces the drops at every fold boundary.
+
+# Selection uses the stored vector (fix batch)
+
+```{r}
+#  Same check as the bugged run: each curve's argmin lambda should equal the
+# recorded lam_balcv. match = 1: selection is driven by the (now corrected)
+# stored vector in both builds.
+rec <- as_diag(filter(df_fx, batch == "correct_fix")) |>
+  filter(outcome == "linear") |>                          # dedup: diags repeat per outcome
+  select(n, sim, treated = lam_balcv1, control = lam_balcv0) |>
+  pivot_longer(c(treated, control), names_to = "arm", values_to = "lam_rec")
+
+cur |> filter(build == "fix") |>
+  group_by(n, overlap, rep, arm) |>
+  slice_min(cv, with_ties = FALSE) |>                     # argmin row of each curve
+  ungroup() |>
+  inner_join(rec, by = c("n", "rep" = "sim", "arm")) |>
+  summarise(curves = n(),
+            match  = mean(abs(lambda - lam_rec) / lam_rec < 1e-8))  #tolerance
+```
+
+- match = 1 on the fixed build confirms the patched `rowMeans` criterion is what `lambda.min` is selected from, closing the loop on the reprex.
+- once this renders clean: unquarantine balnetcv columns for these two batches only, mark the bugged pair superseded_by the cvfix pair in registry.csv, and fold the two-panel figure + these numbers into the bug report to Erik.

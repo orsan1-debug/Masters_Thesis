@@ -1,0 +1,43 @@
+---
+title: "Working Analysis"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options: 
+  chunk_output_type: inline
+---
+
+#### Data-Generating Process (DGP2)
+
+We draw $n$ observations of $p$ multivariate normal covariates $X_i = (X_{i1}, \ldots, X_{ip})$ with mean zero, unit variances, and $\operatorname{cov}(X_{ij}, X_{ik}) = \rho^{|j-k|}$, with $\rho = 0$ (independent) or $\rho = 0.5$ (AR(1)) covariance structures. The true propensity score is
+
+$$e^*(X_i) = \left\{1 + \exp\left(\frac{\eta_i}{c\,\sigma_\eta} - \alpha\right)\right\}^{-1}, \quad \eta_i = \sum_{j=1}^{s} j^{-\nu} X_{ij}$$
+
+where $s$ is the number of active covariates, $c$ is an overlap scaler, $\nu$ is the rate of covariate signal decay, $\alpha$ sets the treated proportion, and the standard deviation for $\eta_i$, $\sigma_\eta$, normalizes the numerator so that only $c$ shifts overlap conditions.
+
+\*$\sigma_\eta$ is computed for both independent and AR(1) covariate structures.
+
+where $c > 0$ is an overlap scaler [@keele2025], and treatment is assigned as $W_i \sim \text{Bernoulli}(e^*(X_i))$. Only the first four of $p$ covariates are active in the propensity score, creating a sparse signal setting consistent with @tan2020.
+
+Under the sharp null $\tau = 0$, potential outcomes are generated as
+
+$$\begin{aligned}
+Y_i^{\text{lin}} &= X_{i1} + 0.5\,X_{i2} + 0.5\,X_{i3} + 0.5\,X_{i4} + \varepsilon_i \\
+Y_i^{\text{quad}} &= \sum_{j=1}^{4} \{\max(X_{ij}, 0)\}^2 + \varepsilon_i \\
+Y_i^{\text{exp}} &= \sum_{j=1}^{4} \exp(X_{ij}/2) + \varepsilon_i
+\end{aligned}$$
+
+where $\varepsilon_i \sim \mathcal{N}(0, 1)$. Outcome specifications follow from @tan2020.
+
+To introduce misspecification, the analyst observes transformed covariates $\tilde{X}$ instead of $X$ [@kangschafer2007]:
+
+$$\begin{aligned}
+\tilde{X}_{i1} &= \exp(X_{i1}/2) \\
+\tilde{X}_{i2} &= \frac{X_{i2}}{1 + \exp(X_{i1})} + 10 \\
+\tilde{X}_{i3} &= (0.04\,X_{i1}\,X_{i3} + 0.6)^3 \\
+\tilde{X}_{i4} &= (X_{i2} + X_{i4} + 20)^2
+\end{aligned}$$
+
+where $\tilde{X}_{i1}, \dots, \tilde{X}_{i4}$ are subsequently standardized to have mean zero and unit variance, following @tan2020. For $j = 5, \dots, p$, $\tilde{X}_{ij} = X_{ij}$. Both logistic and linear regressions on $\tilde{X}$ appear adequate by standard diagnostics, yet are misspecified since the true models are linear in $X$ on the logit scale.
+
+#### 

@@ -1,0 +1,133 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source("Analysis.R")
+# DGP2, correct spec, p = 50, s × decay × covcor grid, overlap = 1, 1000 reps
+df_sp <- load_sim("../results/sparsityDGP2.csv.gz")
+summ_sp <- summarise_sim(df_sp) |>
+  mutate(sf = factor(s, sort(unique(s))))
+```
+
+# INCREASE ACTIVE COVARIATES + DECAY
+
+```{r}
+dfm <- filter(summ_sp, covcor == "iid", decay == 1)   # flip covcor / decay for other tabs
+sp_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s"))
+
+# RMSE | |Bias| vs s, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sf, extra = sp_extra))
+
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = sp_extra))
+
+#- table -#
+perf_table(dfm, cols = c("s", "n"),
+           span_lab = \(x) paste0("s = ", x), span_desc = FALSE,
+           group = "outcome", title = "Sparsity, iid, decay = 1 (c = 1)")
+
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s, cols = n, xlab = "s",
+              x_scale = scale_x_log10(breaks = c(4, 8, 16, 32, 50)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+```{r}
+dfm <- filter(summ_sp, covcor == "iid", decay == 0.5)   # flip covcor / decay for other tabs
+sp_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s"))
+
+# RMSE | |Bias| vs s, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sf, extra = sp_extra))
+
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = sp_extra))
+
+#- table -#
+perf_table(dfm, cols = c("s", "n"),
+           span_lab = \(x) paste0("s = ", x), span_desc = FALSE,
+           group = "outcome", title = "Sparsity, iid, decay = 0.5 (c = 1)")
+
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s, cols = n, xlab = "s",
+              x_scale = scale_x_log10(breaks = c(4, 8, 16, 32, 50)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+- BAL0 \> MLE \> BALCV:
+
+  - baL0 unaffected increasing active covariates, reducing the rate of decay also doesnt seem to effect bal0.
+
+  - bal0 unaffected by reducing sparsity.
+
+  - bal0 by n = 10k, and active covariates = p = 50, reducing decay improves performance for MLE and balCV, they perform almost on par with bal0. bal05 and bal1q0 ared significantly degraded.
+
+# CORRELATED COVARIATES+ DECAY
+
+```{r}
+dfm <- filter(summ_sp, covcor == "ar1", decay == 1)   # flip covcor / decay for other tabs
+sp_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s"))
+# RMSE | |Bias| vs s, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sf, extra = sp_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = sp_extra))
+#- table -#
+perf_table(dfm, cols = c("s", "n"),
+           span_lab = \(x) paste0("s = ", x), span_desc = FALSE,
+           group = "outcome", title = "Sparsity, AR(1), decay = 1 (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s, cols = n, xlab = "s",
+              x_scale = scale_x_log10(breaks = c(4, 8, 16, 32, 50)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+```{r}
+dfm <- filter(summ_sp, covcor == "ar1", decay == 0.5)   # flip covcor / decay for other tabs
+sp_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s"))
+# RMSE | |Bias| vs s, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sf, extra = sp_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = sp_extra))
+#- table -#
+perf_table(dfm, cols = c("s", "n"),
+           span_lab = \(x) paste0("s = ", x), span_desc = FALSE,
+           group = "outcome", title = "Sparsity, AR(1), decay = 0.5 (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s, cols = n, xlab = "s",
+              x_scale = scale_x_log10(breaks = c(4, 8, 16, 32, 50)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+\`

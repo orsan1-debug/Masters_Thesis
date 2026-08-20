@@ -1,0 +1,52 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source("Analysis.R")
+df_prev <- load_sim("../results/prevDGP2correct.csv.gz")
+summ_prev <- summarise_sim(df_prev) |>
+  mutate(tpf = factor(treat_prop, sort(unique(treat_prop), decreasing = TRUE)))
+```
+
+# Increasing SNR
+
+```{r}
+dfm <- summ_prev
+prev_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n),
+                   labs(x = "treated share"))
+# RMSE | |Bias| vs treated share, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = tpf, extra = prev_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = tpf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = prev_extra))
+#- table -#
+perf_table(dfm, cols = c("treat_prop", "n"),
+           span_lab = \(x) paste0("treated share = ", x), span_desc = TRUE,
+           group = "outcome", title = "Prevalence grid, iid, correct spec (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = treat_prop, cols = n,
+              xlab = "treated share",
+              x_scale = scale_x_continuous(trans = c("log2", "reverse"),
+                                           breaks = c(0.05, 0.1, 0.2, 0.5)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = treat_prop, xlab = "treated share",
+             x_desc = TRUE)
+```
+
+- Bal0 is the performs the best when treatment allocation is degraded.
+
+- balnet.cv is outperformed by MLE, cross validation criterion is sensitive to unequal treatment allocations.

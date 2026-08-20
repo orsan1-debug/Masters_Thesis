@@ -15,8 +15,10 @@ drop0 <- function(x) sub("^(-?)0\\.", "\\1.", x)   # ".05" not "0.05" on axes
 
 # ---- 1. Load ---------------------------------------------------------------
 
-design_cols  <- c("n", "p", "s", "misspec", "covcor", "outcome", "overlap")
-outcome_cols <- c("linear", "quad1", "exp")
+design_cols <- c("n", "p", "s", "decay", "misspec", "covcor", "outcome", "overlap",
+                 "signs", "strength", "decay_ps", "decay_out", "outcome_set",
+                 "treat_prop")
+outcome_cols <- c("linear", "quad1", "quad2", "exp")
 
 load_sim <- function(path) {
   d <- tibble::as_tibble(data.table::fread(path))
@@ -56,7 +58,7 @@ summarise_sim <- function(data, by = c(design_cols, "estimator")) {
 
 # ---- 3. Estimator labels, palette, sets ------------------------------------
 
-lab_est <- c(balnet0        = "BalNet (path floor)",
+lab_est <- c(balnet0        = "BalNet (\u03bb=0)",
              balnet05       = "BalNet (\u03bb=.05)",
              balnet10       = "BalNet (\u03bb=.10)",
              balnetcv       = "BalNet (CV)",
@@ -88,6 +90,7 @@ scale_x_n <- scale_x_log10(breaks = c(500, 1000, 5000, 10000, 50000),
 lab_n   <- as_labeller(\(x) paste0("n = ", format(as.numeric(x), big.mark = ",")))
 n_lab   <- c("1000" = "1k", "5000" = "5k", "10000" = "10k", "50000" = "50k")
 oc_labs <- c(linear = "Linear", quad1 = "Quadratic", exp = "Exponential")
+as_c <- function(x) factor(x, sort(unique(x), decreasing = TRUE), paste0("c = ", drop0(sort(unique(x), decreasing = TRUE))))
 
 # shorten table headers ("5000" -> "5k"); anything unlisted passes through
 n_relabel <- function(v) unname(ifelse(v %in% names(n_lab), n_lab[v], v))
@@ -313,19 +316,21 @@ spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75,
 
 # reps with |tau_hat| > 10, overlap x n, faceted by outcome. Tile + numerator
 # = the estimator's count per cell; denominator = its total across the figure.
-extreme_heat <- function(data, est = "glmnetcv_hajek", ov = NULL, title = NULL) {
-  d <- filter(data, estimator == est, if (is.null(ov)) TRUE else overlap %in% ov)
+extreme_heat <- function(data, est = "glmnetcv_hajek", x = overlap,
+                         xlab = "Overlap (c)", x_desc = TRUE,
+                         ov = NULL, title = NULL) {
+  d <- filter(data, estimator == est, if (is.null(ov)) TRUE else {{ x }} %in% ov)
   total <- sum(d$n_extreme)
   if (is.null(title))
     title <- sprintf("%s: extreme estimates (|\u03c4\u0302| > 10)", unname(lab_est[est]))
   d |>
-    group_by(outcome, n, overlap) |>
+    group_by(outcome, n, x = {{ x }}) |>
     summarise(extreme = sum(n_extreme), .groups = "drop") |>
     mutate(fill_val = if_else(extreme > 0, extreme, NA_real_),
            outcome  = factor(outcome, names(oc_labs), oc_labs),
            n        = factor(n, sort(unique(n))),
-           overlap  = factor(overlap, sort(unique(overlap), decreasing = TRUE))) |>
-    ggplot(aes(overlap, n, fill = fill_val)) +
+           x        = factor(x, sort(unique(x), decreasing = x_desc))) |>
+    ggplot(aes(x, n, fill = fill_val)) +
     geom_tile(colour = "white", linewidth = 0.6) +
     geom_text(aes(label = if_else(extreme > 0, sprintf("%.0f/%.0f", extreme, total), "")),
               size = 3) +
@@ -333,7 +338,7 @@ extreme_heat <- function(data, est = "glmnetcv_hajek", ov = NULL, title = NULL) 
     scale_fill_gradient(low = "white", high = "#B22222", name = "Extreme\n(count)",
                         na.value = "white") +
     scale_y_discrete(labels = n_lab) +
-    labs(x = "Overlap (c)", y = "n", title = title) +
+    labs(x = xlab, y = "n", title = title) +
     theme_sim +
     theme(panel.grid = element_blank(), legend.position = "right")
 }
@@ -399,28 +404,35 @@ lam_meta <- tibble::tribble(
 pal_lam <- c("CV \u03bb" = "#0072B2", "path endpoint" = "#009E73",
              "glmnet \u03bb.min" = "#B22222")
 lt_arm  <- c(treated = "solid", control = "42", "single fit" = "solid")
-
 lambda_plot <- function(dg, x = n, stats = lam_meta$stat,
-                        ribbon = FALSE, rate = TRUE, ref_fixed = c(.05, .10)) {
+                        ribbon = FALSE, rate = TRUE, ref_fixed = c(.05, .10),
+                        p_dim = NULL) {
   # rate reference assumes x = n; set rate = FALSE for any other x
   d <- pivot_q(dg, "lam_[a-z0-9]+") |>
     filter(stat %in% stats) |>
     left_join(lam_meta, by = "stat")
-  p <- ggplot(d, aes({{ x }}, med, colour = quantity, linetype = arm,
-                     group = interaction(quantity, arm)))
+  plt <- ggplot(d, aes({{ x }}, med, colour = quantity, linetype = arm,
+                       group = interaction(quantity, arm)))
   if (ribbon)
-    p <- p + geom_ribbon(aes(ymin = q10, ymax = q90, fill = quantity,
-                             group = interaction(quantity, arm)),
-                         alpha = .12, colour = NA)
+    plt <- plt + geom_ribbon(aes(ymin = q10, ymax = q90, fill = quantity,
+                                 group = interaction(quantity, arm)),
+                             alpha = .12, colour = NA)
   if (rate) {
-    rd <- dg |> distinct(across(any_of(design_cols))) |>
-      mutate(med = sqrt(log(p) / n))
-    p <- p + geom_line(data = rd, aes({{ x }}, med), inherit.aes = FALSE,
-                       linetype = "dashed", colour = "black", linewidth = .5)
+    rd <- dg |> distinct(across(any_of(design_cols)))
+    if (!"p" %in% names(rd)) {
+      if (is.null(p_dim))
+        stop("rate line needs `p`: not in `dg`; supply p_dim or set rate = FALSE")
+      rd$p <- p_dim
+    }
+    stopifnot(is.numeric(rd$p), is.numeric(rd$n))
+    rd <- mutate(rd, med = sqrt(log(p) / n))
+    plt <- plt + geom_line(data = rd, aes({{ x }}, med), inherit.aes = FALSE,
+                           linetype = "dashed", colour = "black", linewidth = .5)
   }
   if (!is.null(ref_fixed))
-    p <- p + geom_hline(yintercept = ref_fixed, linetype = "dotted", colour = "grey45")
-  p +
+    plt <- plt + geom_hline(yintercept = ref_fixed, linetype = "dotted",
+                            colour = "grey45")
+  plt +
     geom_line(linewidth = .7) + geom_point(size = 1.5) +
     scale_colour_manual(values = pal_lam) +
     scale_fill_manual(values = pal_lam, guide = "none") +
@@ -641,4 +653,62 @@ cv_curve_plot <- function(cur, max_reps = 25, ref_fixed = c(.05, .10)) {
     geom_vline(xintercept = ref_fixed, linetype = "dotted", colour = "grey45") +
     scale_x_log10() +
     labs(x = "\u03bb", y = "CV loss") + theme_sim
+}
+
+# ---- 17. Criterion insensitivity (E8: what the CV loss can't see) ----------
+
+# Per-rep, per-arm shape of the CV loss surface from the sidecar curves.
+# rel excess r(lambda) = cv(lambda)/min(cv) - 1: how much worse the criterion
+# rates lambda than its own optimum. Flat region = {lambda : r < eps}; if the
+# RMSE-best rung sits inside it, no selection rule on this loss can find it.
+# Reference losses interpolated linearly on log-lambda; NA outside the grid.
+curve_stats <- function(cur, ref_fixed = c(.05, .10), eps = .05) {
+  grp <- setdiff(names(cur), c("lambda", "cv"))
+  cur |>
+    filter(is.finite(cv)) |>
+    group_by(across(all_of(grp))) |>
+    group_modify(\(d, key) {
+      fmin <- min(d$cv)
+      r_at <- \(l) approx(log(d$lambda), d$cv, xout = log(l), rule = 1)$y / fmin - 1
+      flat <- d$lambda[d$cv / fmin - 1 < eps]
+      tibble(lam_min   = d$lambda[which.min(d$cv)],
+             r_end     = d$cv[which.min(d$lambda)] / fmin - 1,  # attained endpoint
+             r_05      = r_at(ref_fixed[1]),
+             r_10      = r_at(ref_fixed[2]),
+             flat_lo   = min(flat), flat_hi = max(flat),
+             flat_span = log10(max(flat) / min(flat)))          # decades wide
+    }) |> ungroup()
+}
+
+# Cell summary: how flat, and which reference lambdas the criterion can't
+# distinguish from its optimum. pct_* = share of stored reps with r < eps.
+flatness_table <- function(cs, eps = .05, by = c(intersect(design_cols, names(cs)), "arm")) {
+  cs |>
+    group_by(across(all_of(by))) |>
+    summarise(m_stored  = dplyr::n(),
+              med_span  = median(flat_span),
+              med_r_end = median(r_end),
+              med_r_05  = median(r_05, na.rm = TRUE),
+              med_r_10  = median(r_10, na.rm = TRUE),
+              pct_end   = 100 * mean(r_end < eps),
+              pct_05    = 100 * mean(r_05 < eps, na.rm = TRUE),
+              pct_10    = 100 * mean(r_10 < eps, na.rm = TRUE),
+              .groups = "drop")
+}
+
+# All-rep endpoint-vs-selected criterion gap from the logged two-point loss.
+# Endpoint fits degenerate at small n (loss O(1e40+)), so log10 and tail
+# shares only; the blowup IS the small-n endpoint-divergence evidence.
+loss_gap <- function(data, by = design_cols) {
+  as_diag(data) |>
+    mutate(lr = pmax(log10(cvloss_end1 / cvloss_cv1),
+                     log10(cvloss_end0 / cvloss_cv0))) |>
+    group_by(across(all_of(intersect(by, names(data))))) |>
+    summarise(m        = dplyr::n(),
+              n_na     = sum(is.na(lr)),        # overflowed endpoint fits
+              med_lr   = median(lr, na.rm = TRUE),
+              q90_lr   = quantile(lr, .90, names = FALSE, na.rm = TRUE),
+              pct_10x  = 100 * mean(lr > 1, na.rm = TRUE),
+              pct_1e3x = 100 * mean(lr > 3, na.rm = TRUE),
+              .groups = "drop")
 }
