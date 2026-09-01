@@ -1,0 +1,146 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---a
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source("Analysis.R")
+
+# DGP2, correct spec, p = 50, s × decay × covcor grid, overlap = 1, 1000 reps
+df_sphp   <- load_sim("../results/sparsityE6DGP2.csv.gz")
+summ_sphp <- summarise_sim(df_sphp) |>
+  mutate(sf = factor(s, sort(unique(s))))
+
+# AR(1) covariance arm, same grid
+df_sphp_ar1   <- load_sim("../results/sparsityE6ar1DGP2.csv.gz")
+summ_sphp_ar1 <- summarise_sim(df_sphp_ar1) |>
+  mutate(sf = factor(s, sort(unique(s))))
+
+# reps per cell (ar1 arm was incomplete at last check)
+table(summ_sphp_ar1$m)
+
+```
+
+# decay 1
+
+```{r}
+dfm <- filter(summ_sphp, decay == 1)   # flip decay for the 0.5 tab
+sphp_extra <- list(
+  facet_wrap(~p, nrow = 1, labeller = labeller(p = \(x) paste0("p = ", x))),
+  labs(x = "s"))
+
+# RMSE | |Bias| vs s, faceted by p
+print(panel(dfm, "linear", x = sf, extra = sphp_extra))
+
+# bal0 vs oracle
+print(panel(dfm, "linear", x = sf,
+            ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+            extra = sphp_extra))
+
+#- table -#
+perf_table(dfm, cols = c("p", "s"),
+           span_lab = \(x) paste0("p = ", x), span_desc = FALSE,
+           group = "outcome",
+           title = "High-p sparsity, iid, decay = 1 (n = 1000, c = 1)")
+
+#- MSE decomp -#
+print(decomp_plot(dfm, x = s, cols = p, xlab = "s",
+                  x_scale = scale_x_log10(breaks = c(4, 16, 64, 256)),
+                  title = paste("MSE Decomposition (%) \u2014", oc_labs["linear"])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+# decay 0.5
+
+```{r}
+dfm <- filter(summ_sphp, decay == 0.5)   # flip decay for the 0.5 tab
+sphp_extra <- list(
+  facet_wrap(~p, nrow = 1, labeller = labeller(p = \(x) paste0("p = ", x))),
+  labs(x = "s"))
+
+# RMSE | |Bias| vs s, faceted by p
+print(panel(dfm, "linear", x = sf, extra = sphp_extra))
+
+# bal0 vs oracle
+print(panel(dfm, "linear", x = sf,
+            ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+            extra = sphp_extra))
+
+#- table -#
+perf_table(dfm, cols = c("p", "s"),
+           span_lab = \(x) paste0("p = ", x), span_desc = FALSE,
+           group = "outcome",
+           title = "High-p sparsity, iid, decay = 1 (n = 1000, c = 1)")
+
+#- MSE decomp -#
+print(decomp_plot(dfm, x = s, cols = p, xlab = "s",
+                  x_scale = scale_x_log10(breaks = c(4, 16, 64, 256)),
+                  title = paste("MSE Decomposition (%) \u2014", oc_labs["linear"])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+decay 1 correlated
+
+```{r}
+dfa <- filter(summ_sphp_ar1, decay == 1)
+sphp_extra <- list(
+  facet_wrap(~p, nrow = 1, labeller = labeller(p = \(x) paste0("p = ", x))),
+  labs(x = "s"))
+# RMSE | |Bias| vs s, faceted by p
+print(panel(dfa, "linear", x = sf, extra = sphp_extra))
+# bal0 vs oracle
+print(panel(dfa, "linear", x = sf,
+            ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+            extra = sphp_extra))
+#- table -#
+perf_table(dfa, cols = c("p", "s"),
+           span_lab = \(x) paste0("p = ", x), span_desc = FALSE,
+           group = "outcome",
+           title = "High-p sparsity, AR(1), decay = 1 (n = 1000, c = 1)")
+#- MSE decomp -#
+print(decomp_plot(dfa, x = s, cols = p, xlab = "s",
+                  x_scale = scale_x_log10(breaks = c(4, 16, 64, 256)),
+                  title = paste("MSE Decomposition (%) \u2014", oc_labs["linear"])))
+#- extreme estimates -#
+extreme_heat(dfa, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```
+
+decay .5 cortrelated
+
+```{r}
+dfa <- filter(summ_sphp_ar1, decay == 0.5)
+sphp_extra <- list(
+  facet_wrap(~p, nrow = 1, labeller = labeller(p = \(x) paste0("p = ", x))),
+  labs(x = "s"))
+# RMSE | |Bias| vs s, faceted by p
+print(panel(dfa, "linear", x = sf, extra = sphp_extra))
+# bal0 vs oracle
+print(panel(dfa, "linear", x = sf,
+            ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+            extra = sphp_extra))
+#- table -#
+perf_table(dfa, cols = c("p", "s"),
+           span_lab = \(x) paste0("p = ", x), span_desc = FALSE,
+           group = "outcome",
+           title = "High-p sparsity, AR(1), decay = 0.5 (n = 1000, c = 1)")
+#- MSE decomp -#
+print(decomp_plot(dfa, x = s, cols = p, xlab = "s",
+                  x_scale = scale_x_log10(breaks = c(4, 16, 64, 256)),
+                  title = paste("MSE Decomposition (%) \u2014", oc_labs["linear"])))
+#- extreme estimates -#
+extreme_heat(dfa, "glmnetcv_hajek", x = s, xlab = "s", x_desc = FALSE)
+```

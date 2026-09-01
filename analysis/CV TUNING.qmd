@@ -61,3 +61,30 @@ walk(c(FALSE, TRUE), \(ms)
 ```
 
 CV balance loss subsampled best performer, identical to Balnet
+
+```{r}
+# ── E3-CV: four CV tuning rules, degrading overlap (DGP2, correct spec) ──
+
+cv_raw <- fread("../results2/cvtuneoverlap.csv.gz")
+
+# data-quality screen first
+cv_raw[, .(reps = .N, nas = sum(is.na(est)), errs = sum(!is.na(err))),
+       by = .(n, overlap, outcome, estimator)][reps != 1000 | nas > 0 | errs > 0]
+
+cvov <- <summariser used for summ_ov>(cv_raw) |> mutate(cf = as_c(overlap))
+
+est_cv4_show <- c("bal_refit", "imb_refit", "bal_sub", "imb_sub", "balnet0")
+ov_facets    <- list(scale_x_n, facet_wrap(~cf, nrow = 1, scales = "free_y"))
+
+# plots > RMSE decomp
+for (oc in names(oc_labs)) {
+  print(panel(cvov, oc, ests = est_cv4_show, extra = ov_facets))
+  print(decomp_plot(filter(cvov, outcome == oc), ests = est_cv4_show, cols = cf,
+                    title = paste("RMSE Decomposition (%),", oc_labs[oc])))
+}
+
+# table
+perf_table(cvov, cols = c("overlap", "n"), group = "outcome",
+           title = "CV tuning rules under degrading overlap (DGP2)")
+extreme_heat(cvov)
+```
