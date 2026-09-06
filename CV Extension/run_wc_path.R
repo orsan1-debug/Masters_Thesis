@@ -2,22 +2,25 @@
 # RMSE along the balnet lambda path on the Wong & Chan design (Wang &
 # Zubizarreta 2020, Appendix D.4): ATE, basis X and X^2 (K = 20), outcome
 # models A and B sharing draws. Tuning rules as in Erik's tuning
-# experiments (cv.balnet: balance.loss, imbalance.mean, imbalance.inf;
-# cv.boot.balnet: imbalance.mean, imbalance.inf) plus Wang & Zubizarreta's
-# Algorithm 1 run over the same path with their Wong & Chan settings
-# (B = 10 subsamples of size n / 10). Same master seed and stream per rep
-# as wc_sbw_v2, so draws pair with the sbw run. PATE = 0 for both models;
-# SATE stored per rep. Output: results/<batch_id>.rds with lam (common
-# evaluation grid), grid (Algorithm 1 grid) and one list per rep.
-# Assumes balweights(fit, lambda = <vector>) returns list(treated, control),
-# each n x length(lambda) and zero off-arm, as for a scalar lambda.
+# run_wc_att.R -------------------------------------------------------------
+# RMSE along the balnet lambda path on the Wong & Chan design (Wang &
+# Zubizarreta 2020, Appendix D.4): ATT, basis X and X^2 (K = 20), outcome
+# models A and B sharing draws. One-arm fit with target = "control"; ATT
+# weights on controls are gamma = w - 1 = e/(1 - e) (balnet Remark 2), so
+# the ATT-scale tolerance is (n / n1) lambda. Tuning rules as in Erik's
+# tuning experiments (cv.balnet: balance.loss, imbalance.mean,
+# imbalance.inf; cv.boot.balnet: imbalance.mean, imbalance.inf) plus Wang &
+# Zubizarreta's Algorithm 1 over the same path with their Wong & Chan
+# settings (B = 10 subsamples of size n / 10) evaluated on the ATT weights
+# against treated means. Same master seed and stream per rep as wc_sbw_v2.
+# Truth is the sample ATT (satt), stored per rep; model B has none.
 
 library(parallel)
 
 dir         <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
-batch_id    <- "wc_path_v1"
+batch_id    <- "wc_att_v1"
 n           <- 5000
-n_rep       <- 200
+n_rep       <- 1000
 master_seed <- 20260903
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2)  # Algorithm 1
 
@@ -31,10 +34,12 @@ seeds <- vector("list", n_rep)
 seeds[[1]] <- .Random.seed
 for (i in seq_len(n_rep)[-1]) seeds[[i]] <- nextRNGStream(seeds[[i - 1]])
 
-# Common lambda grid for the path curve, from the rep-1 draw ----
+# Common evaluation grid: log-spaced from the rep-1 lambda_max to 1e-4 ----
 assign(".Random.seed", seeds[[1]], envir = .GlobalEnv)
 d0  <- dgp_wc(n)
-lam <- balnet(cbind(d0$X, d0$X^2), d0$W, max.imbalance = 1e-4)$lambda
+l0  <- balnet(cbind(d0$X, d0$X^2), d0$W, target = "control",
+              max.imbalance = 1e-4)$lambda
+lam <- exp(seq(log(max(l0)), log(1e-4), length.out = 100))
 
 # One replication ----
 one_rep <- function(i) {
@@ -44,7 +49,8 @@ one_rep <- function(i) {
     d <- dgp_wc(n)
     W <- d$W
     X <- cbind(d$X, d$X^2)
-    fit <- \(f, ...) f(X, W, max.imbalance = 1e-4, maxit = 1e4, tol = 1e-5, ...)
+    fit <- \(f, ...) f(X, W, target = "control", max.imbalance = 1e-4,
+                       maxit = 1e4, tol = 1e-5, ...)
     bl  <- fit(balnet)
     sel <- list(
       cv.bloss = fit(cv.balnet, nfolds = 5, type.measure = "balance.loss"),
@@ -53,25 +59,29 @@ one_rep <- function(i) {
       boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
       boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
     
-    # ATE per outcome column: rows A, B; one column per lambda
-    tau <- \(w) drop(crossprod(d$Y, w$treated - w$control)) / n
+    # ATT per outcome column from control-arm weights w (n x L, zero on
+    # treated): mean(Y | W = 1) minus the gamma-weighted control mean
+    ybar1 <- colMeans(d$Y[W == 1, , drop = FALSE])
+    att <- \(w) {
+      g <- (w - 1) * (1 - W)
+      drop(ybar1 - sweep(crossprod(d$Y, g), 2, colSums(g), "/"))
+    }
     
-    # Algorithm 1 over the path
+    # Algorithm 1 over the path, on the ATT weights against treated means
     wg <- balweights(bl, lambda = grid)
     s  <- apply(X, 2, sd)
     cs <- vapply(seq_along(grid), \(k)
-                 cstat(wg$treated[, k] + wg$control[, k], X, W, arms = c(0, 1),
-                       target = colMeans(X), s), numeric(1))
+                 cstat((wg[, k] - 1) * (1 - W), X, W, arms = 0,
+                       target = colMeans(X[W == 1, ]), s), numeric(1))
     k  <- which.min(cs)
-    wk <- list(treated = wg$treated[, k], control = wg$control[, k])
     
-    list(est_path = tau(balweights(bl, lambda = lam)),
+    list(est_path = att(balweights(bl, lambda = lam)),
          lam_end  = min(bl$lambda),
-         est_sel  = cbind(vapply(sel, \(m) tau(balweights(m)), numeric(2)),
-                          alg1 = tau(wk)),
+         est_sel  = cbind(vapply(sel, \(m) att(balweights(m)), numeric(2)),
+                          alg1 = att(wg[, k, drop = FALSE])),
          lam_sel  = c(vapply(sel, `[[`, numeric(1), "lambda.min"),
                       alg1 = grid[k]),
-         sate     = mean(d$tau_i))
+         satt     = mean(d$tau_i[W == 1]))
   }, error = \(e) list(err = conditionMessage(e)))
   out$time_sec <- proc.time()[["elapsed"]] - t0
   out

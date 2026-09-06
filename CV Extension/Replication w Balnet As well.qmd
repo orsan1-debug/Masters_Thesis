@@ -1,0 +1,162 @@
+---
+title: "Wang & Zubizarreta (2020) on the Wong & Chan design"
+format: pdf
+pdf-engine: xelatex
+mainfont: Times New Roman
+execute:
+  echo: false
+  warning: false
+---
+
+```{r setup}
+library(dplyr)
+dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
+sbw <- data.table::fread(file = paste0(dir, "results/wc_sbw_v2.csv.gz"))
+x   <- readRDS(paste0(dir, "results/wc_att_v2.rds"))
+```
+
+Setup: their Wong & Chan simulation (n = 5000, 10 covariates, first and second moments balanced), two outcomes on the same draws, 1000 paired reps.
+
+Model A: heavily confounded, heterogeneous effect.
+
+Model B: barely confounded, no effect; behaves like low SNR.
+
+Truth: 0 for the ATE; the sample ATT for the ATT (model A's ATT is about −17.7 and varies by draw).
+
+# Their weights, their tuning rule: does approximate balance beat exact? (Table 4)
+
+Claimed: yes, on both outcomes. Found: yes on B, no on A, where loosening balance lets confounding back in. The tuning rule never sees the outcome, so it cannot know which case it is in.
+
+```{r sbw}
+paper <- tibble::tribble(
+  ~estimand, ~outcome, ~balance, ~rmse_paper,
+  "ate", "A", "exact", 1.35, "ate", "A", "approx", 0.51,
+  "ate", "B", "exact", 0.31, "ate", "B", "approx", 0.21,
+  "att", "A", "exact", 0.72, "att", "A", "approx", 0.79,
+  "att", "B", "exact", 0.26, "att", "B", "approx", 0.25)
+sbw |>
+  mutate(err = tau_hat - case_when(outcome == "B" ~ 0, estimand == "ate" ~ 0,
+                                   TRUE ~ satt)) |>
+  group_by(estimand, outcome, balance) |>
+  summarise(rmse_ours = sqrt(mean(err^2)),
+            bias_ours = mean(err),
+            mcse_ours = sd(err^2) / sqrt(n()) / (2 * rmse_ours),
+            .groups = "drop") |>
+  left_join(paper, by = c("estimand", "outcome", "balance")) |>
+  arrange(estimand, outcome, desc(balance)) |>
+  select(estimand, outcome, balance, rmse_ours, rmse_paper, bias_ours, mcse_ours) |>
+  knitr::kable(digits = 3,
+               caption = "Ours: wc_sbw_v2, 1000 reps, exact arm delta = 1e-4 SD. Paper: Table 4, Variance row.")
+```
+
+Claim: tuned approximate balance beats exact balance on RMSE.
+
+Model A: fails. RMSE more than doubles (0.92 to 2.11), all bias. Paper: 10% worse.
+
+Model B: holds. RMSE falls 20% (0.29 to 0.23) - low SNR, perfect balancing fails.
+
+The rule picks the same λ for both models; only the outcome, which it never sees, decides whether that λ helps.
+
+# 
+
+# Entropy weights along the path: where is the best λ, and do the rules find it? 
+
+```{r att, fig.width=11, fig.height=5}
+ok  <- vapply(x$res, \(r) is.null(r$err), logical(1))
+res <- x$res[ok]
+sbw <- subset(sbw, rep %in% which(ok) & estimand == "att")
+lam_end <- vapply(res, `[[`, numeric(1), "lam_end")
+reached <- colMeans(outer(lam_end, x$lam, "<="))
+satt    <- vapply(res, `[[`, numeric(1), "satt")
+lam_sel <- do.call(rbind, lapply(res, `[[`, "lam_sel"))
+bind  <- \(o, k) do.call(rbind, lapply(res, \(r) r[[k]][o, ]))
+truth <- \(o) if (o == "A") satt else 0
+rmse  <- \(e) sqrt(colMeans(e^2))
+mcse  <- \(e) apply(e^2, 2, sd) / sqrt(nrow(e)) / (2 * rmse(e))
+sbw_err <- \(o, b) {
+  z <- subset(sbw, outcome == o & balance == b)
+  cbind(z$tau_hat - if (o == "A") z$satt else 0)
+}
+cols <- c(cv.bloss = "blue", cv.smd = "blue", cv.inf = "blue",
+          boot.smd = "red", boot.inf = "red", alg1 = "black")
+ltys <- c(4, 1, 2, 1, 2, 1)
+layout(matrix(c(1, 2, 3, 3), 2, byrow = TRUE), heights = c(5, 1))
+par(mar = c(4, 4, 3, 1))
+tab <- do.call(rbind, lapply(c("A", "B"), \(o) {
+  e_path <- bind(o, "est_path") - truth(o)
+  r <- rmse(e_path); r[reached < 0.95] <- NA
+  e_sel <- bind(o, "est_sel") - truth(o)
+  e_end <- e_path[, max(which(!is.na(r))), drop = FALSE]
+  e_opt <- e_path[, which.min(r), drop = FALSE]
+  e_sbw <- list(exact = sbw_err(o, "exact"), approx = sbw_err(o, "approx"))
+  plot(x$lam, r, log = "x", xlim = rev(range(x$lam)), type = "l", lwd = 2,
+       ylim = range(c(r, rmse(e_sel), sapply(e_sbw, rmse)), na.rm = TRUE),
+       xlab = "lambda (control-arm max SMD)", ylab = "RMSE vs sample ATT",
+       main = paste("ATT, outcome model", o))
+  abline(v = x$lam[which.min(r)], lty = 3, col = "gray40")
+  abline(v = median(lam_end), lty = 3, col = "red")
+  abline(h = rmse(e_sel), col = cols, lty = ltys)
+  abline(h = sapply(e_sbw, rmse), col = "gray60", lty = c(2, 1), lwd = 2)
+  row <- \(rule, e, lambda) data.frame(
+    outcome = o, rule = rule, lambda = lambda, rmse = rmse(e), mcse = mcse(e))
+  rbind(row("Best fixed lambda (oracle)", e_opt, x$lam[which.min(r)]),
+        row("Exact balance (path floor)", e_end, median(lam_end)),
+        row(c("cv.balnet, balance loss", "cv.balnet, mean SMD",
+              "cv.balnet, max SMD", "cv.boot.balnet, mean SMD",
+              "cv.boot.balnet, max SMD", "Their selector (Algorithm 1)"),
+            e_sel, apply(lam_sel, 2, median)),
+        row(c("sbw, exact", "sbw, their selector"),
+            do.call(cbind, e_sbw), NA))
+}))
+par(mar = c(0, 0, 0, 0)); plot.new()
+legend("center", c(names(cols), "sbw exact", "sbw approx"),
+       col = c(cols, "gray60", "gray60"), lty = c(ltys, 2, 1), lwd = 2,
+       horiz = TRUE, bty = "n")
+
+show_model <- \(o, paper) {
+  floor <- tab$rmse[tab$outcome == o & tab$rule == "Exact balance (path floor)"]
+  tab |>
+    filter(outcome == o) |>
+    arrange(rmse) |>
+    transmute(Method = rule,
+              `median lambda` = ifelse(is.na(lambda), "",
+                                       formatC(lambda, digits = 3, format = "f")),
+              RMSE = sprintf("%.2f (%.3f)", rmse, mcse),
+              `vs floor` = sprintf("%.2f", rmse / floor)) |>
+    knitr::kable(align = "lrrr",
+                 caption = sprintf("Model %s, ATT, 1000 reps. RMSE vs sample ATT (MCSE); vs floor = RMSE / exact-balance RMSE. Their Neg. Ent. row: %s.", o, paper))
+}
+
+show_model("A", "0.25 exact, 0.25 approx")
+
+
+show_model("B", "0.25 exact, 0.25 approx")
+```
+
+Claims:
+
+- \(1\) approximate balance beats exact
+
+- \(2\) alg1, their bootstrapped lambda selector (boot.inf/boot.smd is balnets versions) lands at or near optimal lambda.
+
+**Model A: (equivalent to high SNR)**
+
+Both claims fail. Best λ is the floor (0.43).
+
+Every rule relaxes and loses; theirs by 3.6× (1.54).
+
+**Model B: (equivalent to low SNR)**
+
+- Claim (1) holds: Best λ is 0.28 (0.19 oracle vs 0.32 at the floor).
+
+- Claim (2) fails: every rule stops far short of the oracle (λ = 0.28, RMSE 0.19). Ranked:
+
+1.  sbw, their selector (λ = 0.04 on sbw's scale, RMSE = 0.23)
+2.  cv.balnet, mean SMD (λ = 0.032, RMSE = 0.24)
+3.  cv.balnet, max SMD (λ = 0.036, RMSE = 0.24)
+4.  Their selector, Algorithm 1 (λ = 0.010, RMSE = 0.26)
+5.  cv.boot.balnet, mean SMD (λ = 0.004, RMSE = 0.27)
+6.  cv.boot.balnet, max SMD (λ = 0.003, RMSE = 0.28)
+7.  cv.balnet, balance loss (λ = 0.004, RMSE = 0.28)
+
+The ranking is just the λ ranking, looser wins because B rewards not adjusting, on A it reverses. No rule can be right on both.

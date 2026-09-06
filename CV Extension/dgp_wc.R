@@ -37,3 +37,39 @@ dgp_wc <- function(n, outcome = c("A", "B"), misspec = TRUE) {
   list(Y = Y, W = W, X = X, X_true = Z, tau = 0, tau_i = tau_i,
        e = e, eta = eta, e0 = 1 - e)
 }
+
+# Overlap variant (our extension, not in either paper) --------------------
+# Identical to dgp_wc() except the treatment logit is multiplied by
+# overlap: 1 reproduces dgp_wc(), larger values push propensities toward
+# 0 and 1. This is the device Wang & Zubizarreta use for overlap in their
+# RHC study, applied here to the Wong & Chan design. Z and eps draws are
+# identical to dgp_wc() for the same seed; only W changes.
+dgp_wc_overlap <- function(n, overlap = 1, outcome = c("A", "B"),
+                           misspec = TRUE) {
+  outcome <- match.arg(outcome, several.ok = TRUE)
+  
+  Z   <- matrix(rnorm(n * 10), n, 10)
+  eta <- overlap * (-Z[, 1] - 0.1 * Z[, 4])
+  e   <- 1 / (1 + exp(-eta))
+  W   <- rbinom(n, 1, e)
+  
+  g   <- 27.4 * Z[, 1] + 13.7 * Z[, 2] + 13.7 * Z[, 3] + 13.7 * Z[, 4]
+  f   <- function(o) switch(o,
+                            A = 210 + (1.5 * W - 0.5) * g,
+                            B = Z[, 1] * Z[, 2]^3 * Z[, 3]^2 * Z[, 4] + Z[, 4] * abs(Z[, 1])^0.5
+  )
+  eps <- rnorm(n)
+  Y   <- vapply(outcome, \(o) f(o) + eps, numeric(n))
+  
+  X <- Z
+  if (misspec) {
+    X[, 1] <- exp(Z[, 1] / 2)
+    X[, 2] <- Z[, 2] / (1 + exp(Z[, 1]))
+    X[, 3] <- (Z[, 1] * Z[, 3] / 25 + 0.6)^3
+    X[, 4] <- (Z[, 2] + Z[, 4] + 20)^2
+  }
+  
+  tau_i <- 1.5 * g                                   # model A; model B is 0
+  list(Y = Y, W = W, X = X, X_true = Z, tau = 0, tau_i = tau_i,
+       e = e, eta = eta, e0 = 1 - e)
+}
