@@ -390,7 +390,7 @@ legend("topright",
 parallel::stopCluster(cl)  # close the cluster
 
 
-# overlap + SNR ----
+##### overlap + SNR ----
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
 n_rep <- 500                                
@@ -429,10 +429,8 @@ parallel::stopCluster(cl)
 dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
 files <- list.files(dir, sprintf("^tune\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
-title_of <- function(cell) sprintf("%s SNR: %s outcome, %s overlap",
-                                   if (cell$sigma_y == 1) "high" else "low",
-                                   if (cell$s_y == 5) "sparse" else "dense",
-                                   cell$overlap)
+title_of <- function(cell) sprintf("%s overlap, s_y = %d, sigma_y = %d",
+                                   cell$overlap, cell$s_y, cell$sigma_y)
 rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
 cols <- c("blue", "blue", "blue", "red", "red")
 ltys <- c(4, 1, 2, 1, 2)
@@ -452,6 +450,8 @@ for (f in files) {
 legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
        bg = "white")
 dev.off()
+
+
 
 
 
@@ -494,7 +494,7 @@ for (i in seq_len(nrow(grid))) {
 }
 parallel::stopCluster(cl)
 
-#  plot of p grid ----
+######  plot of p grid ----
 files <- list.files(dir, sprintf("^tunep2_\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
 title_of <- function(cell) sprintf("%s overlap, p = %d, %s",
@@ -520,22 +520,25 @@ legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
        bg = "white")
 dev.off()                                        # start 3:02 end 3:13
 
-# SNR grid, fixed confounding ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"  # EDIT: set once
+
+#dimensionality does not have an interior solution in sparse or dense regiemes.
+
+# alpha grid (ridge to lasso), fixed confounding ----
+dir <- "/Users/otis/Documents/Masters_Thesis/Exploring CV"
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 500
+n_rep <- 50                                  # smoke test, then 50
 grid <- expand.grid(overlap = c("good", "moderate", "bad"),
-                    dense = c(FALSE, TRUE), sigma_y = c(1, 5),   # EDIT
+                    dense = c(FALSE, TRUE), alpha = c(0, 0.5, 1),
                     stringsAsFactors = FALSE)
-gen_cell <- function(g) {                   # EDIT: confounders stay at 1/sqrt(5)
-  dat <- gen_data(n, p = p, overlap = g$overlap, s_y = 5, sigma_y = g$sigma_y)
+gen_cell <- function(g) {                   # confounders stay at 1/sqrt(5)
+  dat <- gen_data(n, p = p, overlap = g$overlap, s_y = 5)
   if (g$dense) dat$Y <- dat$Y + rowSums(dat$X[, 6:50]) / sqrt(45)
   dat
 }
 one_rep <- function(rep_i) {                # g, lam exported by run_par
-  dat <- gen_cell(g)                                             # EDIT
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha,
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
                             maxit = 1e4, tol = 1e-5, ...)
   sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
               cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
@@ -547,31 +550,34 @@ one_rep <- function(rep_i) {                # g, lam exported by run_par
        lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
 }
 for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("tune2_%02d_r%d.rds", i, n_rep))  # EDIT
+  out_file <- file.path(dir, sprintf("tunea_%02d_r%d.rds", i, n_rep))
   if (file.exists(out_file)) next
   g <- grid[i, ]
-  set.seed(500 + i)                                              # EDIT
-  dat <- gen_cell(g)                                             # EDIT
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha)$lambda
+  set.seed(600 + i)
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha)$lambda
   saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
           out_file)
   message(out_file)
 }
 parallel::stopCluster(cl)
 
-#  plot of grid  ----
-files <- list.files(dir, sprintf("^tune2_\\d+_r%d\\.rds$", n_rep),   # EDIT
+#  plot of alpha grid ----
+files <- list.files(dir, sprintf("^tunea_\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
-title_of <- function(cell) sprintf("%s SNR: %s outcome, %s overlap",
-                                   if (cell$sigma_y == 1) "high" else "low",
-                                   if (cell$dense) "dense" else "sparse",  # EDIT
-                                   cell$overlap)
+title_of <- function(cell) sprintf("%s: %s overlap, %s outcome",
+                                   switch(as.character(cell$alpha),
+                                          "0" = "ridge (a=0)",
+                                          "0.5" = "elastic net (a=0.5)",
+                                          "1" = "lasso (a=1)"),
+                                   cell$overlap,
+                                   if (cell$dense) "dense" else "sparse")
 rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
 cols <- c("blue", "blue", "blue", "red", "red")
 ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("tune2_grid_r%d.png", n_rep)), 1600, 1000,   # EDIT
-    res = 110)
-par(mfcol = c(3, 4), mar = c(4, 4, 3, 1))
+png(file.path(dir, sprintf("alpha_grid_ridge_to_lasso_r%d.png", n_rep)),
+    2400, 1000, res = 110)
+par(mfcol = c(3, 6), mar = c(4, 4, 3, 1))
 for (f in files) {
   x <- readRDS(f)
   bind <- function(k) do.call(rbind, lapply(x$res, `[[`, k))
@@ -588,26 +594,32 @@ dev.off()
 
 
 
-# degrading SNR x overlap to 4, sparse outcome ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV" 
+
+
+
+
+
+# ridge + elastic net, overlap + worse , 500 reps, high SNR ----
+dir <- "/Users/otis/Documents/Masters_Thesis/Exploring CV"
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
 n_rep <- 500
-alpha_run <- 1                              # 1 = lasso; rerun with 0.5 later
 grid <- expand.grid(overlap = c("good", "moderate", "bad", "awful"),
-                    sigma_y = c(1, 2, 3, 5, 10), stringsAsFactors = FALSE)
-gen_cell <- function(g) {                   # sparse outcome; awful = c_prop 4
+                    dense = c(FALSE, TRUE), alpha = c(0, 0.5),
+                    stringsAsFactors = FALSE)
+gen_cell <- function(g) {                   # confounders stay at 1/sqrt(5)
   dat <- gen_data(n, p = p, overlap = if (g$overlap == "awful") "bad"
-                  else g$overlap, s_y = 5, sigma_y = g$sigma_y)
-  if (g$overlap == "awful") {
+                  else g$overlap, s_y = 5)
+  if (g$overlap == "awful") {               # c_prop 2.5 -> 4, SD(eta) ~ 6
     eta <- as.numeric(dat$X[, 1:5] %*% rep(4 / sqrt(5), 5))
     dat$W <- rbinom(n, 1, plogis(eta))
   }
+  if (g$dense) dat$Y <- dat$Y + rowSums(dat$X[, 6:50]) / sqrt(45)
   dat
 }
 one_rep <- function(rep_i) {                # g, lam exported by run_par
   dat <- gen_cell(g)
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
                             maxit = 1e4, tol = 1e-5, ...)
   sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
               cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
@@ -620,29 +632,32 @@ one_rep <- function(rep_i) {                # g, lam exported by run_par
 }
 t0 <- Sys.time()
 for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("tune4_%02d_r%d.rds", i, n_rep))
+  out_file <- file.path(dir, sprintf("tunea3_%02d_r%d.rds", i, n_rep))
   if (file.exists(out_file)) next
   g <- grid[i, ]
-  set.seed(1000 + i)
+  set.seed(800 + i)
   dat <- gen_cell(g)
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run)$lambda
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha)$lambda
   saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
           out_file)
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
 
-#  plot ----
-files <- list.files(dir, sprintf("^tune4_\\d+_r%d\\.rds$", n_rep),
+#  plot of extended-overlap grid ----
+files <- list.files(dir, sprintf("^tunea3_\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
-title_of <- function(cell) sprintf("%s overlap, sigma_y = %d",
-                                   cell$overlap, cell$sigma_y)
+title_of <- function(cell) sprintf("%s: %s overlap, %s outcome",
+                                   if (cell$alpha == 0) "ridge (a=0)"
+                                   else "elastic net (a=0.5)",
+                                   cell$overlap,
+                                   if (cell$dense) "dense" else "sparse")
 rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
 cols <- c("blue", "blue", "blue", "red", "red")
 ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("SNR_by_overlap_lasso_r%d.png", n_rep)), 2000, 1600,
-    res = 110)
-par(mfcol = c(4, 5), mar = c(4, 4, 3, 1))
+png(file.path(dir, sprintf("alpha_overlap_grid_r%d.png", n_rep)),
+    1600, 1300, res = 110)
+par(mfcol = c(4, 4), mar = c(4, 4, 3, 1))
 for (f in files) {
   x <- readRDS(f)
   bind <- function(k) do.call(rbind, lapply(x$res, `[[`, k))
@@ -657,40 +672,32 @@ legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
        bg = "white")
 dev.off()
 
-#COMMENT for SNR, both with diluted density and with independent density.
-
-# interior optimum only exists and higher outcome noise
-# with low enough SNR, CV can beat endpoint
-
-#with confounding fixed
-######## OuverlapGood>Bad: with high SNR overlap deg improves relative endpoint performance, with low SNR it shrinks gap (different CV perform differently, cv bloos and boot inf)
-######## outcome density has little/no effect
 
 
 
 
-### ELASTIC NET 
-
-# SNR x overlap grid, elastic net, n = 1000, 500 reps ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+# ridge + elastic net, lowered path floor, overlap + worse, high SNR ----
+dir <- "/Users/otis/Documents/Masters_Thesis/Exploring CV"
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 500
-alpha_run <- 0.5
+n_rep <- 200                           # 4-decade paths; 500 if time allows
+ratio <- 1e-4                          # lambda.min.ratio, default 1e-2
+nlam <- 200                            # keeps 50 points per decade
 grid <- expand.grid(overlap = c("good", "moderate", "bad", "awful"),
-                    sigma_y = c(1, 2, 3, 5, 10), stringsAsFactors = FALSE)
-gen_cell <- function(g) {                   # sparse outcome; awful = c_prop 4
+                    alpha = c(0, 0.5), stringsAsFactors = FALSE)
+gen_cell <- function(g) {                   # confounders stay at 1/sqrt(5)
   dat <- gen_data(n, p = p, overlap = if (g$overlap == "awful") "bad"
-                  else g$overlap, s_y = 5, sigma_y = g$sigma_y)
-  if (g$overlap == "awful") {
+                  else g$overlap, s_y = 5)
+  if (g$overlap == "awful") {               # c_prop 2.5 -> 4, SD(eta) ~ 6
     eta <- as.numeric(dat$X[, 1:5] %*% rep(4 / sqrt(5), 5))
     dat$W <- rbinom(n, 1, plogis(eta))
   }
   dat
 }
-one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+one_rep <- function(rep_i) tryCatch({       # g, lam, ratio, nlam exported
   dat <- gen_cell(g)
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
+                            lambda.min.ratio = ratio, nlambda = nlam,
                             maxit = 1e4, tol = 1e-5, ...)
   path <- fit(balnet)
   sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
@@ -699,36 +706,39 @@ one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
               boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
               boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
   list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
-       lam_end  = min(path$lambda),
+       lam_end  = min(path$lambda),          # floor actually reached
+       n_lam    = length(path$lambda),
        est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
        lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
 }, error = \(e) list(err = conditionMessage(e)))
 t0 <- Sys.time()
 for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("snr_enet_%02d_r%d.rds", i, n_rep))
+  out_file <- file.path(dir, sprintf("tunea4_%02d_r%d.rds", i, n_rep))
   if (file.exists(out_file)) next
   g <- grid[i, ]
-  set.seed(1000 + i)
+  set.seed(900 + i)
   dat <- gen_cell(g)
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run)$lambda
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha,
+                lambda.min.ratio = ratio, nlambda = nlam)$lambda
   saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
           out_file)
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
 
-#  plot: rows overlap, cols SNR ----
-files <- list.files(dir, sprintf("^snr_enet_\\d+_r%d\\.rds$", n_rep),
+#  plot of lowered-floor grid ----
+files <- list.files(dir, sprintf("^tunea4_\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
-r2 <- function(sigma_y) 2.23 / (2.23 + sigma_y^2)   # signal var beta'Sigma beta
-title_of <- function(cell) sprintf("%s overlap, sigma_y = %d (R2 = %.2f)",
-                                   cell$overlap, cell$sigma_y, r2(cell$sigma_y))
+title_of <- function(cell) sprintf("%s: %s overlap, floor %g",
+                                   if (cell$alpha == 0) "ridge (a=0)"
+                                   else "elastic net (a=0.5)",
+                                   cell$overlap, ratio)
 rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
 cols <- c("blue", "blue", "blue", "red", "red")
 ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("snr_by_overlap_enet_r%d.png", n_rep)), 2000, 1600,
-    res = 110)
-par(mfcol = c(4, 5), mar = c(4, 4, 3, 1))
+png(file.path(dir, sprintf("alpha_overlap_floor_grid_r%d.png", n_rep)),
+    900, 1300, res = 110)
+par(mfcol = c(4, 2), mar = c(4, 4, 3, 1))     # rows overlap, cols alpha
 for (f in files) {
   x <- readRDS(f)
   ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
@@ -746,291 +756,23 @@ legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
        bg = "white")
 dev.off()
 
-#  ladder: median selected lambda vs sigma_y, against the RMSE-optimal lambda ----
-sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
-lad <- do.call(rbind, lapply(files, function(f) {
-  x <- readRDS(f)
-  ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
-  lam_sel <- do.call(rbind, lapply(x$res[ok], `[[`, "lam_sel"))
-  rmse_path <- rmse(do.call(rbind, lapply(x$res[ok], `[[`, "est_path")))
-  data.frame(x$cell, selector = c(sels, "optimal"),
-             lam = c(apply(lam_sel[, sels], 2, median),
-                     x$lam[which.min(rmse_path)]))
-}))
-png(file.path(dir, sprintf("ladder_enet_r%d.png", n_rep)), 1800, 500,
-    res = 110)
-par(mfrow = c(1, 4), mar = c(4, 4, 3, 1))
-for (ov in c("good", "moderate", "bad", "awful")) {
-  d <- lad[lad$overlap == ov, ]
-  plot(NA, xlim = range(d$sigma_y), ylim = range(d$lam), log = "xy",
-       xlab = "sigma_y (log scale)", ylab = "lambda (log scale)",
-       main = paste(ov, "overlap"))
-  for (k in seq_along(sels)) {
-    dk <- d[d$selector == sels[k], ]
-    dk <- dk[order(dk$sigma_y), ]
-    lines(dk$sigma_y, dk$lam, col = cols[k], lty = ltys[k], lwd = 2)
-  }
-  dk <- d[d$selector == "optimal", ]
-  dk <- dk[order(dk$sigma_y), ]
-  lines(dk$sigma_y, dk$lam, col = "gray40", lwd = 3)
-}
-legend("topleft", c(sels, "RMSE-optimal"), col = c(cols, "gray40"),
-       lty = c(ltys, 1), lwd = 2, bg = "white")
-dev.off()
 
 
 
-
-# alpha sweep at bad overlap, sigma_y on shared fits, n = 1000, 200 reps ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
-cl <- parallel::makeCluster(parallel::detectCores() - 1)
-parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 200
-sigmas <- c(1, 5, 10)                      # evaluated on the same fits
-grid <- data.frame(alpha = c(0, 0.25, 0.75, 1))  # 0.5 = snr_enet; 1 = maxit 1e5
-gen_cell <- function() {                    # bad overlap, sparse outcome
-  dat <- gen_data(n, p = p, overlap = "bad", s_y = 5, sigma_y = 1)
-  mu <- as.numeric(dat$X[, 1:5] %*% rep(1 / sqrt(5), 5))
-  dat$Y <- mu + outer(dat$Y - mu, sigmas)   # n x 3: same eps, each sigma_y
-  dat
-}
-one_rep <- function(rep_i) tryCatch({       # g, lam, sigmas exported
-  dat <- gen_cell()
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
-                            maxit = if (g$alpha == 1) 1e5 else 1e4,
-                            tol = 1e-5, ...)
-  path <- fit(balnet)
-  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
-              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
-              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
-              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
-              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
-  w_path <- as.matrix(balweights(path, lambda = lam))
-  list(est_path = crossprod(w_path, dat$Y) / n,        # lambda x sigma
-       lam_end  = min(path$lambda),
-       est_sel  = vapply(sel, \(m) colMeans(as.numeric(balweights(m)) * dat$Y),
-                         numeric(length(sigmas))),      # sigma x selector
-       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
-}, error = \(e) list(err = conditionMessage(e)))
-t0 <- Sys.time()
-for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("alpha_bad_%02d_r%d.rds", i, n_rep))
-  if (file.exists(out_file)) next
-  g <- grid[i, , drop = FALSE]
-  set.seed(1200 + i)
-  dat <- gen_cell()
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha,
-                maxit = if (g$alpha == 1) 1e5 else 1e4)$lambda
-  saveRDS(list(cell = g, lam = lam, sigmas = sigmas,
-               res = run_par(seq_len(n_rep), one_rep)), out_file)
-  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
-}
-parallel::stopCluster(cl)
-
-#  plot: rows alpha, cols sigma_y ----
-files <- list.files(dir, sprintf("^alpha_bad_\\d+_r%d\\.rds$", n_rep),
-                    full.names = TRUE)
-r2 <- function(sigma_y) 2.23 / (2.23 + sigma_y^2)   # signal var beta'Sigma beta
-rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
-cols <- c("blue", "blue", "blue", "red", "red")
-ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("alpha_sweep_bad_r%d.png", n_rep)), 1500, 1600,
-    res = 110)
-par(mfrow = c(4, 3), mar = c(4, 4, 3, 1))     # rows alpha, cols sigma_y
-for (f in files) {
-  x <- readRDS(f)
-  ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
-  if (!all(ok)) message(basename(f), ": ", sum(!ok), " failed reps dropped")
-  lam_end <- median(vapply(x$res[ok], `[[`, numeric(1), "lam_end"))
-  for (s in seq_along(sigmas)) {
-    rmse_path <- rmse(do.call(rbind, lapply(x$res[ok], \(r) r$est_path[, s])))
-    rmse_sel <- rmse(do.call(rbind, lapply(x$res[ok], \(r) r$est_sel[s, ])))
-    plot(x$lam, rmse_path, log = "x", xlim = rev(range(x$lam)), type = "l",
-         xlab = "lambda (log scale)", ylab = "RMSE",
-         main = sprintf("alpha = %g, bad overlap, sigma_y = %g (R2 = %.2f)",
-                        x$cell$alpha, sigmas[s], r2(sigmas[s])))
-    abline(v = x$lam[which.min(rmse_path)], lty = 3, col = "gray40")
-    abline(v = lam_end, lty = 3, col = "red")     # median floor reached
-    abline(h = rmse_sel, col = cols, lty = ltys)
-  }
-}
-legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
-       bg = "white")
-dev.off()
-
-
-# n sweep under elastic net, bad/awful overlap, sigma_y on shared fits ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+# dimension p x alpha x overlap, n = 1000, sigma_y = 1, 200 reps ----
+dir <- "/Users/otis/Documents/Masters_Thesis/Exploring CV"
 stopifnot(dir.exists(dir))
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
 n_rep <- 200
-sigmas <- c(1, 3, 10)                      # evaluated on the same fits
-grid <- expand.grid(overlap = c("bad", "awful"), n = c(250, 500, 2000),
-                    stringsAsFactors = FALSE)      # add 5000 for overnight
-gen_cell <- function(g) {                   # sparse outcome; awful = c_prop 4
-  dat <- gen_data(g$n, p = p, overlap = "bad", s_y = 5, sigma_y = 1)
-  if (g$overlap == "awful") {
-    eta <- as.numeric(dat$X[, 1:5] %*% rep(4 / sqrt(5), 5))
-    dat$W <- rbinom(g$n, 1, plogis(eta))
-  }
-  mu <- as.numeric(dat$X[, 1:5] %*% rep(1 / sqrt(5), 5))
-  dat$Y <- mu + outer(dat$Y - mu, sigmas)   # n x 3: same eps, each sigma_y
-  dat
-}
-one_rep <- function(rep_i) tryCatch({       # g, lam, sigmas exported
-  dat <- gen_cell(g)
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = 0.5,
-                            maxit = 1e4, tol = 1e-5, ...)
-  path <- fit(balnet)
-  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
-              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
-              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
-              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
-              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
-  w_path <- as.matrix(balweights(path, lambda = lam))
-  list(est_path = crossprod(w_path, dat$Y) / g$n,      # lambda x sigma
-       lam_end  = min(path$lambda),
-       est_sel  = vapply(sel, \(m) colMeans(as.numeric(balweights(m)) * dat$Y),
-                         numeric(length(sigmas))),      # sigma x selector
-       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
-}, error = \(e) list(err = conditionMessage(e)))
-t0 <- Sys.time()
-for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("n_enet_%02d_r%d.rds", i, n_rep))
-  if (file.exists(out_file)) next
-  g <- grid[i, ]
-  set.seed(1400 + i)
-  dat <- gen_cell(g)
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = 0.5)$lambda
-  saveRDS(list(cell = g, lam = lam, sigmas = sigmas,
-               res = run_par(seq_len(n_rep), one_rep)), out_file)
-  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
-}
-parallel::stopCluster(cl)
-
-
-
-
-
-
-
-
-
-
-
-# n sweep under elastic net, bad/awful overlap, sigma_y on shared fits ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
-stopifnot(dir.exists(dir))
-cl <- parallel::makeCluster(parallel::detectCores() - 1)
-parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 200
-sigmas <- c(1, 3, 10)                      # evaluated on the same fits
-grid <- expand.grid(overlap = c("bad", "awful"), n = c(250, 500, 2000),
-                    stringsAsFactors = FALSE)      # add 5000 for overnight
-gen_cell <- function(g) {                   # sparse outcome; awful = c_prop 4
-  dat <- gen_data(g$n, p = p, overlap = "bad", s_y = 5, sigma_y = 1)
-  if (g$overlap == "awful") {
-    eta <- as.numeric(dat$X[, 1:5] %*% rep(4 / sqrt(5), 5))
-    dat$W <- rbinom(g$n, 1, plogis(eta))
-  }
-  mu <- as.numeric(dat$X[, 1:5] %*% rep(1 / sqrt(5), 5))
-  dat$Y <- mu + outer(dat$Y - mu, sigmas)   # n x 3: same eps, each sigma_y
-  dat
-}
-one_rep <- function(rep_i) tryCatch({       # g, lam, sigmas exported
-  dat <- gen_cell(g)
-  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = 0.5,
-                            maxit = 1e4, tol = 1e-5, ...)
-  path <- fit(balnet)
-  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
-              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
-              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
-              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
-              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
-  w_path <- as.matrix(balweights(path, lambda = lam))
-  list(est_path = crossprod(w_path, dat$Y) / g$n,      # lambda x sigma
-       lam_end  = min(path$lambda),
-       est_sel  = vapply(sel, \(m) colMeans(as.numeric(balweights(m)) * dat$Y),
-                         numeric(length(sigmas))),      # sigma x selector
-       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
-}, error = \(e) list(err = conditionMessage(e)))
-t0 <- Sys.time()
-for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("n_enet_%02d_r%d.rds", i, n_rep))
-  if (file.exists(out_file)) next
-  g <- grid[i, ]
-  set.seed(1400 + i)
-  dat <- gen_cell(g)
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = 0.5)$lambda
-  saveRDS(list(cell = g, lam = lam, sigmas = sigmas,
-               res = run_par(seq_len(n_rep), one_rep)), out_file)
-  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
-}
-parallel::stopCluster(cl)
-
-#  plot: one figure, rows sigma_y x overlap, cols n; path shown only where
-#  at least 95% of replicates reached that lambda ----
-alpha_run <- 0.5
-files <- list.files(dir, sprintf("^n_enet_\\d+_r%d\\.rds$", n_rep),
-                    full.names = TRUE)
-runs <- lapply(files, readRDS)
-cells <- do.call(rbind, lapply(runs, `[[`, "cell"))
-runs <- runs[order(cells$overlap == "awful", cells$n)]  # bad then awful, n up
-r2 <- function(sigma_y) 2.23 / (2.23 + sigma_y^2)   # signal var beta'Sigma beta
-rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
-cols <- c("blue", "blue", "blue", "red", "red")
-ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("n_by_overlap_enet_r%d.png", n_rep)), 1500, 2400,
-    res = 110)
-par(mfrow = c(6, 3), mar = c(4, 4, 3, 1))     # rows sigma_y x overlap, cols n
-for (s in seq_along(sigmas)) {
-  for (x in runs) {
-    ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
-    if (!all(ok)) message(x$cell$overlap, " n=", x$cell$n, ": ", sum(!ok),
-                          " failed reps dropped")
-    lam_end <- vapply(x$res[ok], `[[`, numeric(1), "lam_end")
-    reached <- colMeans(outer(lam_end, x$lam, "<="))   # share of reps at lambda
-    rmse_path <- rmse(do.call(rbind, lapply(x$res[ok], \(r) r$est_path[, s])))
-    rmse_path[reached < 0.95] <- NA
-    rmse_sel <- rmse(do.call(rbind, lapply(x$res[ok], \(r) r$est_sel[s, ])))
-    plot(x$lam, rmse_path, log = "x", xlim = rev(range(x$lam)), type = "l",
-         xlab = "lambda (log scale)", ylab = "RMSE",
-         main = sprintf(
-           "alpha = %g: %s overlap, n = %d, sigma_y = %g (R2 = %.2f)",
-           alpha_run, x$cell$overlap, x$cell$n, sigmas[s], r2(sigmas[s])))
-    abline(v = x$lam[which.min(rmse_path)], lty = 3, col = "gray40")
-    abline(v = median(lam_end), lty = 3, col = "red")  # median floor reached
-    abline(h = rmse_sel, col = cols, lty = ltys)
-  }
-}
-legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
-       bg = "white")
-dev.off()
-
-
-# confounder spread s x overlap x penalty, n = 1000, sigma_y = 1, 200 reps ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
-stopifnot(dir.exists(dir))
-cl <- parallel::makeCluster(parallel::detectCores() - 1)
-parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 200
-grid <- expand.grid(overlap = c("good", "moderate", "bad", "awful"),
-                    s = c(5, 20, 50), alpha = c(0, 0.5, 1),
-                    stringsAsFactors = FALSE)
-gen_cell <- function(g) {                   # s confounders, coef 1/sqrt(s)
-  dat <- gen_data(n, p = p, overlap = if (g$overlap == "awful") "bad"
-                  else g$overlap, s_prop = g$s, s_y = g$s, sigma_y = 1)
-  if (g$overlap == "awful") {               # c_prop 2.5 -> 4
-    eta <- as.numeric(dat$X[, seq_len(g$s)] %*% rep(4 / sqrt(g$s), g$s))
-    dat$W <- rbinom(n, 1, plogis(eta))
-  }
-  dat
+grid <- expand.grid(overlap = c("moderate", "bad"), alpha = c(0.5, 0.75),
+                    p = c(100, 500), stringsAsFactors = FALSE)  # p last = slow last
+gen_cell <- function(g) {                   # 5 confounders, coef 1/sqrt(5)
+  gen_data(n, p = g$p, overlap = g$overlap, s_y = 5, sigma_y = 1)
 }
 one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
   dat <- gen_cell(g)
   fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
-                            lambda.min.ratio = if (g$alpha == 0) 1e-4 else 1e-2,
                             maxit = 1e4, tol = 1e-5, ...)
   path <- fit(balnet)
   sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
@@ -1045,29 +787,27 @@ one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
 }, error = \(e) list(err = conditionMessage(e)))
 t0 <- Sys.time()
 for (i in seq_len(nrow(grid))) {
-  out_file <- file.path(dir, sprintf("spread_%02d_r%d.rds", i, n_rep))
+  out_file <- file.path(dir, sprintf("dima_%02d_r%d.rds", i, n_rep))
   if (file.exists(out_file)) next
   g <- grid[i, ]
-  set.seed(1600 + i)
+  set.seed(1900 + i)
   dat <- gen_cell(g)
-  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha,
-                lambda.min.ratio = if (g$alpha == 0) 1e-4 else 1e-2)$lambda
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha)$lambda
   saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
           out_file)
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
 
-#  plot: rows overlap, cols s within each penalty (ridge | EN | lasso) ----
-files <- list.files(dir, sprintf("^spread_\\d+_r%d\\.rds$", n_rep),
+#  plot: rows overlap, cols alpha within each p block ----
+files <- list.files(dir, sprintf("^dima_\\d+_r%d\\.rds$", n_rep),
                     full.names = TRUE)
-pen <- c("0" = "ridge", "0.5" = "elastic net", "1" = "lasso")
 rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
 cols <- c("blue", "blue", "blue", "red", "red")
 ltys <- c(4, 1, 2, 1, 2)
-png(file.path(dir, sprintf("spread_by_penalty_r%d.png", n_rep)), 4500, 1600,
+png(file.path(dir, sprintf("dim_by_alpha_r%d.png", n_rep)), 2000, 800,
     res = 110)
-par(mfcol = c(4, 9), mar = c(4, 4, 3, 1))     # file order fills column-wise
+par(mfcol = c(2, 4), mar = c(4, 4, 3, 1))     # file order fills column-wise
 for (f in files) {
   x <- readRDS(f)
   ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
@@ -1080,9 +820,81 @@ for (f in files) {
   rmse_sel <- rmse(bind("est_sel"))
   plot(x$lam, rmse_path, log = "x", xlim = rev(range(x$lam)), type = "l",
        xlab = "lambda (log scale)", ylab = "RMSE",
-       main = sprintf("%s (a=%g): %s overlap, %d confounders",
-                      pen[as.character(x$cell$alpha)], x$cell$alpha,
-                      x$cell$overlap, x$cell$s))
+       main = sprintf("alpha = %g: %s overlap, p = %d, sigma_y = 1",
+                      x$cell$alpha, x$cell$overlap, x$cell$p))
+  abline(v = x$lam[which.min(rmse_path)], lty = 3, col = "gray40")
+  abline(v = median(lam_end), lty = 3, col = "red")    # median floor reached
+  abline(h = rmse_sel, col = cols, lty = ltys)
+}
+legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
+       bg = "white")
+dev.off()
+
+
+
+# high dimension p x alpha x overlap, n = 1000, sigma_y = 1, 200 reps ----
+dir <- "/Users/otis/Documents/Masters_Thesis/Exploring CV"
+stopifnot(dir.exists(dir))
+cl <- parallel::makeCluster(parallel::detectCores() - 1)
+parallel::clusterEvalQ(cl, library(balnet))
+n_rep <- 200
+grid <- expand.grid(overlap = c("moderate", "bad"), alpha = c(0.5, 0.75, 1),
+                    p = c(1000, 2000), stringsAsFactors = FALSE)
+gen_cell <- function(g) {                   # 5 confounders, coef 1/sqrt(5)
+  gen_data(n, p = g$p, overlap = g$overlap, s_y = 5, sigma_y = 1)
+}
+one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = g$alpha,
+                            maxit = 1e4, tol = 1e-5, ...)
+  path <- fit(balnet)
+  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
+              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
+              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
+              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
+              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
+  list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
+       lam_end  = min(path$lambda),
+       est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
+       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
+}, error = \(e) list(err = conditionMessage(e)))
+t0 <- Sys.time()
+for (i in seq_len(nrow(grid))) {
+  out_file <- file.path(dir, sprintf("dimhi_%02d_r%d.rds", i, n_rep))
+  if (file.exists(out_file)) next
+  g <- grid[i, ]
+  set.seed(2000 + i)
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = g$alpha)$lambda
+  saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
+          out_file)
+  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
+}
+parallel::stopCluster(cl)
+
+#  plot: rows overlap, cols alpha within each p block ----
+files <- list.files(dir, sprintf("^dimhi_\\d+_r%d\\.rds$", n_rep),
+                    full.names = TRUE)
+rmse <- function(m) sqrt(colMeans(m^2))          # true value is 0
+cols <- c("blue", "blue", "blue", "red", "red")
+ltys <- c(4, 1, 2, 1, 2)
+png(file.path(dir, sprintf("dimhi_by_alpha_r%d.png", n_rep)), 3000, 800,
+    res = 110)
+par(mfcol = c(2, 6), mar = c(4, 4, 3, 1))     # file order fills column-wise
+for (f in files) {
+  x <- readRDS(f)
+  ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
+  if (!all(ok)) message(basename(f), ": ", sum(!ok), " failed reps dropped")
+  lam_end <- vapply(x$res[ok], `[[`, numeric(1), "lam_end")
+  reached <- colMeans(outer(lam_end, x$lam, "<="))     # share of reps at lambda
+  bind <- function(k) do.call(rbind, lapply(x$res[ok], `[[`, k))
+  rmse_path <- rmse(bind("est_path"))
+  rmse_path[reached < 0.95] <- NA
+  rmse_sel <- rmse(bind("est_sel"))
+  plot(x$lam, rmse_path, log = "x", xlim = rev(range(x$lam)), type = "l",
+       xlab = "lambda (log scale)", ylab = "RMSE",
+       main = sprintf("alpha = %g: %s overlap, p = %d, sigma_y = 1",
+                      x$cell$alpha, x$cell$overlap, x$cell$p))
   abline(v = x$lam[which.min(rmse_path)], lty = 3, col = "gray40")
   abline(v = median(lam_end), lty = 3, col = "red")    # median floor reached
   abline(h = rmse_sel, col = cols, lty = ltys)
