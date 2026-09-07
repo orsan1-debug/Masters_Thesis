@@ -13,7 +13,7 @@
 # (delta_exact, in SD units).
 
 library(sbw)
-source("C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/dgp_wc.R")
+source(paste0(dir, "dgp_wc.R"))
 
 #' sbw weights for one tolerance delta (in SD units of the target group).
 #' Returns the n-vector of weights in data order. For "ate" each arm sums to
