@@ -1027,3 +1027,53 @@ for (f in files) {
 legend("topright", names(rmse_sel), col = cols, lty = ltys, lwd = 2,
        bg = "white")
 dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# End slope of the lasso RMSE path, weak-overlap cells ----
+files <- list.files(dir, "^(tune4|tunen2)_\\d+_r\\d+\\.rds$",
+                    full.names = TRUE)
+end_slope <- function(f) {
+  x <- readRDS(f)
+  ok <- vapply(x$res, \(r) is.null(r$err), logical(1))
+  res <- x$res[ok]
+  cell <- x$cell
+  sig <- if (!is.null(x$sigmas)) x$sigmas else cell$sigma_y
+  cell$sigma_y <- NULL
+  k <- length(x$lam)
+  rows <- lapply(seq_along(sig), function(s) {
+    ep <- if (is.null(x$sigmas)) do.call(rbind, lapply(res, `[[`, "est_path"))
+    else do.call(rbind, lapply(res, \(r) r$est_path[, s]))
+    rp <- sqrt(colMeans(ep^2))
+    data.frame(file = basename(f), cell, sigma_y = sig[s],
+               lam_floor = x$lam[k],
+               rel = t(round(rp[(k - 3):k] / rp[k], 3)))
+  })
+  do.call(rbind, rows)
+}
+slope <- dplyr::bind_rows(lapply(files, end_slope))
+slope[slope$overlap %in% c("bad", "awful"), ]
+
+
+
+
+
+
+
+
+
+
+
+
