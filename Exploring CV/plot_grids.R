@@ -121,3 +121,36 @@ for (a in c(1, 0.5))
   grid_png("spread", 200, "overlap", "s", sprintf("fig_spread_a%g.png", a),
            keep = \(c) c$alpha == a,
            title = if (a == 1) "Lasso" else "Elastic net, alpha 0.5")
+
+
+# Added figures ----
+for (k in names(ov_pair)) {
+  grid_png("tune4", 500, "overlap", "sigma_y",
+           sprintf("fig_snr_lasso_%s_mid.png", k),
+           keep = \(c) c$overlap %in% ov_pair[[k]] & c$sigma_y %in% c(2, 5),
+           title = "Lasso")
+  grid_png("snr_enet", 500, "overlap", "sigma_y",
+           sprintf("fig_snr_enet_%s_mid.png", k),
+           keep = \(c) c$overlap %in% ov_pair[[k]] & c$sigma_y %in% c(2, 5),
+           title = "Elastic net, alpha 0.5")
+}
+grid_png("tunea3", 500, "overlap", "alpha", "fig_ridge_default.png",
+         keep = \(c) !c$dense, title = "Default path floor, sigma_y = 1")
+grid_png("spread", 200, "overlap", "s", "fig_spread_a0.png",
+         keep = \(c) c$alpha == 0, title = "Ridge, alpha 0")
+
+
+
+# Density side by side, one sigma_y per figure ----
+for (sg in c(1, 5)) {
+  grid_png("tune", 500, "overlap", "s_y",
+           sprintf("fig_density_sy_sigma%d.png", sg),
+           keep = \(c) c$sigma_y == sg,
+           title = sprintf("Sparse (s_y = 5) vs diluted (s_y = 100), sigma_y = %d", sg))
+  grid_png("tune2", 500, "overlap", "dense",
+           sprintf("fig_density_fixed_sigma%d.png", sg),
+           keep = \(c) c$sigma_y == sg,
+           title = sprintf("Fixed confounding, sparse vs dense, sigma_y = %d", sg))
+}
+
+
