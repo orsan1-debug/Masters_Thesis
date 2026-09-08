@@ -154,3 +154,25 @@ for (sg in c(1, 5)) {
 }
 
 
+grid_png("tune4", 500, "sigma_y", "overlap", "fig_snr_lasso.png",
+         keep = \(c) c$overlap != "awful", title = "Noise by overlap")
+grid_png("tune4", 500, "sigma_y", "overlap", "fig_snr_lasso_all.png",
+         title = "Noise by overlap, all four levels")
+
+grid_png("tune4", 500, "overlap", "sigma_y", "fig_snr_sigma2.png",
+         keep = \(c) c$sigma_y == 2 & c$overlap != "awful",
+         title = "sigma_y = 2")
+
+
+
+
+
+#  noise axis at good overlap: tune4 plus snr_good, 12 levels ----
+grid_png("(tune4|snr_good)", 500, "sigma_y", "overlap", "fig_snr_good.png",
+         keep = \(c) c$overlap == "good",
+         title = "Lasso, good overlap, sigma_y 1 to 20")
+
+
+
+
+

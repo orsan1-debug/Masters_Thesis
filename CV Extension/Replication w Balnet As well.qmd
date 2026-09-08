@@ -23,7 +23,7 @@ x   <- readRDS(paste0(dir, "results/wc_att_v2.rds"))
 
 Truth: 0 for the ATE; the sample ATT for the ATT (model A's ATT is about −17.7 and varies by draw).
 
-# does approximate balance beat exact? 
+# does approximate balance beat exact?
 
 **Claim 1: under bad overlap:** exact balance often has no solution, and where it does the weights rest on a few observations, so approximate balance trades bias for variance and cuts ATT RMSE by half (pp. 94, 102, 103).
 
@@ -47,9 +47,7 @@ sbw |>
   left_join(paper, by = c("estimand", "outcome", "balance")) |>
   mutate(diff = rmse_ours - rmse_paper) |>
   arrange(estimand, outcome, desc(balance)) |>
-  mutate(estimand = ifelse(duplicated(estimand), "", toupper(estimand)),
-         outcome  = ifelse(duplicated(paste(estimand, outcome)) &
-                             estimand == "", "", outcome)) |>
+  mutate(estimand = ifelse(duplicated(estimand), "", toupper(estimand))) |>
   select(estimand, outcome, balance, rmse_ours, rmse_paper, diff, mcse_ours,
          bias_ours) |>
   knitr::kable(digits = 2, booktabs = TRUE, linesep = "", align = "lllrrrrr",
@@ -58,7 +56,7 @@ sbw |>
                              "Bias ours"))
 ```
 
-**Replication:**
+Replication: model B and both exact arms match Table 4 within 0.35; model Aapproximate does not (2.4 to 2.7 times theirs). Our loop picks a median\$\\delta = 0.02\$; theirs must pick tighter, or the code differs. Supplementcode not yet checked.
 
 **laim 2: under good overlap:** approximate and exact balance perform similarly (p. 102).
 
@@ -68,7 +66,7 @@ sbw |>
 
 The rule picks the same λ for both models; only the outcome, which it never sees, decides whether that λ helps.
 
-# Entropy weights along the path: where is the best λ, and do the rules find it?
+# Selectors weights along the path
 
 ```{r att, fig.width=11, fig.height=5}
 ok  <- vapply(x$res, \(r) is.null(r$err), logical(1))
@@ -144,7 +142,7 @@ show_model("B", "0.25 exact, 0.25 approx")
 
 Claims:
 
-- \(1\) approximate balance beats exact
+- \(1\) approximate balance beats approximate balance beats exact on RMSE
 
 - \(2\) alg1, their bootstrapped lambda selector (boot.inf/boot.smd is balnets versions) lands at or near optimal lambda.
 
@@ -169,3 +167,66 @@ Every rule relaxes and loses; theirs by 3.6× (1.54).
 7.  cv.balnet, balance loss (λ = 0.004, RMSE = 0.28)
 
 The ranking is just the λ ranking, loser wins because B rewards not adjusting, on A it reverses. No rule can be right on both.
+
+```{r}
+# Overlap: does approximate balance help more as overlap worsens?
+
+rmse <- \(e) sqrt(colMeans(e^2, na.rm = TRUE))
+mcse <- \(e) apply(e^2, 2, sd, na.rm = TRUE) / sqrt(colSums(!is.na(e))) /
+  (2 * rmse(e))
+out <- lapply(1:4, \(c) {
+  x <- readRDS(paste0(dir, "results/wc_overlap_c", c, ".rds"))
+  v <- \(k) vapply(x$res, `[[`, numeric(1), k)
+  bind <- \(o, k) do.call(rbind, lapply(x$res, \(r) r[[k]][o, ]))
+  reached <- colMeans(outer(v("lam_end"), x$lam * (1 + 1e-6), "<="))
+  c(list(lam_sel = apply(do.call(rbind, lapply(x$res, `[[`, "lam_sel")), 2,
+                         median),
+         reach = mean(v("lam_end") < 1.000001e-4)),
+    lapply(c(A = "A", B = "B"), \(o) {
+      truth <- if (o == "A") v("satt") else 0
+      e_path <- bind(o, "est_path") - truth
+      r <- rmse(e_path); r[reached < 0.95] <- NA
+      floor <- max(which(!is.na(r))); opt <- which.min(r)
+      e <- cbind(e_path[, c(opt, floor)], bind(o, "est_sel") - truth,
+                 bind(o, "est_mle") - truth)
+      e[!is.finite(e)] <- NA
+      list(lam = x$lam[c(opt, floor)], rmse = rmse(e), mcse = mcse(e),
+           n_na = sum(is.na(e[, 9])))
+    }))
+})
+rules <- c("cv.balnet, balance loss", "cv.balnet, mean SMD",
+           "cv.balnet, max SMD", "cv.boot.balnet, mean SMD",
+           "cv.boot.balnet, max SMD", "Their selector (Algorithm 1)")
+cn <- paste("c =", 1:4)
+
+lam_tab <- rbind(
+  "Best fixed lambda, model A" = sapply(out, \(z) z$A$lam[1]),
+  "Best fixed lambda, model B" = sapply(out, \(z) z$B$lam[1]),
+  "Exact balance (path floor)" = sapply(out, \(z) z$A$lam[2]),
+  sapply(out, `[[`, "lam_sel"))
+rownames(lam_tab)[4:9] <- rules
+lam_tab <- rbind(formatC(lam_tab, digits = 2, format = "g"),
+                 "Share of paths reaching 1e-4" =
+                   sprintf("%.2f", sapply(out, `[[`, "reach")))
+colnames(lam_tab) <- cn
+knitr::kable(lam_tab, align = "r", caption = paste(
+  "Lambda by overlap: best fixed lambda per model, path floor (smallest",
+  "lambda reached by 95% of reps), median selected lambda per rule (same",
+  "for A and B)."))
+
+show_c <- \(o) {
+  tab <- sapply(out, \(z) sprintf("%.2f (%.3f)", z[[o]]$rmse, z[[o]]$mcse))
+  dimnames(tab) <- list(c("Best fixed lambda (oracle)",
+                          "Exact balance (path floor)", rules,
+                          "glmnet lambda.min, Hajek", "glm, Hajek",
+                          "Unweighted"), cn)
+  knitr::kable(tab, align = "r", caption = sprintf(
+    "Model %s, ATT, 1000 reps per cell. RMSE vs sample ATT (MCSE). %s", o,
+    paste0("Non-finite glmnet reps dropped, c = 1 to 4: ",
+           paste(sapply(out, \(z) z$A$n_na), collapse = ", "), ".")))
+}
+
+show_c("A")
+
+show_c("B")
+```

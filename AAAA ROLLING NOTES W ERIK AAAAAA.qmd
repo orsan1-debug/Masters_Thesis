@@ -1,0 +1,19 @@
+---
+title: "Meeting Notes: what to explore next"
+format: html
+editor: visual
+---
+
+## Notes
+
+**FOR:** note: number of non=0 coefficients, type print: non-zero.
+
+-AIPW -ABW (for baancing) jrssb paper, augmented balancing weights bruns smith
+
+**FOR CV:**
+
+- noise/overlap/penalties \>
+
+- number of covariates - might be easy to overfit, so 100\>200\>300\>1000 covaraites in the model
+
+- n=fold:

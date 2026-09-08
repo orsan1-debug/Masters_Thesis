@@ -34,84 +34,88 @@ vs_lasso <- read_csv(file.path(dir, "cv_vs_lasso_floor.csv")) |>
 
 2 aims:
 
-1: find interior solution
+**A:** Is the optimal (minimizes RMSE) $\lambda$ interior, i.e. not the path floor $\lambda_{\min}$?\
+**B:** If so, does any selector beat the path floor?
 
-2: find selectors/CV that outperform path endpoint
+**notes:**
 
-# SNR, signal to noise checks.
+- *Path floor* $\lambda_{\min}$ *is balnet default,* $\lambda_{\max}/100$*, stated if changed.*
+- *Sampling noise: 500 reps, relative MCSE 3% (Morris et al, 2019).*
+- *Default penalty* $\alpha = 1$*, lasso regularisation (stated if changed).*
 
-**overlap (good, moderate, bad), sigma_y (1, 5), 5 confounders.**
+# Outcome Noise, Density, and Overlap
+
+## Sparse outcome
+
+- 5 active confounders (`s_y = 5`).
+- `sigma_y` increases outcome noise (reduces $R^2$, lowers SNR).
+- `c_prop` $\in \{0.7, 1.5, 2.5\}$ for `overlap` good $>$ moderate $>$ bad: degrades overlap.
 
 ![](fig_density_sy5.png){width="100%"}
 
-increasing outcome noise causes both interior optimums, and CV/selector wins. Degrading overlap increases the performance of targeting exact balance.
+**A:** with `sigma_y = 5`, interior solutions exist at all 3 overlap levels.
 
-**A:** with sigma_y=5, interior solutions exist at all 3 overlap levels. \
-**B:** inf selection is the best, bootstrapping works best with good overlap, but collapses as overlap degrades.
+**B:** With large outcome noise, selectors outperform the path floor $\lambda_{\min}$ at good and moderate overlap; at bad overlap the best selector only ties it.
 
-- cv.inf is the only selector that remains competitive at "bad" overlap
+- good overlap: `boot.smd` $\approx$ `boot.inf` \> `cv.bloss` \> path floor $\lambda_{\min}$
 
-- boot.inf second most competitive, outperforms cf.inf at moderate at weak overlap.
+- moderate overlap: `boot.inf` \> `cv.bloss` \> path floor $\lambda_{\min}$
 
-- boot.smd performs better than cv.inf
+- bad overlap: `cv.bloss` $\approx$ path floor $\lambda_{\min}$
 
-**Diluted confounding, 100 outcome vars, overlap (good, moderate, bad), sigma_y (1, 5)**
+**Increasing outcome noise causes both interior optimums and selector wins.**
 
-![](fig_density_sy100.png){width="100%"}
+**Criterion selection:** Degrading overlap increases the relative performance of the path floor $\lambda_{\min}$. It also changes the ranking between selection criteria (`boot.smd` collapses beyond good overlap, `boot.inf` holds, `cv.bloss` improves relative to both SMD criteria).
 
-## Fixed confounding, sparse outcome
+**Bootstrapping vs cross-validation:** for both criteria where the two are available (`smd`, `inf`), bootstrapping outperforms CV at every overlap level. `cv.bloss` is the only competitive criterion under bad overlap, and has no bootstrapped equivalent.
 
-Varies: overlap by sigma_y (1, 5). Fixed: five confounders at 1/sqrt(5). Comparator for the next figure, same batch.
+*Note: sampling error affects ranking (Appendix 2). Same DGP, same reps: at bad overlap, `sigma_y = 5`, `cv.bloss` now edges the path floor and `boot.inf` ties it.*
 
-![](fig_density_fixed_sparse.png){width="100%"}
+## Dense outcome: fixed confounding
 
-## Fixed confounding plus 45 pure predictors
+DGP isolates the effect of outcome density by holding confounder signal fixed:
 
-Varies: overlap by sigma_y (1, 5). Changed: 45 outcome-only covariates at 1/sqrt(45) added; confounders unchanged. Tests whether density or diluted confounding produced the interior minimum.
+- 50 active outcome covariates:
+  - 5 confounders at `1/sqrt(5)`
+  - 45 outcome-only predictors at `1/sqrt(45)`
 
-![](fig_density_fixed_dense.png){width="100%"}
+Appendix 1 shows a diluted case where `beta_y[1:s_y] <- 1/sqrt(s_y)` makes increasing density also decrease confounder signal (in effect, increasing `sigma_y`).
 
-# SNR by overlap, lasso
+![](fig_density_fixed_sigma5.png){width="100%"}
 
-## Strong overlap, sigma_y 1, 3, 10
+Under both high and low noise settings *(Appendix 3)* outcome density does not appear to drive selection performance, or interior minimums. Results for density show only minor changes to relative performance, with any ranking differences likely sampling noise.
 
-Varies: overlap (good, moderate) by sigma_y. Fixed: baseline, lasso.
+## Investigating noise
 
-![](fig_snr_lasso_strong.png){width="100%"}
+![](fig_snr_lasso.png){width="100%"}
 
-## Strong overlap, transition columns sigma_y 2, 5
+**A:** interior minimums appear at lower noise under strong overlap; as overlap degrades, more noise is needed.
 
-![](fig_snr_lasso_strong_mid.png){width="100%"}
+- good overlap: interior at $\sigma_y = 3$ (possibly 2, a draw by eye)
+- moderate overlap: interior from $\sigma_y = 3$ (faint at 3, clear at 5)
+- bad overlap: interior at $\sigma_y = 5$
 
-## Weak overlap, sigma_y 1, 3, 10
+**B:** Selectors beat the path floor $\lambda_{\min}$ once the interior is clear. Best selector changes with noise and overlap.
 
-Varies: overlap (bad, awful) by sigma_y. Awful is a new level, propensity scale 4.
+- good overlap:
+  - $\sigma_y = 2$: path floor $\lambda_{\min}$ $\approx$ `boot.inf` $\approx$ `boot.smd` *(draw)*
+  - $\sigma_y = 3$: `boot.inf` $\approx$ `boot.smd` \> path floor $\lambda_{\min}$
+  - $\sigma_y = 5$: `boot.inf` $\approx$ `boot.smd` \> `cv.bloss` $\approx$ path floor $\lambda_{\min}$
+  - $\sigma_y = 10$: `cv.bloss` \> `boot.inf` $\approx$ `boot.smd` \> `cv.inf` $\approx$ path floor $\lambda_{\min}$
+- moderate overlap:
+  - $\sigma_y = 5$: `boot.inf` \> `cv.bloss` $\approx$ path floor $\lambda_{\min}$
+  - $\sigma_y = 10$: `cv.bloss` \> `boot.inf` \> `boot.smd` $\approx$ `cv.inf` \> path floor $\lambda_{\min}$
+- bad overlap:
+  - $\sigma_y = 5$: `cv.bloss` $\approx$ path floor $\lambda_{\min}$ (draw)
+  - $\sigma_y = 10$: `boot.inf` \> `cv.bloss` $\approx$ `cv.inf` \> `boot.smd` \> path floor $\lambda_{\min}$
 
-![](fig_snr_lasso_weak.png){width="100%"}
+**Interior minimums:** Interior minimums depend on both noise and overlap. $\lambda_{\min}$ is more robust to degredation in overlap, while the CV/BS selectors that are competitive, are generally more robust to increased outcome noise.
 
-## Weak overlap, transition columns sigma_y 2, 5
+**Criterion selection:** `cv.bloss` and `boot.inf` are the most effective criteria. `cv.bloss` is more robust to overlap degradation, outperforming `boot.inf` under "bad" overlap for $\sigma_y \le 5$ and underperforming for "good" and "moderate" overlap.r
 
-![](fig_snr_lasso_weak_mid.png){width="100%"}
+This pattern inverses at $\sigma_y = 10$, where the order flips with `cv.bloss` \> `boot.inf` for good and moderate overlap, and `cv.bloss` \< `boot.inf` for bad overlap. **Why?**
 
-# SNR by overlap, elastic net
-
-## Strong overlap, sigma_y 1, 3, 10
-
-Same grid as the lasso section with alpha 0.5; the path now runs to lambda 0.01.
-
-![](fig_snr_enet_strong.png){width="100%"}
-
-## Strong overlap, transition columns sigma_y 2, 5
-
-![](fig_snr_enet_strong_mid.png){width="100%"}
-
-## Weak overlap, sigma_y 1, 3, 10
-
-![](fig_snr_enet_weak.png){width="100%"}
-
-## Weak overlap, transition columns sigma_y 2, 5
-
-![](fig_snr_enet_weak_mid.png){width="100%"}
+- maybe overlap causes the $\lambda$ selector to stop earlier, and noise increases the optimal $\lambda$. At low noise the deeper selector wins and at high noise the earlier one does, so the winner flips with noise, and since overlap sets which selector is the earlier one, it flips with overlap too.
 
 # Penalty
 
@@ -215,4 +219,28 @@ Varies: overlap (all four) by number of confounders s (5, 20, 50), coefficient 1
 
 # Against the lasso floor
 
-# Monte Carlo precision and caveats
+# Caveats
+
+# Appendix
+
+## Appendix 1: Dense outcome, diluted confounding
+
+- 100 active outcome covariates (`s_y = 100`), 5 confounders.
+- **Confounder signal is diluted:** `beta_y[1:s_y] <- 1/sqrt(s_y)` shrinks every outcome coefficient as `s_y` grows, including the 5 confounders.
+  - Increasing density decreases confounder signal, in effect lowering the confounders' share of outcome variance, which `sigma_y` already does.
+
+![](fig_density_sy100.png){width="100%"}
+
+## Appendix 2: Sparse outcome replicate
+
+Same DGP and reps as the sparse figure in Section 2, independent draws.
+
+![](fig_density_fixed_sparse.png){width="100%"}
+
+## Appendix 3: Sparse vs dense, sigma_y = 1
+
+![](fig_density_fixed_sigma1.png){width="100%"}
+
+## Appendix 4: Noise by overlap, including awful
+
+![](fig_snr_lasso_all.png){width="100%"}
