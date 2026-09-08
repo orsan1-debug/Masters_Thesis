@@ -38,14 +38,14 @@ dgp_wc <- function(n, outcome = c("A", "B"), misspec = TRUE) {
        e = e, eta = eta, e0 = 1 - e)
 }
 
-# Overlap variant (our extension, not in either paper) --------------------
-# Identical to dgp_wc() except the treatment logit is multiplied by
-# overlap: 1 reproduces dgp_wc(), larger values push propensities toward
-# 0 and 1. This is the device Wang & Zubizarreta use for overlap in their
-# RHC study, applied here to the Wong & Chan design. Z and eps draws are
-# identical to dgp_wc() for the same seed; only W changes.
-dgp_wc_overlap <- function(n, overlap = 1, outcome = c("A", "B"),
-                           misspec = TRUE) {
+# Overlap / noise variant (our extension, not in either paper) ------------
+# Identical to dgp_wc() except: the treatment logit is multiplied by
+# overlap (1 reproduces dgp_wc(); larger pushes propensities toward 0 and
+# 1, the device Wang & Zubizarreta use in their RHC study), and the outcome
+# noise SD is sigma (1 reproduces dgp_wc()). Z, W and eps / sigma are
+# identical to dgp_wc() for the same seed when overlap = 1.
+dgp_wc_overlap <- function(n, overlap = 1, sigma = 1,
+                           outcome = c("A", "B"), misspec = TRUE) {
   outcome <- match.arg(outcome, several.ok = TRUE)
   
   Z   <- matrix(rnorm(n * 10), n, 10)
@@ -58,7 +58,7 @@ dgp_wc_overlap <- function(n, overlap = 1, outcome = c("A", "B"),
                             A = 210 + (1.5 * W - 0.5) * g,
                             B = Z[, 1] * Z[, 2]^3 * Z[, 3]^2 * Z[, 4] + Z[, 4] * abs(Z[, 1])^0.5
   )
-  eps <- rnorm(n)
+  eps <- sigma * rnorm(n)
   Y   <- vapply(outcome, \(o) f(o) + eps, numeric(n))
   
   X <- Z
