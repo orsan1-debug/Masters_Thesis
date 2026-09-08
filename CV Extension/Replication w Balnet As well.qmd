@@ -10,22 +10,24 @@ execute:
 
 ```{r setup}
 library(dplyr)
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
+dir <- paste0(here::here("CV Extension"), "/")
 sbw <- data.table::fread(file = paste0(dir, "results/wc_sbw_v2.csv.gz"))
 x   <- readRDS(paste0(dir, "results/wc_att_v2.rds"))
 ```
 
-Setup: their Wong & Chan simulation (n = 5000, 10 covariates, first and second moments balanced), two outcomes on the same draws, 1000 paired reps.
+**Setup:** their Wong & Chan simulation (n = 5000, 10 covariates, first and second moments balanced), two outcomes on the same draws, 1000 paired reps.
 
-Model A: heavily confounded, heterogeneous effect.
+**Model A:** heavily confounded, heterogeneous effect.
 
-Model B: barely confounded, no effect; behaves like low SNR.
+**Model B:** barely confounded, no effect; behaves like low SNR.
 
 Truth: 0 for the ATE; the sample ATT for the ATT (model A's ATT is about −17.7 and varies by draw).
 
-# Their weights, their tuning rule: does approximate balance beat exact? (Table 4)
+# does approximate balance beat exact? 
 
-Claimed: yes, on both outcomes. Found: yes on B, no on A, where loosening balance lets confounding back in. The tuning rule never sees the outcome, so it cannot know which case it is in.
+**Claim 1: under bad overlap:** exact balance often has no solution, and where it does the weights rest on a few observations, so approximate balance trades bias for variance and cuts ATT RMSE by half (pp. 94, 102, 103).
+
+**Claim 2: under good overlap:** approximate and exact balance perform similarly (p. 102).
 
 ```{r sbw}
 paper <- tibble::tribble(
@@ -43,23 +45,30 @@ sbw |>
             mcse_ours = sd(err^2) / sqrt(n()) / (2 * rmse_ours),
             .groups = "drop") |>
   left_join(paper, by = c("estimand", "outcome", "balance")) |>
+  mutate(diff = rmse_ours - rmse_paper) |>
   arrange(estimand, outcome, desc(balance)) |>
-  select(estimand, outcome, balance, rmse_ours, rmse_paper, bias_ours, mcse_ours) |>
-  knitr::kable(digits = 3,
-               caption = "Ours: wc_sbw_v2, 1000 reps, exact arm delta = 1e-4 SD. Paper: Table 4, Variance row.")
+  mutate(estimand = ifelse(duplicated(estimand), "", toupper(estimand)),
+         outcome  = ifelse(duplicated(paste(estimand, outcome)) &
+                             estimand == "", "", outcome)) |>
+  select(estimand, outcome, balance, rmse_ours, rmse_paper, diff, mcse_ours,
+         bias_ours) |>
+  knitr::kable(digits = 2, booktabs = TRUE, linesep = "", align = "lllrrrrr",
+               col.names = c("Estimand", "Outcome", "Balance", "RMSE ours",
+                             "RMSE paper", "RMSE ours minus paper", "MCSE",
+                             "Bias ours"))
 ```
 
-Claim: tuned approximate balance beats exact balance on RMSE.
+**Replication:**
 
-Model A: fails. RMSE more than doubles (0.92 to 2.11), all bias. Paper: 10% worse.
+**laim 2: under good overlap:** approximate and exact balance perform similarly (p. 102).
 
-Model B: holds. RMSE falls 20% (0.29 to 0.23) - low SNR, perfect balancing fails.
+- **Model A:** fails. RMSE more than doubles (0.92 to 2.11), all bias. Paper: 10% worse.
+
+- **Model B:** holds. RMSE falls 20% (0.29 to 0.23) - low SNR, perfect balancing fails.
 
 The rule picks the same λ for both models; only the outcome, which it never sees, decides whether that λ helps.
 
-# 
-
-# Entropy weights along the path: where is the best λ, and do the rules find it? 
+# Entropy weights along the path: where is the best λ, and do the rules find it?
 
 ```{r att, fig.width=11, fig.height=5}
 ok  <- vapply(x$res, \(r) is.null(r$err), logical(1))
@@ -159,4 +168,4 @@ Every rule relaxes and loses; theirs by 3.6× (1.54).
 6.  cv.boot.balnet, max SMD (λ = 0.003, RMSE = 0.28)
 7.  cv.balnet, balance loss (λ = 0.004, RMSE = 0.28)
 
-The ranking is just the λ ranking, looser wins because B rewards not adjusting, on A it reverses. No rule can be right on both.
+The ranking is just the λ ranking, loser wins because B rewards not adjusting, on A it reverses. No rule can be right on both.
