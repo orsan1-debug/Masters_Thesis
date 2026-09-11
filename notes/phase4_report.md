@@ -113,3 +113,22 @@ rendered document; all three stubs were removed after the renders (two by the re
 coordinator). Because the repo has no `_quarto.yml`, every future standalone render will recreate them;
 adding `.quarto/` to the root `.gitignore` or a root `_quarto.yml` would stop that (Phase 5 candidate).
 Also noted by the ipw render: `analysis/ipw/SNR.qmd` carries the YAML title "Overlap (DGP2)".
+
+## Regression test 2026-09-11
+
+`runs/ipw/correct_misspec_dgp2.R`, correct-spec batch only (misspec call skipped), fresh session,
+`N_SIM=1000`, `OUT_DIR` and registry copy in a temp directory; balnet 0.0.4, glmnet 4.1.10.
+
+- Runtime 44.4 min for 5 cells x 1000 replications (n = 500: 16 min; 50,000: 22 min); 0 failed replications.
+- The stored `results/ipw/correctspecDGP2.csv.gz` is the 7-cell (n up to 200,000), two-outcome batch
+  written by `correctspec_dgp2_n800k.R` under balnet 0.0.3 (old registry row 31, 2026-08-14), so the two
+  files differ in shape: 245,000 rows / 7 columns stored versus 175,000 rows / 8 columns (adds `exp`) fresh.
+  Recorded in the manifest; the current script cannot reproduce the stored file as a whole.
+- On the 5 shared cells and the 2 shared outcome columns the match is exact: `all.equal()` TRUE for
+  `linear` and `quad1`, max |diff| = 0 over all 175,000 rows matched on (n, overlap, sim, estimator),
+  no NA mismatches, every estimator and diagnostic row identical (balnetcv included). Row order differs
+  between the files. `results/` and `registry.csv` were untouched.
+- Open: R reported 29 warnings at the end of the run that were not captured.
+- Open: both files carry 4 empty outcome entries per column at n = 500 (identical in both), which makes
+  data.table read the outcome columns as character; `load_sim()` coerces them, but the source of the
+  blanks is unexplained.
