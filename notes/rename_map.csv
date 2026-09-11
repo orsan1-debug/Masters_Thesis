@@ -713,3 +713,4 @@
 "Readings/WangZubizarreta2020.pdf","readings/WangZubizarreta2020.pdf",NA,FALSE
 "Readings/Wyss et al. - 2026 - Tuning LASSO Models for Propensity Score Weighting and Using Synthetic Negative Control Exposures fo.pdf","readings/Wyss et al. - 2026 - Tuning LASSO Models for Propensity Score Weighting and Using Synthetic Negative Control Exposures fo.pdf",NA,FALSE
 "Readings/Zhao - 2017 - Covariate Balancing Propensity Score by Tailored Loss Functions.pdf","readings/Zhao - 2017 - Covariate Balancing Propensity Score by Tailored Loss Functions.pdf",NA,FALSE
+"archive/exploring_cv/penalty_paths.csv","results/cv/basic_dgp/penalty_paths.csv",FALSE,FALSE

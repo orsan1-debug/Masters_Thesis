@@ -1,10 +1,9 @@
 # plot_wc_grids.R ----------------------------------------------------------
 # Writes the path grids, lambda-pick figures and lambda / RMSE tables of
-# wc_grids.R to results/ as png and csv, for the noise x overlap, n x overlap
+# wc_grids.R to output/cv/wz_replication/ (figures/, tables/), for the noise x overlap, n x overlap
 # and basis x overlap batches. The qmd sources wc_grids.R and draws the same
 # figures inline; this script is for looking at them outside the render.
 
-dir     <- paste0(here::here("results", "cv", "wz_replication"), "/")   # read_grid()/write_tabs() in wc_grids.R still prepend "results/" to dir (function bodies untouched in Phase 3)
 fig_dir <- here::here("output", "cv", "wz_replication", "figures")
 source(here::here("analysis", "cv", "wz_replication", "wc_grids.R"))
 

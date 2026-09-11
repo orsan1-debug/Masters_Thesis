@@ -1,8 +1,10 @@
 # wc_grids.R ---------------------------------------------------------------
 # Functions for the path figures and tables on the Wong & Chan design in the
 # layout of cv_summary.pdf (Sections 2.1, 2.3, 2.4; Figures 2 and 3).
-# Sourced by plot_wc_grids.R (writes png and csv to results/) and by the qmd
-# (draws inline); expects `dir` (project folder, trailing slash) to exist.
+# Sourced by plot_wc_grids.R (writes png to output/cv/wz_replication/figures,
+# csv to output/cv/wz_replication/tables) and by the qmd (draws inline).
+# read_grid() and write_tabs() take root = here::here() (Phase 3b); the batches
+# live in results/cv/wz_replication/.
 # Batches: results/wc_noise_s<sigma>_c<c>.rds (noise x overlap, n = 5000),
 # results/wc_on_n<n>_c<c>.rds (n x overlap, sigma = 1) and
 # results/wc_basis_K<K>_c<c>.rds (basis size x overlap, n = 5000, sigma = 1).
@@ -55,9 +57,10 @@ read_cell <- function(file) {
 }
 
 # Grid of cells: rows x columns of read_cell() results ----
-read_grid <- function(prefix, rows, columns) {
+read_grid <- function(prefix, rows, columns, root = here::here()) {
   lapply(rows, \(r) lapply(columns, \(k)
-                           read_cell(sprintf("%sresults/%s%s_c%s.rds", dir, prefix, r, k))))
+                           read_cell(file.path(root, "results", "cv", "wz_replication",
+                                               sprintf("%s%s_c%s.rds", prefix, r, k)))))
 }
 
 # One panel, cv_summary.pdf style ----
@@ -166,12 +169,15 @@ rmse_tab <- function(cells, rows, columns, row_lab, col_lab, o) {
     }))))
 }
 
-write_tabs <- function(cells, rows, columns, row_lab, col_lab, stem) {
+write_tabs <- function(cells, rows, columns, row_lab, col_lab, stem,
+                       root = here::here()) {
   write.csv(lambda_tab(cells, rows, columns, row_lab, col_lab),
-            paste0(dir, "results/", stem, "_lambda.csv"), row.names = FALSE)
+            file.path(root, "output", "cv", "wz_replication", "tables",
+                      paste0(stem, "_lambda.csv")), row.names = FALSE)
   for (o in c("A", "B")) {
     write.csv(rmse_tab(cells, rows, columns, row_lab, col_lab, o),
-              paste0(dir, "results/", stem, "_rmse_", o, ".csv"),
+              file.path(root, "output", "cv", "wz_replication", "tables",
+                        paste0(stem, "_rmse_", o, ".csv")),
               row.names = FALSE)
   }
 }

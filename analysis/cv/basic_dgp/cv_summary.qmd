@@ -388,4 +388,6 @@ Same DGP and reps as the sparse figure in Section 2, independent draws.
 
 ## Appendix 4: Noise by overlap, including awful
 
+<!-- TODO: fig_snr_lasso_all.png is missing (deleted from the working tree; no producer in plot_grids.R). Regenerate it, then restore the include:
 ![](../../../output/cv/basic_dgp/figures/fig_snr_lasso_all.png){width="100%"}
+-->

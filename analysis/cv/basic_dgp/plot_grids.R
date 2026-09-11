@@ -1,5 +1,5 @@
 # Legible RMSE-path grids, base graphics as in Erik's script ----
-dir     <- here::here("results", "cv", "basic_dgp")   # grid_png()/path_png()/penalty_picks_csv() also WRITE via dir (function bodies untouched in Phase 3): split into res_dir/fig_dir before running
+dir     <- here::here("results", "cv", "basic_dgp")   # reads in axis_panels() and the top-level blocks; grid_png()/path_png()/penalty_picks_csv() take root = here::here()
 fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 ov_lev <- c("good", "moderate", "bad", "awful")
 sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
@@ -28,8 +28,9 @@ panel_rmse <- function(x, s = NULL) {
 #' One PNG: panels of family filtered by keep(cell), rows keyed by `rows`,
 #' columns keyed by `cols`. `title` is printed across the top.
 grid_png <- function(family, n_rep, rows, cols, out, keep = \(cell) TRUE,
-                     title = NULL) {
-  files <- list.files(dir, sprintf("^%s_?\\d+_r%d\\.rds$", family, n_rep),
+                     title = NULL, root = here::here()) {
+  files <- list.files(file.path(root, "results", "cv", "basic_dgp"),
+                      sprintf("^%s_?\\d+_r%d\\.rds$", family, n_rep),
                       full.names = TRUE)
   if (length(files) == 0) stop("no files for family ", family)
   panels <- unlist(lapply(files, function(f) {
@@ -50,7 +51,8 @@ grid_png <- function(family, n_rep, rows, cols, out, keep = \(cell) TRUE,
   use <- use[do.call(order, cells[use, c(cols, rows), drop = FALSE])]
   nr <- nrow(unique(cells[use, rows, drop = FALSE]))
   nc <- length(use) / nr
-  png(file.path(dir, out), width = 480 * nc, height = 360 * nr + 60,
+  png(file.path(root, "output", "cv", "basic_dgp", "figures", out),
+      width = 480 * nc, height = 360 * nr + 60,
       res = 150)
   par(mfcol = c(nr, nc), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
       oma = c(0, 0, if (is.null(title)) 0 else 2, 0), cex = 0.7)
@@ -256,9 +258,11 @@ dev.off()
 #  per-cell floor, RMSE-optimal lambda, median picks and ratios, penalty
 #  families ----
 penalty_picks_csv <- function(fams = c("alpha_bad", "tunea3", "tunea4",
-                                       "snr_enet", "n_enet")) {
+                                       "snr_enet", "n_enet"),
+                              root = here::here()) {
   pat <- sprintf("^(%s)_\\d+_r\\d+\\.rds$", paste(fams, collapse = "|"))
-  files <- list.files(dir, pat, full.names = TRUE)
+  files <- list.files(file.path(root, "results", "cv", "basic_dgp"), pat,
+                      full.names = TRUE)
   fld <- c("alpha", "overlap", "c_prop", "sigma_y", "n", "p", "dense")
   out <- do.call(rbind, lapply(files, function(f) {
     x <- readRDS(f)
@@ -282,14 +286,15 @@ penalty_picks_csv <- function(fams = c("alpha_bad", "tunea3", "tunea4",
                  as.list(picks), as.list(vs), check.names = FALSE)
     }))
   }))
-  write.csv(out, file.path(dir, "penalty_picks.csv"), row.names = FALSE)
+  write.csv(out, file.path(root, "output", "cv", "basic_dgp", "summaries",
+                           "penalty_picks.csv"), row.names = FALSE)
 }
 penalty_picks_csv()
 
 
 #  penalty section grids from penalty_paths.csv ----
-paths <- read.csv(here::here("archive", "exploring_cv", "penalty_paths.csv"), check.names = FALSE)
-path_png <- function(d, rows, cols, out, title) {
+paths <- read.csv(here::here("results", "cv", "basic_dgp", "penalty_paths.csv"), check.names = FALSE)
+path_png <- function(d, rows, cols, out, title, root = here::here()) {
   lev <- \(v) if (v == "overlap") ov_lev else sort(unique(d[[v]]))
   d[[rows]] <- factor(d[[rows]], lev(rows))
   d[[cols]] <- factor(d[[cols]], lev(cols))
@@ -297,7 +302,8 @@ path_png <- function(d, rows, cols, out, title) {
   cells <- cells[order(cells[[cols]], cells[[rows]]), ]
   nr <- length(unique(cells[[rows]]))
   nc <- length(unique(cells[[cols]]))
-  png(file.path(dir, out), width = 480 * nc, height = 360 * nr + 60,
+  png(file.path(root, "output", "cv", "basic_dgp", "figures", out),
+      width = 480 * nc, height = 360 * nr + 60,
       res = 150)
   par(mfcol = c(nr, nc), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
       oma = c(0, 0, 2, 0), cex = 0.7)

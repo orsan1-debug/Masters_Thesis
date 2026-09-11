@@ -11,7 +11,6 @@ execute:
 ```{r setup}
 
 library(dplyr)
-dir <- paste0(here::here("results", "cv", "wz_replication"), "/")   # read_grid() in wc_grids.R still prepends "results/" to dir (function bodies untouched in Phase 3)
 source(here::here("analysis", "cv", "wz_replication", "wc_grids.R"))   # rmse(), mcse(), cols, ltys, read_cell(), panel(),
 # read_grid(), grid_fig(), pick_fig(), lambda_tab(), rmse_tab()
 sbw <- data.table::fread(file = here::here("results", "cv", "wz_replication", "wc_sbw_v2.csv.gz"))
