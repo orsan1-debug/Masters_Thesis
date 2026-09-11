@@ -1,5 +1,6 @@
 
 
+source(here::here("R", "packages.R"))
 dir     <- here::here("results", "cv", "basic_dgp")
 sum_dir <- here::here("output", "cv", "basic_dgp", "summaries")
 

@@ -7,8 +7,11 @@
 rm(list = ls())
 library(balnet)
 # *** Setup ***
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))      # gen_data(), run_par(); run_par() needs cl below
-res_dir <- here::here("results", "cv", "basic_dgp")
+source(here::here("R", "registry.R"))
+res_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "basic_dgp"))   # OUT_DIR=<tmp> for smoke runs
+run_start <- Sys.time()   # register_run() only if this run writes a cell
 fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 stopifnot(dir.exists(res_dir), dir.exists(fig_dir))
 p <- 100                  # was a global left over from the exploration
@@ -17,7 +20,7 @@ p <- 100                  # was a global left over from the exploration
 # n sweep under elastic net, bad/awful overlap, sigma_y on shared fits ----
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 200
+n_rep <- as.integer(Sys.getenv("N_SIM", "200"))
 sigmas <- c(1, 3, 10)                      # evaluated on the same fits
 grid <- expand.grid(overlap = c("bad", "awful"), n = c(250, 500, 2000),
                     stringsAsFactors = FALSE)      # add 5000 for overnight
@@ -61,6 +64,14 @@ for (i in seq_len(nrow(grid))) {
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
+
+# *** Registry (only if this run wrote at least one cell) ***
+written <- list.files(res_dir, sprintf("^n_enet_\\d+_r%d\\.rds$", n_rep), full.names = TRUE)
+if (any(file.mtime(written) >= run_start)) {
+  register_run(component = "cv", dgp = "gen_data", estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf"),
+               n_sim = n_rep, seed = "1400 + i", script = "runs/cv/basic_dgp/run_n_x_overlap_enet__n_enet.R",
+               result_file = file.path(res_dir, sprintf("n_enet_*_r%d.rds", n_rep)))
+}
 
 #  plot: one figure, rows sigma_y x overlap, cols n; path shown only where
 #  at least 95% of replicates reached that lambda ----

@@ -7,8 +7,11 @@
 rm(list = ls())
 library(balnet)
 # *** Setup ***
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))      # gen_data(), run_par(); run_par() needs cl below
-res_dir <- here::here("results", "cv", "basic_dgp")
+source(here::here("R", "registry.R"))
+res_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "basic_dgp"))   # OUT_DIR=<tmp> for smoke runs
+run_start <- Sys.time()   # register_run() only if this run writes a cell
 fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 stopifnot(dir.exists(res_dir), dir.exists(fig_dir))
 
@@ -17,7 +20,7 @@ cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
 n <- 1000
 p <- 100
-n_rep <- 1000
+n_rep <- as.integer(Sys.getenv("N_SIM", "1000"))
 alpha_run <- 1
 g <- data.frame(overlap = "bad", sigma_y = 10, stringsAsFactors = FALSE)
 gen_cell <- function(g) gen_data(n, p = p, overlap = g$overlap, s_y = 5,
@@ -48,3 +51,11 @@ if (!file.exists(out_file)) {
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
+
+# *** Registry (only if this run wrote at least one cell) ***
+written <- list.files(res_dir, sprintf("^tune4_19_r%d\\.rds$", n_rep), full.names = TRUE)
+if (any(file.mtime(written) >= run_start)) {
+  register_run(component = "cv", dgp = "gen_data", estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf"),
+               n_sim = n_rep, seed = "1000 + 19", script = "runs/cv/basic_dgp/run_bad_overlap_noise10_1000reps__tune4_19.R",
+               result_file = file.path(res_dir, sprintf("tune4_19_r%d.rds", n_rep)))
+}

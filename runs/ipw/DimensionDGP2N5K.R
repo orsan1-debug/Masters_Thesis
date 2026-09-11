@@ -1,9 +1,12 @@
 ## DIMENSIONALITY DGP2 --------------------------------------------------------
 ## DGP2, correct + misspec, iid, archived E5 p/n grid, overlap = 1, 1000 reps.
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))
 source(here::here("R", "estimators_ipw.R"))
 source(here::here("R", "simulate.R"))
 source(here::here("R", "registry.R"))
+n_sim   <- as.integer(Sys.getenv("N_SIM", "1000"))          # N_SIM=2 for a smoke run
+out_dir <- Sys.getenv("OUT_DIR", here::here("results", "ipw"))  # OUT_DIR=<tmp> keeps results/ untouched
 grid   <- expand.grid(n = c(500, 1000,5000),
                       pn_ratio = c(0.1, 0.5, 1, 2))
 grid$p <- grid$n * grid$pn_ratio
@@ -12,7 +15,7 @@ dgp_gen <- function(misspec) function(cell)
        outcome = c("linear", "quad1", "exp"),
        covcor = "iid", misspec = misspec, overlap = 1)
 res_dim  <- run_batch(dgp_gen(FALSE), grid,
-                      num_sim   = 1000,
+                      num_sim   = n_sim,
                       base_seed = 204,
-                      out_file  = here::here("results", "ipw", "dimensionDGP2N5K.csv.gz"),
-                      meta = list(label = "DGP2dimensionN5K"))
+                      out_file  = file.path(out_dir, "dimensionDGP2N5K.csv.gz"),
+                      dgp = "dgp2", script = "runs/ipw/DimensionDGP2N5K.R")

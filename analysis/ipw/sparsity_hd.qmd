@@ -14,6 +14,7 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
 source(here::here("R", "summarise.R"))
 source(here::here("R", "plots.R"))
 # DGP2, correct spec, p = 50, s × decay × covcor grid, overlap = 1, 1000 reps

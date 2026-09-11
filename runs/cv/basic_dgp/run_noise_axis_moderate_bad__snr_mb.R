@@ -7,8 +7,11 @@
 rm(list = ls())
 library(balnet)
 # *** Setup ***
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))      # gen_data(), run_par(); run_par() needs cl below
-res_dir <- here::here("results", "cv", "basic_dgp")
+source(here::here("R", "registry.R"))
+res_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "basic_dgp"))   # OUT_DIR=<tmp> for smoke runs
+run_start <- Sys.time()   # register_run() only if this run writes a cell
 fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 stopifnot(dir.exists(res_dir), dir.exists(fig_dir))
 
@@ -17,7 +20,7 @@ cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
 n <- 1000
 p <- 100
-n_rep <- 500
+n_rep <- as.integer(Sys.getenv("N_SIM", "500"))
 alpha_run <- 1
 grid <- expand.grid(overlap = c("moderate", "bad"), sigma_y = c(4, 7),
                     stringsAsFactors = FALSE)
@@ -51,3 +54,11 @@ for (i in seq_len(nrow(grid))) {
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
+
+# *** Registry (only if this run wrote at least one cell) ***
+written <- list.files(res_dir, sprintf("^snr_mb_\\d+_r%d\\.rds$", n_rep), full.names = TRUE)
+if (any(file.mtime(written) >= run_start)) {
+  register_run(component = "cv", dgp = "gen_data", estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf"),
+               n_sim = n_rep, seed = "2600 + i", script = "runs/cv/basic_dgp/run_noise_axis_moderate_bad__snr_mb.R",
+               result_file = file.path(res_dir, sprintf("snr_mb_*_r%d.rds", n_rep)))
+}

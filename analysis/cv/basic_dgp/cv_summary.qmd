@@ -12,9 +12,8 @@ execute:
 ---
 
 ```{r setup}
+source(here::here("R", "packages.R"))
 library(readr)
-library(dplyr)
-library(ggplot2)
 dir <- here::here("output", "cv", "basic_dgp", "summaries")
 ov_lev <- c("good", "moderate", "bad", "awful")
 sel_lab <- c(cv.bloss = "CV bal.loss", cv.smd = "CV mean SMD",

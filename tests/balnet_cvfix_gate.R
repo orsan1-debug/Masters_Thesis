@@ -1,4 +1,5 @@
 ## CV-PATCH TEST, session-only: no package or pipeline files touched ----------
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R")); source(here::here("R", "estimators_ipw.R"))
 source(here::here("R", "simulate.R")); source(here::here("R", "registry.R"))
 

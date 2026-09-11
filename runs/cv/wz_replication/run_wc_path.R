@@ -17,14 +17,17 @@
 
 library(parallel)
 
-res_dir     <- here::here("results", "cv", "wz_replication")
+res_dir     <- Sys.getenv("OUT_DIR", here::here("results", "cv", "wz_replication"))   # OUT_DIR=<tmp> for smoke runs
+run_start   <- Sys.time()   # register_run() only if this run writes a cell
 batch_id    <- "wc_att_v1"
 n           <- 5000
-n_rep       <- 1000
+n_rep       <- as.integer(Sys.getenv("N_SIM", "1000"))   # N_SIM=2 for a smoke run
 master_seed <- 20260903
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2)  # Algorithm 1
 
-source(here::here("R", "estimators_cv.R"))          # dgp_wc(), cstat()
+source(here::here("R", "packages.R"))
+source(here::here("R", "dgp.R")); source(here::here("R", "estimators_cv.R"))
+source(here::here("R", "registry.R"))          # dgp_wc(), cstat()
 library(balnet)
 
 # Seeds (identical streams to wc_sbw_v2) ----
@@ -92,7 +95,7 @@ cl <- makeCluster(detectCores() - 1)
 clusterExport(cl, c("seeds", "n", "lam", "grid", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
-  source(here::here("R", "estimators_cv.R"))
+  source(here::here("R", "dgp.R")); source(here::here("R", "estimators_cv.R"))
   library(balnet)
 }))
 res <- parLapply(cl, seq_len(n_rep), one_rep)
@@ -105,4 +108,10 @@ saveRDS(list(batch_id = batch_id, master_seed = master_seed, n = n,
              r = R.version.string, date = Sys.Date(), res = res),
         file.path(res_dir, paste0(batch_id, ".rds")))
 table(failed = vapply(res, \(r) !is.null(r$err), logical(1)))
+
+# *** Registry ***
+register_run(component = "cv", dgp = "dgp_wc",
+             estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf", "alg1"),
+             n_sim = n_rep, seed = master_seed, script = "runs/cv/wz_replication/run_wc_path.R",
+             result_file = file.path(res_dir, paste0(batch_id, ".rds")))
 summary(vapply(res, `[[`, numeric(1), "time_sec"))

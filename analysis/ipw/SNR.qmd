@@ -13,6 +13,7 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
 source(here::here("R", "summarise.R"))
 source(here::here("R", "plots.R"))
 df_snr <- load_sim(here::here("results", "ipw", "snrDGP2correct.csv.gz"))

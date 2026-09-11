@@ -13,6 +13,7 @@
 rm(list = ls())
 library(balnet)
 # *** Setup ***
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))      # gen_data(), run_par(); run_par() needs cl below
 stopifnot(exists("gen_data"), exists("run_par"),
           exists("cv.boot.balnet"))   # FALSE = wrong balnet branch installed

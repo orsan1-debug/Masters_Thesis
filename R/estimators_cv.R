@@ -12,8 +12,8 @@
 # delta = 0, so the exact arm uses the smallest tolerance it accepts
 # (delta_exact, in SD units).
 
-library(sbw)
-source(here::here("R", "dgp.R"))
+# Needs the sbw package (attached by R/packages.R) and dgp_wc()/dgp_wc_overlap()
+# from R/dgp.R; both are sourced by the run scripts, not here.
 
 #' sbw weights for one tolerance delta (in SD units of the target group).
 #' Returns the n-vector of weights in data order. For "ate" each arm sums to

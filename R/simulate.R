@@ -6,6 +6,15 @@
 ## overlap. Use streams for parrelel reps following Morris, as Default RNG 
 ## can't guarantee this, Morris (2019)
 
+#' Independent L'Ecuyer-CMRG seed streams
+#'
+#' Switches the session RNG to L'Ecuyer-CMRG, seeds it, and advances
+#' parallel::nextRNGStream() n_streams - 1 times. The stream for a replication
+#' is indexed (cell - 1) * num_sim + rep.
+#'
+#' @param base_seed Integer seed.
+#' @param n_streams Number of streams.
+#' @return A list of n_streams .Random.seed vectors.
 make_seeds <- function(base_seed, n_streams) {
   RNGkind("L'Ecuyer-CMRG")
   set.seed(base_seed)
@@ -19,11 +28,40 @@ make_seeds <- function(base_seed, n_streams) {
 
 ## Generate, estimate, return the estimate matrix or the error message.
 
+#' One replication: generate a draw and estimate it, catching errors
+#'
+#' @param cell One-row list of design values passed to dgp_gen.
+#' @param dgp_gen Function of a cell returning a draw.
+#' @param ... Passed to estimate_all().
+#' @return The estimate matrix from estimate_all(), or the error message
+#'   (character) if the replication failed.
 run_rep <- function(cell, dgp_gen, ...)
   tryCatch(estimate_all(dgp_gen(cell), ...), error = conditionMessage)
 
 ## --- driver -----------------------------------------------------------------
 
+#' Run every cell of a design grid in parallel with per-cell checkpoints
+#'
+#' Sets single-threaded BLAS/OpenMP, opens a future multisession plan and, for
+#' each grid row, maps run_rep() over num_sim seed streams with furrr. Each
+#' finished cell is written to <stem>_cells/cell_NNN.csv.gz with its stored CV
+#' curves in cell_NNN_cv.rds; cells already checkpointed are reloaded and
+#' skipped, so an interrupted run resumes. Failed replications keep the
+#' estimator block with NA values and the error message in err; a cell whose
+#' replications all fail stops the run. At the end the cells are bound and
+#' written to out_file, the curves to <stem>_cvcurves.rds, sessionInfo() to
+#' <stem>_session.txt, and the checkpoint directory is deleted.
+#'
+#' @param dgp_gen Function of a cell returning a draw.
+#' @param grid Data frame of design cells; must not contain a column "outcome".
+#' @param num_sim Replications per cell.
+#' @param base_seed Base seed for make_seeds().
+#' @param out_file Path of the output csv.gz; the sidecar names derive from it.
+#' @param cv_curve_reps Number of leading replications per cell whose full CV
+#'   curve is stored.
+#' @param workers Number of parallel workers.
+#' @param ... Passed to run_rep() and on to estimate_all().
+#' @return The long results data.table, invisibly.
 simulate_grid <- function(dgp_gen, grid, num_sim, base_seed, out_file,
                           cv_curve_reps = 50,
                           workers = max(1L, future::availableCores(logical = FALSE) - 1L), ...) {

@@ -1,0 +1,11 @@
+# Root Quarto project. Rendered documents land in output/rendered/ (ignored),
+# so nothing is written next to the .qmd files. `quarto render` from the root
+# renders every document listed below; archive/ is never rendered.
+project:
+  type: default
+  render:
+    - "analysis/**/*.qmd"
+    - "thesis/**/*.qmd"
+  output-dir: output/rendered
+execute:
+  freeze: false

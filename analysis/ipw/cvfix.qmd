@@ -11,6 +11,7 @@ embed-resources: true
 #| warning: false
 # Setup ------------------------------------------------------------
 library(purrr)
+source(here::here("R", "packages.R"))
 source(here::here("R", "summarise.R"))
 source(here::here("R", "plots.R"))
 res <- paste0(here::here("results", "ipw"), "/")

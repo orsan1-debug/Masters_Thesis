@@ -38,14 +38,32 @@ scale_x_n <- scale_x_log10(breaks = c(500, 1000, 5000, 10000, 50000),
 lab_n   <- as_labeller(\(x) paste0("n = ", format(as.numeric(x), big.mark = ",")))
 n_lab   <- c("1000" = "1k", "5000" = "5k", "10000" = "10k", "50000" = "50k")
 oc_labs <- c(linear = "Linear", quad1 = "Quadratic", exp = "Exponential")
+#' Overlap values as a descending "c = " factor
+#'
+#' @param x Numeric overlap values.
+#' @return A factor with levels in decreasing order, labelled "c = <value>".
 as_c <- function(x) factor(x, sort(unique(x), decreasing = TRUE), paste0("c = ", drop0(sort(unique(x), decreasing = TRUE))))
 
 # shorten table headers ("5000" -> "5k"); anything unlisted passes through
+#' Shorten sample-size labels for table headers
+#'
+#' @param v Character vector of values.
+#' @return v with 1000 / 5000 / 10000 / 50000 replaced by 1k / 5k / 10k / 50k;
+#'   other values pass through.
 n_relabel <- function(v) unname(ifelse(v %in% names(n_lab), n_lab[v], v))
 
 # ---- 5. Core line plot + twin panel ----------------------------------------
 
 # metric vs x, coloured by estimator; caller appends x-scale and facets
+#' Metric against a design variable, one line per estimator
+#'
+#' @param data Cell summaries from summarise_sim().
+#' @param y Unquoted column for the y axis.
+#' @param ylab Y axis label.
+#' @param x Unquoted design column for the x axis.
+#' @param ests Estimators to include, in the canonical lab_est order.
+#' @param from_zero Logical; extend the y axis to include 0.
+#' @return A ggplot object; the caller adds scales and facets.
 line_plot <- function(data, y, ylab, x = n, ests = est_main, from_zero = TRUE) {
   ests <- intersect(names(lab_est), ests)   # canonical order, no ghost keys
   p <- data |>
@@ -59,6 +77,15 @@ line_plot <- function(data, y, ylab, x = n, ests = est_main, from_zero = TRUE) {
 }
 
 # RMSE | |Bias| side by side, one shared legend
+#' RMSE and |bias| side by side for one outcome
+#'
+#' @param data Cell summaries from summarise_sim().
+#' @param oc Outcome name.
+#' @param x Unquoted design column for the x axis.
+#' @param ests Estimators to include.
+#' @param extra A ggplot layer, or list of layers, appended to both panels.
+#' @param title Plot title.
+#' @return A patchwork object with one shared legend.
 panel <- function(data, oc, x = n, ests = est_main, extra = NULL,
                   title = oc_labs[oc]) {
   d <- filter(data, outcome == oc)
@@ -72,6 +99,17 @@ panel <- function(data, oc, x = n, ests = est_main, extra = NULL,
 
 pal_comp <- c("Variance" = "#377eb8", "Bias\u00b2" = "#e41a1c")
 
+#' Share of MSE from squared bias and from variance, per estimator
+#'
+#' @param data Cell summaries from summarise_sim().
+#' @param ests Estimators to include (rows of the facet grid).
+#' @param x Unquoted design column for the x axis.
+#' @param cols Unquoted column for the facet columns.
+#' @param x_scale A ggplot x scale.
+#' @param xlab X axis label.
+#' @param col_lab A ggplot labeller for the facets.
+#' @param title Plot title.
+#' @return A ggplot object (stacked area plot).
 decomp_plot <- function(data, ests = est_main, x = n, cols = outcome,
                         x_scale = scale_x_n, xlab = "n",
                         col_lab = labeller(outcome = oc_labs, n = lab_n),
@@ -103,6 +141,25 @@ decomp_plot <- function(data, ests = est_main, x = n, cols = outcome,
 # estimators x design columns, ordered by mean metric.
 # cols = "n" -> flat; cols = c("overlap","n") -> c-spanners;
 # group = "outcome" -> stacked row groups.
+#' Performance table: estimators by design columns
+#'
+#' Each cell shows the top metric with the bottom metric beneath it; rows are
+#' ordered by the mean of order_by. With two design columns the first becomes
+#' column spanners; with group, rows are grouped (for example by outcome).
+#'
+#' @param data Cell summaries from summarise_sim().
+#' @param ests Estimators to include.
+#' @param cols One or two design column names.
+#' @param top Metric on top of each cell: "rmse", "bias", "abs_bias" or "empse".
+#' @param bottom Metric beneath it, same choices.
+#' @param digits Decimal places.
+#' @param order_by Metric used to order the rows.
+#' @param title Table title.
+#' @param subtitle Subtitle; defaults to "<top> (<bottom>)".
+#' @param group Optional column name for row groups.
+#' @param span_lab Function turning a spanner value into its label.
+#' @param span_desc Logical; order the spanners in decreasing order.
+#' @return A gt table.
 perf_table <- function(data, ests = est_main, cols = "n",
                        top = "rmse", bottom = "abs_bias", digits = 2,
                        order_by = "rmse", title = "", subtitle = NULL,
@@ -157,6 +214,14 @@ perf_table <- function(data, ests = est_main, cols = "n",
 
 # % reps where the attained path endpoint sits above lambda = .05 in either
 # arm (trunc05 as logged) -- the positivity diagnostic.
+#' Share of replications whose path endpoint sits above lambda = .05
+#'
+#' @param data Long results or wide diagnostics.
+#' @param by Grouping columns.
+#' @param cols Which element of by becomes the table columns.
+#' @param outcome_name Optional outcome to filter on.
+#' @param title Optional title (markdown).
+#' @return A gt table of percentages.
 trunc_table <- function(data, by = c("overlap", "n"), cols = by[length(by)],
                         outcome_name = NULL, title = NULL) {
   dw <- as_diag(data)
@@ -180,6 +245,15 @@ trunc_table <- function(data, by = c("overlap", "n"), cols = by[length(by)],
     cols_align("center")
 }
 
+#' Table of misspecified minus correct RMSE and |bias|
+#'
+#' @param d Output of delta_ms().
+#' @param ests Estimators to include.
+#' @param at_n Sample size to show.
+#' @param ov Overlap values to show.
+#' @param digits Decimal places.
+#' @param title Table title.
+#' @return A gt table grouped by outcome, with overlap as the stub.
 delta_table <- function(d, ests = est_main, at_n = 5000, ov = c(0.25, 0.5, 0.75, 1),
                         digits = 3,
                         title = paste0("\u0394 (misspecified \u2212 correct), n = ",
@@ -207,6 +281,14 @@ delta_table <- function(d, ests = est_main, at_n = 5000, ov = c(0.25, 0.5, 0.75,
 
 
 # deltaRMSE | delta|Bias| twin vs overlap, faceted by n, walked over outcomes
+#' Delta RMSE and delta |bias| against overlap, faceted by n
+#'
+#' @param data Output of delta_ms().
+#' @param oc Outcome name.
+#' @param ests Estimators to include.
+#' @param ov Overlap values to show.
+#' @param title Plot title.
+#' @return A patchwork object.
 delta_panel <- function(data, oc, ests = est_main, ov = c(0.25, 0.5, 0.75, 1),
                         title = oc_labs[oc]) {
   d <- filter(data, outcome == oc, overlap %in% ov)
@@ -226,6 +308,13 @@ delta_panel <- function(data, oc, ests = est_main, ov = c(0.25, 0.5, 0.75, 1),
 # |Bias| and SD vs overlap, coloured by specification
 pal_spec <- c(Correct = "#0072B2", Misspecified = "#B22222")
 
+#' |Bias| and SD against overlap, correct versus misspecified
+#'
+#' @param data Cell summaries with a logical misspec column.
+#' @param ests Estimators to include.
+#' @param at_n Sample size to show.
+#' @param ov Overlap values to show.
+#' @return A ggplot object faceted by metric and by estimator x outcome.
 spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75, 1, 2)) {
   ests <- intersect(names(lab_est), ests)
   data |>
@@ -251,6 +340,19 @@ spec_grid <- function(data, ests = est_bal, at_n = 5000, ov = c(0.25, 0.5, 0.75,
 
 # reps with |tau_hat| > 10, overlap x n, faceted by outcome. Tile + numerator
 # = the estimator's count per cell; denominator = its total across the figure.
+#' Heatmap of extreme estimates (|tau_hat| > 10) for one estimator
+#'
+#' Tiles are coloured by the count per cell; labels show count / total over
+#' the whole figure.
+#'
+#' @param data Cell summaries from summarise_sim() (uses n_extreme).
+#' @param est Estimator name.
+#' @param x Unquoted design column for the x axis.
+#' @param xlab X axis label.
+#' @param x_desc Logical; order the x levels in decreasing order.
+#' @param ov Optional subset of x values.
+#' @param title Plot title; defaults to the estimator label.
+#' @return A ggplot object.
 extreme_heat <- function(data, est = "glmnetcv_hajek", x = overlap,
                          xlab = "Overlap (c)", x_desc = TRUE,
                          ov = NULL, title = NULL) {
@@ -295,6 +397,19 @@ lam_meta <- tibble::tribble(
 pal_lam <- c("CV \u03bb" = "#0072B2", "path endpoint" = "#009E73",
              "glmnet \u03bb.min" = "#B22222")
 lt_arm  <- c(treated = "solid", control = "42", "single fit" = "solid")
+#' Median selected lambda, path endpoint and glmnet lambda.min against a design variable
+#'
+#' Optional q10-q90 ribbon; dashed black line at sqrt(log(p) / n) when rate is
+#' TRUE (needs p in dg or p_dim); dotted lines at the fixed lambdas.
+#'
+#' @param dg Output of summarise_diag().
+#' @param x Unquoted design column for the x axis (the rate line assumes n).
+#' @param stats Which lam_ statistics to draw (see lam_meta).
+#' @param ribbon Logical; draw the q10-q90 ribbon.
+#' @param rate Logical; draw the sqrt(log(p) / n) reference.
+#' @param ref_fixed Fixed lambdas to mark, or NULL.
+#' @param p_dim Number of covariates when p is not a column of dg.
+#' @return A ggplot object with a log10 y axis.
 lambda_plot <- function(dg, x = n, stats = lam_meta$stat,
                         ribbon = FALSE, rate = TRUE, ref_fixed = c(.05, .10),
                         p_dim = NULL) {
@@ -335,6 +450,14 @@ lambda_plot <- function(dg, x = n, stats = lam_meta$stat,
 # attained max|SMD| vs its ceiling: med (q10-q90) by arm; hline at the fixed
 # lambda for at = "05"/"10". For at = "cv"/"0" the bound varies per rep --
 # read jointly with kkt_check / lambda_plot.
+#' Attained max |SMD| against a design variable, by arm
+#'
+#' @param dg Output of summarise_diag().
+#' @param x Unquoted design column for the x axis.
+#' @param at Which weights: "05" or "10" (fixed lambda, drawn as a dotted
+#'   ceiling), "cv" or "0" (path endpoint).
+#' @param ribbon Logical; draw the q10-q90 ribbon.
+#' @return A ggplot object.
 smd_plot <- function(dg, x = n, at = "05", ribbon = TRUE) {
   d <- pivot_q(dg, paste0("smd[01]_", at)) |>
     mutate(arm = ifelse(startsWith(stat, "smd1"), "treated", "control"))
@@ -359,6 +482,11 @@ lab_nnz <- c(nnz_balcv1 = "BalNet CV (treated)",
              nnz_balcv0 = "BalNet CV (control)",
              nnz_glm    = "glmnet \u03bb.min")
 
+#' Median active-set size against a design variable
+#'
+#' @param dg Output of summarise_diag() (uses the nnz_*_med columns).
+#' @param x Unquoted design column for the x axis.
+#' @return A ggplot object.
 nnz_plot <- function(dg, x = n) {
   dg |>
     pivot_longer(matches("^nnz_[a-z0-9]+_med$"),
@@ -379,6 +507,17 @@ nnz_plot <- function(dg, x = n) {
 # band on the x axis: CV beats fixed lambda only if the line dips under the
 # curve where its band sits. TODO once simulate_grid saves tau_path, replace
 # these four points with the full tau(lambda) risk profile.
+#' Cell RMSE against the lambda each fixed-lambda estimator sits at
+#'
+#' Points: balnet0 at the median attained endpoint, balnet05 and balnet10 at
+#' their fixed lambdas, balnetrate at sqrt(log(p) / n). The CV estimator is a
+#' horizontal line with its selected-lambda q10-q90 band on the x axis.
+#'
+#' @param data Long results from load_sim().
+#' @param oc Outcome name.
+#' @param facets Facet specification, as from vars().
+#' @param labeller Facet labeller.
+#' @return A ggplot object with a log10 x axis.
 risk_curve <- function(data, oc, facets = vars(n), labeller = lab_n) {
   id <- intersect(setdiff(design_cols, "outcome"), names(data))
   q  <- rep_cv(data, oc, ests = "balnetcv") |>
@@ -416,6 +555,18 @@ risk_curve <- function(data, oc, facets = vars(n), labeller = lab_n) {
 # lambda -- reps binned on lam_cv within cell, binned bias with an SD ribbon.
 # Under linear / fixed4 / all-positive signs the large-n KKT ceiling gives
 # bias ~ -2 sum(a_j) lambda = -5 lambda; pass ref_slope = -5 to overlay.
+#' Mean CV estimate within quantile bins of the selected lambda
+#'
+#' Replications are binned on lam_cv within each cell; the binned mean of the
+#' CV estimate is drawn with a +/- SD ribbon.
+#'
+#' @param data Long results from load_sim().
+#' @param oc Outcome name.
+#' @param bins Number of quantile bins.
+#' @param ref_slope Optional slope of a dotted reference line through 0.
+#' @param facets Facet specification, as from vars().
+#' @param labeller Facet labeller.
+#' @return A ggplot object.
 cv_bias_bins <- function(data, oc, bins = 10, ref_slope = NULL,
                          facets = vars(n), labeller = lab_n) {
   id <- intersect(setdiff(design_cols, "outcome"), names(data))
@@ -443,6 +594,19 @@ cv_bias_bins <- function(data, oc, bins = 10, ref_slope = NULL,
 # comparator, binned by lam_cv. True tau = 0, so tau_hat^2 is the per-rep
 # squared error; regret > 0 means the CV pick did worse on that rep. Shows
 # which part of the lam_cv distribution carries the loss.
+#' Squared-error regret of the CV estimate against a fixed-lambda comparator
+#'
+#' Per replication, balnetcv^2 minus ref^2 (true tau = 0), binned on the
+#' selected lambda within each cell; points are coloured by the sign of the
+#' binned mean regret.
+#'
+#' @param data Long results from load_sim().
+#' @param oc Outcome name.
+#' @param ref Comparator estimator name.
+#' @param bins Number of quantile bins.
+#' @param facets Facet specification, as from vars().
+#' @param labeller Facet labeller.
+#' @return A ggplot object.
 cv_regret <- function(data, oc, ref = "balnet05", bins = 10,
                       facets = vars(n), labeller = lab_n) {
   id <- intersect(setdiff(design_cols, "outcome"), names(data))
@@ -467,6 +631,12 @@ cv_regret <- function(data, oc, ref = "balnet05", bins = 10,
 
 # spaghetti of per-rep CV loss curves; black points mark each rep's selected
 # lambda. Filter to one arm / cell subset before plotting, facet as needed.
+#' Spaghetti plot of per-replication CV loss curves
+#'
+#' @param cur Curves from load_cv_curves(), filtered to one arm and cell subset.
+#' @param max_reps Number of replications to draw.
+#' @param ref_fixed Lambdas marked with dotted vertical lines.
+#' @return A ggplot object; black points mark each curve's minimum.
 cv_curve_plot <- function(cur, max_reps = 25, ref_fixed = c(.05, .10)) {
   cur <- filter(cur, rep <= max_reps)
   grp <- setdiff(names(cur), c("lambda", "cv"))

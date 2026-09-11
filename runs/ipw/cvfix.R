@@ -1,8 +1,11 @@
 ## runs/run_cvfix_test.R: DGP2 grids under runtime-patched cv.balnet
 ## seeds identical to broken base_seed 202 batches: fixed-lambda + glmnet rows
 ## must match those batches exactly; balnetcv rows must differ (patch delivered)
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R")); source(here::here("R", "estimators_ipw.R"))
 source(here::here("R", "simulate.R")); source(here::here("R", "registry.R"))
+n_sim   <- as.integer(Sys.getenv("N_SIM", "1000"))          # N_SIM=2 for a smoke run
+out_dir <- Sys.getenv("OUT_DIR", here::here("results", "ipw"))  # OUT_DIR=<tmp> keeps results/ untouched
 
 patch_cv_balnet <- function() {
   target <- function(e, head)
@@ -95,20 +98,14 @@ balnet_ver <- paste0(utils::packageVersion("balnet"),
                      " + session rowMeans patch (cv.balnet 79/84)")
 
 res_cor_fix <- run_batch(dgp_gen(FALSE), grid,
-                         num_sim   = 1000,
+                         num_sim   = n_sim,
                          base_seed = 202,
-                         out_file  = here::here("results", "ipw", "correctspecDGP2cvfix.csv.gz"),
-                         meta = list(label = "DGP2correctspecCVFIX",
-                                     seed_shared_with = "DGP2correctspec",
-                                     balnet_version = balnet_ver,
-                                     notes = "runtime cv.balnet rowMeans fix, 2 sites"))
+                         out_file  = file.path(out_dir, "correctspecDGP2cvfix.csv.gz"),
+                         dgp = "dgp2", script = "runs/ipw/cvfix.R", note = "patched cv.balnet")
 res_mis_fix <- run_batch(dgp_gen(TRUE), grid,
-                         num_sim   = 1000,
+                         num_sim   = n_sim,
                          base_seed = 202,
-                         out_file  = here::here("results", "ipw", "misspecDGP2cvfix.csv.gz"),
-                         meta = list(label = "DGP2misspecCVFIX",
-                                     seed_shared_with = "DGP2misspec",
-                                     balnet_version = balnet_ver,
-                                     notes = "runtime cv.balnet rowMeans fix, 2 sites"))
+                         out_file  = file.path(out_dir, "misspecDGP2cvfix.csv.gz"),
+                         dgp = "dgp2", script = "runs/ipw/cvfix.R", note = "patched cv.balnet")
 
 

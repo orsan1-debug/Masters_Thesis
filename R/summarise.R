@@ -2,15 +2,12 @@
 # analysis_setup.R -- shared setup for the E1-E6 analysis scripts.
 # ============================================================================
 
-library(dplyr)
-library(tidyr)      
-library(ggplot2)
-library(patchwork)  # (l | r) panels
-library(gt)
-# pin dplyr verbs against masking (MASS, stats, ...)
-select <- dplyr::select
-filter <- dplyr::filter
+# Packages and the select/filter aliases live in R/packages.R (source it first).
 
+#' Drop the leading zero of decimals in axis labels
+#'
+#' @param x Character vector.
+#' @return x with a leading "0." replaced by ".".
 drop0 <- function(x) sub("^(-?)0\\.", "\\1.", x)   # ".05" not "0.05" on axes
 
 # ---- 1. Load ---------------------------------------------------------------
@@ -20,6 +17,14 @@ design_cols <- c("n", "p", "s", "decay", "misspec", "covcor", "outcome", "overla
                  "treat_prop")
 outcome_cols <- c("linear", "quad1", "quad2", "exp")
 
+#' Load one batch results file in long format
+#'
+#' Reads the csv.gz with data.table::fread, coerces the outcome columns to
+#' numeric, replaces NA in err by "", and pivots the outcome columns to
+#' (outcome, tau_hat).
+#'
+#' @param path Path of a results csv.gz written by simulate_grid().
+#' @return A tibble with one row per replication x estimator x outcome.
 load_sim <- function(path) {
   d <- tibble::as_tibble(data.table::fread(path))
   d <- mutate(d, across(any_of(outcome_cols), \(x) suppressWarnings(as.numeric(x))))
@@ -28,6 +33,11 @@ load_sim <- function(path) {
 }
 
 # diagnostics are logged as rows of `estimator`; identify them by name
+#' Identify diagnostic rows by their estimator label
+#'
+#' @param x Character vector of estimator labels.
+#' @return Logical vector, TRUE for logged diagnostics (lam_, nnz_, smd,
+#'   cvloss, trunc05, prev, emin, emax, nout).
 is_diag <- function(x)
   grepl("^(lam_|nnz_|smd[01]_|cvloss_|logcvloss_|trunc05|prev|emin|emax|nout)", x) |
   x %in% c("trunc05", "prev", "emin", "emax", "nout05", "nout01")
@@ -37,6 +47,17 @@ is_diag <- function(x)
 
 # Screen n_na / n_extreme before reading anything else; bias/empse/rmse
 # propagate NA loudly by design.
+#' Cell-level performance measures with Monte Carlo standard errors
+#'
+#' Drops the diagnostic rows and, per group, computes bias (mean of tau_hat,
+#' the true tau being 0), empirical SE, RMSE, their MCSEs, and the counts of
+#' extreme (|tau_hat| > 10) and NA estimates. NA values propagate rather than
+#' being dropped, by design.
+#'
+#' @param data Long results from load_sim().
+#' @param by Grouping columns; intersected with the columns present.
+#' @return A tibble with m, bias, empse, rmse, mcse_bias, mcse_empse,
+#'   mcse_rmse, n_extreme and n_na per group.
 summarise_sim <- function(data, by = c(design_cols, "estimator")) {
   by <- intersect(by, names(data))
   data |>
@@ -59,6 +80,11 @@ summarise_sim <- function(data, by = c(design_cols, "estimator")) {
 # ---- 9. Misspecification helpers -------------------------------------------
 
 # delta = misspecified - correct at matching (n, outcome, overlap, estimator)
+#' Misspecified minus correct RMSE and |bias| per cell
+#'
+#' @param summ Output of summarise_sim() with a logical misspec column.
+#' @param ests Estimators to keep.
+#' @return A tibble with d_rmse and d_bias per (n, outcome, overlap, estimator).
 delta_ms <- function(summ, ests = est_main) {
   summ |>
     filter(estimator %in% ests) |>
@@ -75,6 +101,13 @@ delta_ms <- function(summ, ests = est_main) {
 # rep (per outcome -- values repeat across outcomes). as_diag() accepts raw
 # or already-wide input, so every helper below can be fed replicate data
 # directly.
+#' Diagnostics as one row per replication
+#'
+#' Pivots the diagnostic estimator rows to columns, keyed by the design columns
+#' and sim, and adds err (1 if the replication failed).
+#'
+#' @param data Long results from load_sim().
+#' @return A wide tibble; stops if no diagnostic rows are present.
 diag_wide <- function(data) {
   id <- intersect(c(design_cols, "sim"), names(data))
   d  <- filter(data, is_diag(estimator))
@@ -86,16 +119,32 @@ diag_wide <- function(data) {
   left_join(dw, err_tab, by = id)
 }
 
+#' Coerce to the wide diagnostics layout
+#'
+#' @param data Long results or an already wide diagnostics table.
+#' @return data unchanged when it has a lam_glmcv column, otherwise
+#'   diag_wide(data).
 as_diag <- function(data)
   if ("lam_glmcv" %in% names(data)) data else diag_wide(data)
 
 # med / q10 / q90 columns -> long, one row per stat x quantile set
+#' Pivot med / q10 / q90 summary columns to long
+#'
+#' @param dg Output of summarise_diag().
+#' @param prefix Regular expression for the statistic name, for example
+#'   "lam_[a-z0-9]+".
+#' @return A tibble with stat, med, q10, q90 and the grouping columns.
 pivot_q <- function(dg, prefix)
   pivot_longer(dg, matches(paste0("^", prefix, "_(med|q10|q90)$")),
                names_to = c("stat", ".value"),
                names_pattern = paste0("^(", prefix, ")_(med|q10|q90)$"))
 
 # cell-level med / q10 / q90 of every logged quantity + failure counts
+#' Cell-level median and 10/90 quantiles of every logged diagnostic
+#'
+#' @param data Long results or wide diagnostics.
+#' @param by Grouping columns; intersected with the columns present.
+#' @return A tibble with m, n_err, p_trunc05 and <stat>_med / _q10 / _q90 columns.
 summarise_diag <- function(data, by = design_cols) {
   dw <- as_diag(data)
   by <- intersect(by, names(dw))
@@ -120,6 +169,18 @@ summarise_diag <- function(data, by = design_cols) {
 # file logged. Gaps <= 0 with slack shrinking in n are the fixed-lambda
 # plateau mechanism. NB the driver logs a self-normalised SMD; small positive
 # gaps may be that definitional mismatch, not solver failure.
+#' Attained imbalance against the lambda ceiling (balnet eq. 10)
+#'
+#' For whichever of the endpoint, fixed .05 / .10 and CV lambdas were logged,
+#' computes the per-replication gap attained max|SMD| minus lambda and reports
+#' its maximum and the share of replications exceeding tol per cell. The
+#' logged SMD is self-normalised, so small positive gaps may reflect that
+#' definitional mismatch rather than a solver failure.
+#'
+#' @param data Long results or wide diagnostics.
+#' @param tol Tolerance for counting a violation.
+#' @param by Grouping columns.
+#' @return A tibble with m and gap*_max / gap*_pct_viol columns.
 kkt_check <- function(data, tol = 1e-6, by = design_cols) {
   dw  <- as_diag(data)
   by  <- intersect(by, names(dw))
@@ -143,6 +204,14 @@ kkt_check <- function(data, tol = 1e-6, by = design_cols) {
 
 # Per-rep join of selected estimates with that rep's lambdas. lam_cv averages
 # the two arms because the bias mechanism sums both (the 2-lambda KKT term).
+#' Per-replication estimates joined with that replication's lambdas
+#'
+#' @param data Long results from load_sim().
+#' @param oc Outcome name to keep.
+#' @param ests Estimators to keep, one column each.
+#' @return A tibble with the design columns, sim, one column per estimator,
+#'   lam_cv (mean of the two arms' selected lambdas) and lam_end (mean of the
+#'   two path endpoints).
 rep_cv <- function(data, oc, ests) {
   id <- intersect(c(setdiff(design_cols, "outcome"), "sim"), names(data))
   est <- data |>
@@ -162,6 +231,14 @@ rep_cv <- function(data, oc, ests) {
 # simulate_grid stores the full CV loss curve for the first cv_curve_reps
 # reps of every cell in <out>_cvcurves.rds. Flat curves near the minimum are
 # the candidate mechanism for the slow, dispersed lambda_cv (E8).
+#' Load the stored per-replication CV loss curves of a batch
+#'
+#' Reads the cells (grid order) from the results csv.gz and the matching
+#' <stem>_cvcurves.rds sidecar, and expands them to one row per replication,
+#' arm and lambda.
+#'
+#' @param out_file Path of the results csv.gz.
+#' @return A tibble with the grid columns, rep, arm, lambda and cv.
 load_cv_curves <- function(out_file) {
   d      <- tibble::as_tibble(data.table::fread(out_file))
   cells  <- distinct(d[, seq_len(match("sim", names(d)) - 1L)])  # grid order
@@ -186,6 +263,17 @@ load_cv_curves <- function(out_file) {
 # rates lambda than its own optimum. Flat region = {lambda : r < eps}; if the
 # RMSE-best rung sits inside it, no selection rule on this loss can find it.
 # Reference losses interpolated linearly on log-lambda; NA outside the grid.
+#' Shape of each CV loss curve relative to its own minimum
+#'
+#' Per replication and arm: the relative excess r(lambda) = cv / min(cv) - 1
+#' at the path endpoint and at the reference lambdas (interpolated on log
+#' lambda; NA outside the grid), and the extent of the flat region r < eps.
+#'
+#' @param cur Curves from load_cv_curves().
+#' @param ref_fixed Two reference lambdas.
+#' @param eps Flatness threshold.
+#' @return A tibble with lam_min, r_end, r_05, r_10, flat_lo, flat_hi and
+#'   flat_span (in decades).
 curve_stats <- function(cur, ref_fixed = c(.05, .10), eps = .05) {
   grp <- setdiff(names(cur), c("lambda", "cv"))
   cur |>
@@ -206,6 +294,14 @@ curve_stats <- function(cur, ref_fixed = c(.05, .10), eps = .05) {
 
 # Cell summary: how flat, and which reference lambdas the criterion can't
 # distinguish from its optimum. pct_* = share of stored reps with r < eps.
+#' Cell summary of CV curve flatness
+#'
+#' @param cs Output of curve_stats().
+#' @param eps Flatness threshold.
+#' @param by Grouping columns.
+#' @return A tibble with m_stored, the median span and excesses, and the share
+#'   of stored replications for which the endpoint / .05 / .10 lie within eps
+#'   of the optimum.
 flatness_table <- function(cs, eps = .05, by = c(intersect(design_cols, names(cs)), "arm")) {
   cs |>
     group_by(across(all_of(by))) |>
@@ -223,6 +319,14 @@ flatness_table <- function(cs, eps = .05, by = c(intersect(design_cols, names(cs
 # All-rep endpoint-vs-selected criterion gap from the logged two-point loss.
 # Endpoint fits degenerate at small n (loss O(1e40+)), so log10 and tail
 # shares only; the blowup IS the small-n endpoint-divergence evidence.
+#' Endpoint versus selected CV loss from the logged two-point losses
+#'
+#' Uses the larger (over arms) log10 ratio of the endpoint loss to the loss at
+#' the selected lambda; overflowed endpoint fits give NA and are counted.
+#'
+#' @param data Long results or wide diagnostics.
+#' @param by Grouping columns.
+#' @return A tibble with m, n_na, med_lr, q90_lr, pct_10x and pct_1e3x.
 loss_gap <- function(data, by = design_cols) {
   as_diag(data) |>
     mutate(lr = pmax(log10(cvloss_end1 / cvloss_cv1),

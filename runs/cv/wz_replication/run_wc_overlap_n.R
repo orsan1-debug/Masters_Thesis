@@ -13,13 +13,16 @@
 
 library(parallel)
 
-res_dir     <- here::here("results", "cv", "wz_replication")
-n_rep       <- 1000
+res_dir     <- Sys.getenv("OUT_DIR", here::here("results", "cv", "wz_replication"))   # OUT_DIR=<tmp> for smoke runs
+run_start   <- Sys.time()   # register_run() only if this run writes a cell
+n_rep       <- as.integer(Sys.getenv("N_SIM", "1000"))   # N_SIM=2 for a smoke run
 master_seed <- 20260903
 cells       <- expand.grid(n = c(1000, 2500, 5000, 10000, 20000), c = c(1, 2, 3, 4))
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
 
-source(here::here("R", "estimators_cv.R"))          # dgp_wc_overlap(), cstat()
+source(here::here("R", "packages.R"))
+source(here::here("R", "dgp.R")); source(here::here("R", "estimators_cv.R"))
+source(here::here("R", "registry.R"))          # dgp_wc_overlap(), cstat()
 library(balnet); library(glmnet)
 
 # Seeds ----
@@ -86,7 +89,7 @@ cl <- makeCluster(detectCores() - 1)
 clusterExport(cl, c("seeds", "grid", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
-  source(here::here("R", "estimators_cv.R"))
+  source(here::here("R", "dgp.R")); source(here::here("R", "estimators_cv.R"))
   library(balnet); library(glmnet)
 }))
 t0 <- Sys.time()
@@ -111,3 +114,11 @@ for (j in seq_len(nrow(cells))) {
           "  ", format(Sys.time() - t0, digits = 3))
 }
 stopCluster(cl)
+
+# *** Registry (only if this run wrote at least one cell) ***
+written <- list.files(res_dir, "^wc_on_n\\d+_c\\d+\\.rds$", full.names = TRUE)
+if (any(file.mtime(written) >= run_start)) {
+  register_run(component = "cv", dgp = "dgp_wc_overlap", estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf", "alg1", "glmnet", "glm", "naive"),
+               n_sim = n_rep, seed = master_seed, script = "runs/cv/wz_replication/run_wc_overlap_n.R",
+               result_file = file.path(res_dir, "wc_on_n*_c*.rds"))
+}

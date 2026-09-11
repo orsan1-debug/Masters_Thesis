@@ -20,6 +20,24 @@
 #   outcome type:     linear/quadratic/exponential http://arxiv.org/abs/1710.08074v1
 #   correlation:      [iid/ar1],  https://arxiv.org/pdf/1706.03461.pdf
 
+#' Legacy DGP 1: logistic propensity on four covariates (Kang and Schafer style)
+#'
+#' Draws n x p covariates, a logistic treatment on the first four columns with
+#' index divided by overlap, and one outcome column per requested type; all
+#' outcome columns share the same error draw. Kept to reproduce DGP1 results;
+#' dgp2() is the current generator.
+#'
+#' @param n Sample size.
+#' @param p Number of covariates.
+#' @param outcome Character vector of outcome types among "linear", "quad1",
+#'   "exp"; one column of Y per element.
+#' @param misspec Logical; if TRUE the first four observed columns of X are
+#'   replaced by the Kang-Schafer transforms of the true covariates.
+#' @param covcor "iid" (independent N(0, 1)) or "ar1" (AR(1) Toeplitz, rho = 0.5).
+#' @param overlap Divisor on the propensity index; smaller values push the
+#'   propensities towards 0 and 1.
+#' @return A list with Y (n x length(outcome) matrix), W (treatment), X
+#'   (observed covariates), tau (true ATE, 0) and e (true propensity).
 dgp1 <- function(n, p, outcome = "linear", misspec = FALSE,
                  covcor = "iid", overlap = 1) {
   
@@ -71,6 +89,38 @@ dgp1 <- function(n, p, outcome = "linear", misspec = FALSE,
 
 #   eta sd-normalized to Var(eta) = 1/overlap^2.Isolates overlap changes to overlap knob.
 
+#' DGP 2: sparse logistic propensity with a normalised index and a tunable outcome
+#'
+#' Current generator. The propensity index uses the first s covariates (or the
+#' columns in idx_ps) with coefficients j^(-decay_ps) under a sign pattern,
+#' scaled so that Var(eta) = 1 / overlap^2 given the covariate covariance; an
+#' intercept is solved numerically so that E[e] = treat_prop. Outcomes load on
+#' the first four propensity covariates with weights (1, .5, .5, .5) ("fixed4")
+#' or on all s with normalised j^(-decay_out) weights ("track_s"). All outcome
+#' columns share the same error draw.
+#'
+#' @param n Sample size.
+#' @param p Number of covariates.
+#' @param s Number of active propensity covariates (ignored when idx_ps is given).
+#' @param outcome Outcome types among "linear", "quad1", "exp"; one Y column each.
+#' @param misspec Logical; apply the Kang-Schafer transforms to the first four
+#'   propensity covariates of the observed X (requires s = 4).
+#' @param covcor "iid" or "ar1" (rho = 0.5, generated recursively).
+#' @param overlap Overlap knob: sd(eta) = 1 / overlap.
+#' @param signs Sign pattern of the propensity coefficients: "pos", "neg",
+#'   "mixed" (alternating) or "ks" (1, -1, 1, 1 recycled).
+#' @param decay_ps Decay exponent of the propensity coefficients, j^(-decay_ps).
+#' @param decay_out Decay exponent of the outcome loadings under "track_s".
+#' @param outcome_set "fixed4" or "track_s" (see Description).
+#' @param idx_ps Optional integer vector of propensity-active columns.
+#' @param idx_out Optional integer vector of outcome-active columns; defaults to
+#'   the first four ("fixed4") or all ("track_s") elements of idx_ps.
+#' @param treat_prop Target treated proportion, P(W = 1).
+#' @param tau Constant treatment effect added to every outcome.
+#' @param strength Multiplier on the outcome signal (signal-to-noise knob).
+#' @return A list with Y, W, X (observed), X_true (untransformed), tau, e
+#'   (P(W = 1)), eta (index) and e0 (P(W = 0), computed separately so the
+#'   oracle stays finite under extreme overlap).
 dgp2 <- function(n, p, s = 4,
                           outcome     = "linear",
                           misspec     = FALSE,
@@ -172,6 +222,18 @@ dgp2 <- function(n, p, s = 4,
 # individual effects (model B has none), so SATE = mean(tau_i) and
 # SATT = mean(tau_i[W == 1]); the true ATT is about -17.7.
 
+#' Wong and Chan (2018) design as run by Wang and Zubizarreta (2020)
+#'
+#' Ten latent N(0, 1) covariates Z; logistic treatment on Z1 and Z4; outcome
+#' model A (treatment-modified linear in Z1..Z4) and/or B (non-linear in Z,
+#' no treatment effect). When misspec = TRUE the analyst observes Kang-Schafer
+#' style transforms of Z1..Z4 (the paper's design); otherwise Z itself.
+#'
+#' @param n Sample size.
+#' @param outcome Outcome models among "A", "B"; one Y column each, sharing eps.
+#' @param misspec Logical; observe the transformed covariates.
+#' @return A list with Y, W, X (observed), X_true (Z), tau (0, the PATE),
+#'   tau_i (model A individual effects), e, eta and e0 = 1 - e.
 dgp_wc <- function(n, outcome = c("A", "B"), misspec = TRUE) {
   outcome <- match.arg(outcome, several.ok = TRUE)
   
@@ -207,6 +269,18 @@ dgp_wc <- function(n, outcome = c("A", "B"), misspec = TRUE) {
 # 1, the device Wang & Zubizarreta use in their RHC study), and the outcome
 # noise SD is sigma (1 reproduces dgp_wc()). Z, W and eps / sigma are
 # identical to dgp_wc() for the same seed when overlap = 1.
+#' Wong and Chan design with an overlap and an outcome-noise knob
+#'
+#' Identical to dgp_wc() except that the treatment logit is multiplied by
+#' overlap and the outcome noise has standard deviation sigma; with overlap = 1
+#' and sigma = 1 it reproduces dgp_wc() for the same seed.
+#'
+#' @param n Sample size.
+#' @param overlap Multiplier on the treatment logit (larger = less overlap).
+#' @param sigma Standard deviation of the outcome noise.
+#' @param outcome Outcome models among "A", "B"; one Y column each.
+#' @param misspec Logical; observe the transformed covariates.
+#' @return As dgp_wc().
 dgp_wc_overlap <- function(n, overlap = 1, sigma = 1,
                            outcome = c("A", "B"), misspec = TRUE) {
   outcome <- match.arg(outcome, several.ok = TRUE)

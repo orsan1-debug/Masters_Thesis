@@ -4,25 +4,69 @@
 
 ## --- ATE estimators -------------------------------------------------------
 
+#' Horvitz-Thompson ATE estimate
+#'
+#' Inverse-propensity weighted difference in means without normalisation, one
+#' estimate per outcome column.
+#'
+#' @param Y Numeric matrix of outcomes, n x k.
+#' @param W Binary treatment vector of length n.
+#' @param e1 P(W = 1 | X), length n.
+#' @param e0 P(W = 0 | X), length n.
+#' @return Numeric vector of length k.
 ate_ht <- function(Y, W, e1, e0)
   colMeans(Y * (W / e1 - (1 - W) / e0))
 
+#' Hajek (normalised) ATE estimate
+#'
+#' Inverse-propensity weighted difference in means with the weights normalised
+#' to sum to one within each arm, one estimate per outcome column.
+#'
+#' @param Y Numeric matrix of outcomes, n x k.
+#' @param W Binary treatment vector of length n.
+#' @param e1 P(W = 1 | X), length n.
+#' @param e0 P(W = 0 | X), length n.
+#' @return Numeric vector of length k.
 ate_hajek <- function(Y, W, e1, e0) {           # Hajek (Chattopadhyay et al. 2020)
   a1 <- W / e1
   a0 <- (1 - W) / e0
   colSums(Y * a1) / sum(a1) - colSums(Y * a0) / sum(a0)
 }
 
+#' ATE from balancing weights
+#'
+#' Mean of Y times (treated weight minus control weight), one estimate per
+#' outcome column.
+#'
+#' @param Y Numeric matrix of outcomes, n x k.
+#' @param w A balweights() object with elements treated and control.
+#' @return Numeric vector of length k.
 ate_bal <- function(Y, w)                       # w = balweights() object
   colMeans(Y * drop(w$treated - w$control))
 
 ## --- diagnostics ----------------------------------------------------------
 
 ## max SMD of the weighted mean against the full-sample mean.
+#' Maximum standardised mean difference of one weighted arm
+#'
+#' Largest absolute difference between the weighted column means and the
+#' full-sample means, divided by the full-sample standard deviations.
+#'
+#' @param w Weight vector (or n x 1 matrix) for one arm.
+#' @param X Covariate matrix, n x p.
+#' @param xbar Full-sample column means of X.
+#' @param sdx Full-sample column standard deviations of X.
+#' @return A single number.
 max_smd <- function(w, X, xbar, sdx)
   max(abs(colSums(drop(w) * X) / sum(w) - xbar) / sdx)
 
 ## CV loss at the selected lambda and at the end of the path.
+#' Cross-validated balance loss at the selected and at the end-of-path lambda
+#'
+#' @param fit A cv.balnet fit; its `_cv.info` element is read.
+#' @param arm "treated" or "control".
+#' @return Numeric vector of length 2: the CV loss at lambda.min and at the
+#'   smallest lambda on the path.
 cv_loss <- function(fit, arm) {
   cvi <- fit$`_cv.info`
   c(cvi$cv.mean[[arm]][cvi$idx.min[[arm]]],
@@ -31,6 +75,27 @@ cv_loss <- function(fit, arm) {
 
 ## --- per-replication estimation -------------------------------------------
 
+#' One replication of every ipw estimator with its diagnostics
+#'
+#' Fits cv.balnet once and takes weights at the CV-selected lambda, at the
+#' fixed lambdas and at sqrt(log(p) / n) (Wager 2024, s.7.2); fits cv.glmnet
+#' for the propensity-score arms; adds the true-propensity oracle. The
+#' estimates are stacked with scalar diagnostics (selected lambdas, path
+#' endpoints, active-set sizes, attained max SMD, true-propensity overlap
+#' summaries and the two CV losses), one column per outcome.
+#'
+#' @param data A draw from dgp1() or dgp2(): list with Y, W, X, e and,
+#'   optionally, e0.
+#' @param lambdas Named numeric vector of fixed lambdas; the names become the
+#'   "balnet<name>" row labels.
+#' @param nfolds Number of CV folds for cv.balnet and cv.glmnet.
+#' @param max_imbalance Path floor passed to cv.balnet as max.imbalance.
+#' @param cv_curve Logical; if TRUE the full CV loss curve is attached as the
+#'   "cv_curve" attribute.
+#' @param lambda_grid Optional lambda grid; if given, the ATE along the grid is
+#'   attached as the "tau_path" attribute.
+#' @return A numeric matrix (estimator and diagnostic rows x outcome columns)
+#'   with optional attributes cv_curve and tau_path.
 estimate_all <- function(data,
                          lambdas       = c("0" = 0, "05" = 0.05, "10" = 0.10),
                          nfolds        = 5,

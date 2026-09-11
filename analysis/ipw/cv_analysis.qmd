@@ -8,6 +8,7 @@ embed-resources: true
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
 source(here::here("R", "summarise.R"))
 source(here::here("R", "plots.R"))
 # tag spec on load: not stored in the results files, and delta_ms / spec_grid pair on it

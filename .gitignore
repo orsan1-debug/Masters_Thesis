@@ -10,3 +10,5 @@
 /output/
 /readings/
 archive/.RData
+.quarto/
+*_files/

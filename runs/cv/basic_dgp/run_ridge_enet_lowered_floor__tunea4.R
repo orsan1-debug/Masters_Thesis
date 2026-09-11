@@ -7,8 +7,11 @@
 rm(list = ls())
 library(balnet)
 # *** Setup ***
+source(here::here("R", "packages.R"))
 source(here::here("R", "dgp.R"))      # gen_data(), run_par(); run_par() needs cl below
-res_dir <- here::here("results", "cv", "basic_dgp")
+source(here::here("R", "registry.R"))
+res_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "basic_dgp"))   # OUT_DIR=<tmp> for smoke runs
+run_start <- Sys.time()   # register_run() only if this run writes a cell
 fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 stopifnot(dir.exists(res_dir), dir.exists(fig_dir))
 n <- 1000                 # these were globals left over from the
@@ -17,7 +20,7 @@ p <- 100                  # exploration section of the old file
 # ridge + elastic net, lowered path floor, overlap + worse, high SNR ----
 cl <- parallel::makeCluster(parallel::detectCores() - 1)
 parallel::clusterEvalQ(cl, library(balnet))
-n_rep <- 200                           # 4-decade paths; 500 if time allows
+n_rep <- as.integer(Sys.getenv("N_SIM", "200"))   # 4-decade paths; 500 if time allows
 ratio <- 1e-4                          # lambda.min.ratio, default 1e-2
 nlam <- 200                            # keeps 50 points per decade
 grid <- expand.grid(overlap = c("good", "moderate", "bad", "awful"),
@@ -62,6 +65,14 @@ for (i in seq_len(nrow(grid))) {
   message(out_file, "  ", format(Sys.time() - t0, digits = 3))
 }
 parallel::stopCluster(cl)
+
+# *** Registry (only if this run wrote at least one cell) ***
+written <- list.files(res_dir, sprintf("^tunea4_\\d+_r%d\\.rds$", n_rep), full.names = TRUE)
+if (any(file.mtime(written) >= run_start)) {
+  register_run(component = "cv", dgp = "gen_data", estimators = c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf"),
+               n_sim = n_rep, seed = "900 + i", script = "runs/cv/basic_dgp/run_ridge_enet_lowered_floor__tunea4.R",
+               result_file = file.path(res_dir, sprintf("tunea4_*_r%d.rds", n_rep)))
+}
 
 #  plot of lowered-floor grid ----
 files <- list.files(res_dir, sprintf("^tunea4_\\d+_r%d\\.rds$", n_rep),
