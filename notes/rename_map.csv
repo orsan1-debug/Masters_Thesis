@@ -1,0 +1,715 @@
+"old_path","new_path","tracked","basename_changed"
+".DS_Store","archive/.DS_Store",TRUE,FALSE
+".RData","archive/.RData",FALSE,FALSE
+"AAAA ROLLING NOTES W ERIK AAAAAA.qmd","notes/rolling_notes_erik.qmd",TRUE,TRUE
+"analysis/Analysis.R","R/summarise.R",TRUE,TRUE
+"analysis/correctspec.qmd","analysis/ipw/correctspec.qmd",TRUE,FALSE
+"analysis/CV Analysis.qmd","analysis/ipw/cv_analysis.qmd",TRUE,TRUE
+"analysis/CV TUNING.qmd","archive/analysis/cv_tuning.qmd",TRUE,TRUE
+"analysis/cvfix.qmd","analysis/ipw/cvfix.qmd",TRUE,FALSE
+"analysis/Dimensionality.qmd","analysis/ipw/Dimensionality.qmd",TRUE,FALSE
+"analysis/Increased Sparsity.qmd","analysis/ipw/increased_sparsity.qmd",TRUE,TRUE
+"analysis/Instruments.qmd","analysis/ipw/Instruments.qmd",TRUE,FALSE
+"analysis/misspeccification.qmd","archive/analysis/misspeccification.qmd",TRUE,FALSE
+"analysis/overlap.qmd","analysis/ipw/overlap.qmd",TRUE,FALSE
+"analysis/SNR.qmd","analysis/ipw/SNR.qmd",TRUE,FALSE
+"analysis/Sparsity HD CHECK CHECK FOR SPARSITY ASSUMPTION WE MADE.qmd","analysis/ipw/sparsity_hd_check.qmd",TRUE,TRUE
+"analysis/Sparsity HD.qmd","analysis/ipw/sparsity_hd.qmd",TRUE,TRUE
+"analysis/unequal trreatment..qmd","analysis/ipw/unequal_treatment.qmd",TRUE,TRUE
+"crit_paths_seed.png","archive/crit_paths_seed.png",FALSE,FALSE
+"CV Extension/.DS_Store","archive/cv_extension/.DS_Store",TRUE,FALSE
+"CV Extension/dgp_wc.R","R/dgp_wc.R",TRUE,FALSE
+"CV Extension/dgp_wc_overlap.R","archive/cv_extension/dgp_wc_overlap.R",TRUE,FALSE
+"CV Extension/files (1).zip","archive/cv_extension/files_1.zip",FALSE,TRUE
+"CV Extension/plot_wc_grids.R","analysis/cv/wz_replication/plot_wc_grids.R",FALSE,FALSE
+"CV Extension/plot_wt_att.R","analysis/cv/wz_replication/plot_wc_att.R",FALSE,TRUE
+"CV Extension/Replication w Balnet As well.qmd","analysis/cv/wz_replication/wc_findings.qmd",TRUE,TRUE
+"CV Extension/Results/wc_att_v1.png","output/cv/wz_replication/figures/wc_att_v1.png",TRUE,FALSE
+"CV Extension/Results/wc_att_v2.png","output/cv/wz_replication/figures/wc_att_v2.png",TRUE,FALSE
+"CV Extension/Results/wc_att_v2.rds","results/cv/wz_replication/wc_att_v2.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K10_c1.rds","results/cv/wz_replication/wc_basis_K10_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K10_c3.rds","results/cv/wz_replication/wc_basis_K10_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K125_c1.rds","results/cv/wz_replication/wc_basis_K125_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K125_c3.rds","results/cv/wz_replication/wc_basis_K125_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K20_c1.rds","results/cv/wz_replication/wc_basis_K20_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K20_c3.rds","results/cv/wz_replication/wc_basis_K20_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K65_c1.rds","results/cv/wz_replication/wc_basis_K65_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_basis_K65_c3.rds","results/cv/wz_replication/wc_basis_K65_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s1_c1.rds","results/cv/wz_replication/wc_noise_s1_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s1_c2.rds","results/cv/wz_replication/wc_noise_s1_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s1_c3.rds","results/cv/wz_replication/wc_noise_s1_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s1_c4.rds","results/cv/wz_replication/wc_noise_s1_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s10_c1.rds","results/cv/wz_replication/wc_noise_s10_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s10_c2.rds","results/cv/wz_replication/wc_noise_s10_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s10_c3.rds","results/cv/wz_replication/wc_noise_s10_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s10_c4.rds","results/cv/wz_replication/wc_noise_s10_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s100_c1.rds","results/cv/wz_replication/wc_noise_s100_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s100_c2.rds","results/cv/wz_replication/wc_noise_s100_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s100_c3.rds","results/cv/wz_replication/wc_noise_s100_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s100_c4.rds","results/cv/wz_replication/wc_noise_s100_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s30_c1.rds","results/cv/wz_replication/wc_noise_s30_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s30_c2.rds","results/cv/wz_replication/wc_noise_s30_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s30_c3.rds","results/cv/wz_replication/wc_noise_s30_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_noise_s30_c4.rds","results/cv/wz_replication/wc_noise_s30_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n1000_c1.rds","results/cv/wz_replication/wc_on_n1000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n1000_c2.rds","results/cv/wz_replication/wc_on_n1000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n1000_c3.rds","results/cv/wz_replication/wc_on_n1000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n1000_c4.rds","results/cv/wz_replication/wc_on_n1000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n10000_c1.rds","results/cv/wz_replication/wc_on_n10000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n10000_c2.rds","results/cv/wz_replication/wc_on_n10000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n10000_c3.rds","results/cv/wz_replication/wc_on_n10000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n10000_c4.rds","results/cv/wz_replication/wc_on_n10000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n20000_c1.rds","results/cv/wz_replication/wc_on_n20000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n20000_c2.rds","results/cv/wz_replication/wc_on_n20000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n20000_c3.rds","results/cv/wz_replication/wc_on_n20000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n20000_c4.rds","results/cv/wz_replication/wc_on_n20000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n2500_c1.rds","results/cv/wz_replication/wc_on_n2500_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n2500_c2.rds","results/cv/wz_replication/wc_on_n2500_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n2500_c3.rds","results/cv/wz_replication/wc_on_n2500_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n2500_c4.rds","results/cv/wz_replication/wc_on_n2500_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n5000_c1.rds","results/cv/wz_replication/wc_on_n5000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n5000_c2.rds","results/cv/wz_replication/wc_on_n5000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n5000_c3.rds","results/cv/wz_replication/wc_on_n5000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_on_n5000_c4.rds","results/cv/wz_replication/wc_on_n5000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_overlap_c1.rds","results/cv/wz_replication/wc_overlap_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_overlap_c2.rds","results/cv/wz_replication/wc_overlap_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_overlap_c3.rds","results/cv/wz_replication/wc_overlap_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_overlap_c4.rds","results/cv/wz_replication/wc_overlap_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_path_v1.png","output/cv/wz_replication/figures/wc_path_v1.png",TRUE,FALSE
+"CV Extension/Results/wc_path_v1.rds","archive/cv_extension/results/wc_path_v1.rds",TRUE,FALSE
+"CV Extension/Results/wc_sbw_v1.csv.gz","results/cv/wz_replication/wc_sbw_v1.csv.gz",TRUE,FALSE
+"CV Extension/Results/wc_sbw_v1_meta.rds","results/cv/wz_replication/wc_sbw_v1_meta.rds",TRUE,FALSE
+"CV Extension/Results/wc_sbw_v2.csv.gz","results/cv/wz_replication/wc_sbw_v2.csv.gz",TRUE,FALSE
+"CV Extension/Results/wc_sbw_v2_meta.rds","results/cv/wz_replication/wc_sbw_v2_meta.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n1000_c1.rds","results/cv/wz_replication/wc_tuner_n1000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n1000_c2.rds","results/cv/wz_replication/wc_tuner_n1000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n1000_c3.rds","results/cv/wz_replication/wc_tuner_n1000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n1000_c4.rds","results/cv/wz_replication/wc_tuner_n1000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n20000_c1.rds","results/cv/wz_replication/wc_tuner_n20000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n20000_c2.rds","results/cv/wz_replication/wc_tuner_n20000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n20000_c3.rds","results/cv/wz_replication/wc_tuner_n20000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n20000_c4.rds","results/cv/wz_replication/wc_tuner_n20000_c4.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n5000_c1.rds","results/cv/wz_replication/wc_tuner_n5000_c1.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n5000_c2.rds","results/cv/wz_replication/wc_tuner_n5000_c2.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n5000_c3.rds","results/cv/wz_replication/wc_tuner_n5000_c3.rds",TRUE,FALSE
+"CV Extension/Results/wc_tuner_n5000_c4.rds","results/cv/wz_replication/wc_tuner_n5000_c4.rds",TRUE,FALSE
+"CV Extension/run_wc.R","archive/cv_extension/run_wc.R",TRUE,FALSE
+"CV Extension/run_wc_basis.R","runs/cv/wz_replication/run_wc_basis.R",TRUE,FALSE
+"CV Extension/run_wc_noise.R","runs/cv/wz_replication/run_wc_noise.R",FALSE,FALSE
+"CV Extension/run_wc_overlap.R","runs/cv/wz_replication/run_wc_overlap.R",TRUE,FALSE
+"CV Extension/run_wc_overlap_n.R","runs/cv/wz_replication/run_wc_overlap_n.R",TRUE,FALSE
+"CV Extension/run_wc_path.R","runs/cv/wz_replication/run_wc_path.R",TRUE,FALSE
+"CV Extension/sbw_wc.R","R/sbw_wc.R",TRUE,FALSE
+"CV Extension/summarise_sw_sbw.R","analysis/cv/wz_replication/summarise_wc_sbw.R",TRUE,TRUE
+"CV Extension/wc_grids.R","analysis/cv/wz_replication/wc_grids.R",FALSE,FALSE
+"Exploring CV/.DS_Store","archive/exploring_cv/.DS_Store",TRUE,FALSE
+"Exploring CV/.Rapp.history","archive/exploring_cv/.Rapp.history",TRUE,FALSE
+"Exploring CV/alpha_bad_01_r200.rds","results/cv/basic_dgp/alpha_bad_01_r200.rds",TRUE,FALSE
+"Exploring CV/alpha_bad_02_r200.rds","results/cv/basic_dgp/alpha_bad_02_r200.rds",TRUE,FALSE
+"Exploring CV/alpha_bad_03_r200.rds","results/cv/basic_dgp/alpha_bad_03_r200.rds",TRUE,FALSE
+"Exploring CV/alpha_bad_04_r200.rds","results/cv/basic_dgp/alpha_bad_04_r200.rds",TRUE,FALSE
+"Exploring CV/alpha_grid_ridge_to_lasso_r50.png","output/cv/basic_dgp/figures/alpha_grid_ridge_to_lasso_r50.png",TRUE,FALSE
+"Exploring CV/alpha_overlap_floor_grid_r200.png","output/cv/basic_dgp/figures/alpha_overlap_floor_grid_r200.png",TRUE,FALSE
+"Exploring CV/alpha_overlap_grid_r500.png","output/cv/basic_dgp/figures/alpha_overlap_grid_r500.png",TRUE,FALSE
+"Exploring CV/alpha_sweep_bad_r200.png","output/cv/basic_dgp/figures/alpha_sweep_bad_r200.png",TRUE,FALSE
+"Exploring CV/balnet_mini_experiment edited.R","archive/exploring_cv/balnet_mini_experiment_edited.R",TRUE,TRUE
+"Exploring CV/balnet_mini_experiment Machine 2.R","archive/exploring_cv/balnet_mini_experiment_machine_2.R",TRUE,TRUE
+"Exploring CV/balnet_mini_experiment WINDOWS.R","archive/exploring_cv/balnet_mini_experiment_windows.R",TRUE,TRUE
+"Exploring CV/balnet_mini_experiment.R","archive/exploring_cv/balnet_mini_experiment.R",TRUE,FALSE
+"Exploring CV/balnet_scoring_functions.R","archive/exploring_cv/balnet_scoring_functions.R",FALSE,FALSE
+"Exploring CV/balnet_selection_functions.R","archive/exploring_cv/balnet_selection_functions.R",FALSE,FALSE
+"Exploring CV/bloss_split_tune4.rds","archive/exploring_cv/bloss_split_tune4.rds",TRUE,FALSE
+"Exploring CV/boot_bloss_tune4.rds","archive/exploring_cv/boot_bloss_tune4.rds",TRUE,FALSE
+"Exploring CV/bootinf_decomp_tune4.rds","archive/exploring_cv/bootinf_decomp_tune4.rds",TRUE,FALSE
+"Exploring CV/crit_curves_tune4.rds","archive/exploring_cv/crit_curves_tune4.rds",TRUE,FALSE
+"Exploring CV/cv_family_counts.csv","output/cv/basic_dgp/summaries/cv_family_counts.csv",TRUE,FALSE
+"Exploring CV/cv_flip.csv","archive/exploring_cv/cv_flip.csv",FALSE,FALSE
+"Exploring CV/cv_picks.csv","output/cv/basic_dgp/summaries/cv_picks.csv",FALSE,FALSE
+"Exploring CV/cv_picks_grid.csv","output/cv/basic_dgp/summaries/cv_picks_grid.csv",FALSE,FALSE
+"Exploring CV/cv_picks_noise.csv","output/cv/basic_dgp/summaries/cv_picks_noise.csv",FALSE,FALSE
+"Exploring CV/cv_picks_overlap.csv","output/cv/basic_dgp/summaries/cv_picks_overlap.csv",FALSE,FALSE
+"Exploring CV/cv_rmse_noise.csv","output/cv/basic_dgp/summaries/cv_rmse_noise.csv",FALSE,FALSE
+"Exploring CV/cv_rmse_overlap.csv","output/cv/basic_dgp/summaries/cv_rmse_overlap.csv",FALSE,FALSE
+"Exploring CV/cv_summary Working.qmd","archive/exploring_cv/cv_summary_working.qmd",FALSE,TRUE
+"Exploring CV/cv_summary.aux","archive/exploring_cv/cv_summary.aux",FALSE,FALSE
+"Exploring CV/cv_summary.csv","output/cv/basic_dgp/summaries/cv_summary.csv",TRUE,FALSE
+"Exploring CV/cv_summary.log","archive/exploring_cv/cv_summary.log",FALSE,FALSE
+"Exploring CV/cv_summary.pdf","output/cv/basic_dgp/cv_summary.pdf",FALSE,FALSE
+"Exploring CV/cv_summary.qmd","analysis/cv/basic_dgp/cv_summary.qmd",TRUE,FALSE
+"Exploring CV/cv_summary.Rmd","archive/exploring_cv/cv_summary.Rmd",TRUE,FALSE
+"Exploring CV/cv_summary.tex","archive/exploring_cv/cv_summary.tex",FALSE,FALSE
+"Exploring CV/cv_summary2.qmd","archive/exploring_cv/cv_summary2.qmd",TRUE,FALSE
+"Exploring CV/cv_vs_lasso_floor.csv","output/cv/basic_dgp/summaries/cv_vs_lasso_floor.csv",TRUE,FALSE
+"Exploring CV/degrading_SNR_r500.png","archive/exploring_cv/degrading_SNR_r500.png",TRUE,FALSE
+"Exploring CV/diluted confounding 500.png","archive/exploring_cv/diluted_confounding_500.png",TRUE,TRUE
+"Exploring CV/dim_01_r200.rds","results/cv/basic_dgp/dim_01_r200.rds",TRUE,FALSE
+"Exploring CV/dim_02_r200.rds","results/cv/basic_dgp/dim_02_r200.rds",TRUE,FALSE
+"Exploring CV/dim_03_r200.rds","results/cv/basic_dgp/dim_03_r200.rds",TRUE,FALSE
+"Exploring CV/dim_04_r200.rds","results/cv/basic_dgp/dim_04_r200.rds",TRUE,FALSE
+"Exploring CV/dim_05_r200.rds","results/cv/basic_dgp/dim_05_r200.rds",TRUE,FALSE
+"Exploring CV/dim_by_alpha_r200.png","output/cv/basic_dgp/figures/dim_by_alpha_r200.png",TRUE,FALSE
+"Exploring CV/dima_01_r200.rds","results/cv/basic_dgp/dima_01_r200.rds",TRUE,FALSE
+"Exploring CV/dima_02_r200.rds","results/cv/basic_dgp/dima_02_r200.rds",TRUE,FALSE
+"Exploring CV/dima_03_r200.rds","results/cv/basic_dgp/dima_03_r200.rds",TRUE,FALSE
+"Exploring CV/dima_04_r200.rds","results/cv/basic_dgp/dima_04_r200.rds",TRUE,FALSE
+"Exploring CV/dima_05_r200.rds","results/cv/basic_dgp/dima_05_r200.rds",TRUE,FALSE
+"Exploring CV/dima_06_r200.rds","results/cv/basic_dgp/dima_06_r200.rds",TRUE,FALSE
+"Exploring CV/dima_07_r200.rds","results/cv/basic_dgp/dima_07_r200.rds",TRUE,FALSE
+"Exploring CV/dima_08_r200.rds","results/cv/basic_dgp/dima_08_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_01_r200.rds","results/cv/basic_dgp/dimhi_01_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_02_r200.rds","results/cv/basic_dgp/dimhi_02_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_03_r200.rds","results/cv/basic_dgp/dimhi_03_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_04_r200.rds","results/cv/basic_dgp/dimhi_04_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_05_r200.rds","results/cv/basic_dgp/dimhi_05_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_06_r200.rds","results/cv/basic_dgp/dimhi_06_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_07_r200.rds","results/cv/basic_dgp/dimhi_07_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_08_r200.rds","results/cv/basic_dgp/dimhi_08_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_09_r200.rds","results/cv/basic_dgp/dimhi_09_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_10_r200.rds","results/cv/basic_dgp/dimhi_10_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_11_r200.rds","results/cv/basic_dgp/dimhi_11_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_12_r200.rds","results/cv/basic_dgp/dimhi_12_r200.rds",TRUE,FALSE
+"Exploring CV/dimhi_by_alpha_r200.png","output/cv/basic_dgp/figures/dimhi_by_alpha_r200.png",TRUE,FALSE
+"Exploring CV/dimsnr_01_r200.rds","results/cv/basic_dgp/dimsnr_01_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_02_r200.rds","results/cv/basic_dgp/dimsnr_02_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_03_r200.rds","results/cv/basic_dgp/dimsnr_03_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_04_r200.rds","results/cv/basic_dgp/dimsnr_04_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_05_r200.rds","results/cv/basic_dgp/dimsnr_05_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_06_r200.rds","results/cv/basic_dgp/dimsnr_06_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_07_r200.rds","results/cv/basic_dgp/dimsnr_07_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_08_r200.rds","results/cv/basic_dgp/dimsnr_08_r200.rds",TRUE,FALSE
+"Exploring CV/dimsnr_r200.png","output/cv/basic_dgp/figures/dimsnr_r200.png",TRUE,FALSE
+"Exploring CV/factors_paths.csv","archive/exploring_cv/factors_paths.csv",FALSE,FALSE
+"Exploring CV/fig_alpha_bad.png","output/cv/basic_dgp/figures/fig_alpha_bad.png",TRUE,FALSE
+"Exploring CV/fig_alpha_sweep.png","output/cv/basic_dgp/figures/fig_alpha_sweep.png",FALSE,FALSE
+"Exploring CV/fig_axes_noise_overlap.png","output/cv/basic_dgp/figures/fig_axes_noise_overlap.png",FALSE,FALSE
+"Exploring CV/fig_density_fixed_dense.png","output/cv/basic_dgp/figures/fig_density_fixed_dense.png",TRUE,FALSE
+"Exploring CV/fig_density_fixed_sigma1.png","output/cv/basic_dgp/figures/fig_density_fixed_sigma1.png",TRUE,FALSE
+"Exploring CV/fig_density_fixed_sigma5.png","output/cv/basic_dgp/figures/fig_density_fixed_sigma5.png",TRUE,FALSE
+"Exploring CV/fig_density_fixed_sparse.png","output/cv/basic_dgp/figures/fig_density_fixed_sparse.png",TRUE,FALSE
+"Exploring CV/fig_density_sy_sigma1.png","output/cv/basic_dgp/figures/fig_density_sy_sigma1.png",TRUE,FALSE
+"Exploring CV/fig_density_sy_sigma5.png","output/cv/basic_dgp/figures/fig_density_sy_sigma5.png",TRUE,FALSE
+"Exploring CV/fig_density_sy100.png","output/cv/basic_dgp/figures/fig_density_sy100.png",TRUE,FALSE
+"Exploring CV/fig_density_sy5.png","output/cv/basic_dgp/figures/fig_density_sy5.png",TRUE,FALSE
+"Exploring CV/fig_enet_floor.png","output/cv/basic_dgp/figures/fig_enet_floor.png",FALSE,FALSE
+"Exploring CV/fig_enet_grid.png","output/cv/basic_dgp/figures/fig_enet_grid.png",FALSE,FALSE
+"Exploring CV/fig_n_enet_awful.png","output/cv/basic_dgp/figures/fig_n_enet_awful.png",TRUE,FALSE
+"Exploring CV/fig_n_enet_bad.png","output/cv/basic_dgp/figures/fig_n_enet_bad.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s1_strong.png","output/cv/basic_dgp/figures/fig_n_lasso_s1_strong.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s1_weak.png","output/cv/basic_dgp/figures/fig_n_lasso_s1_weak.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s10_strong.png","output/cv/basic_dgp/figures/fig_n_lasso_s10_strong.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s10_weak.png","output/cv/basic_dgp/figures/fig_n_lasso_s10_weak.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s3_strong.png","output/cv/basic_dgp/figures/fig_n_lasso_s3_strong.png",TRUE,FALSE
+"Exploring CV/fig_n_lasso_s3_weak.png","output/cv/basic_dgp/figures/fig_n_lasso_s3_weak.png",TRUE,FALSE
+"Exploring CV/fig_p_high_1000.png","output/cv/basic_dgp/figures/fig_p_high_1000.png",TRUE,FALSE
+"Exploring CV/fig_p_high_2000.png","output/cv/basic_dgp/figures/fig_p_high_2000.png",TRUE,FALSE
+"Exploring CV/fig_p_low.png","output/cv/basic_dgp/figures/fig_p_low.png",TRUE,FALSE
+"Exploring CV/fig_p_snr_bad_1000.png","output/cv/basic_dgp/figures/fig_p_snr_bad_1000.png",TRUE,FALSE
+"Exploring CV/fig_p_snr_bad_500.png","output/cv/basic_dgp/figures/fig_p_snr_bad_500.png",TRUE,FALSE
+"Exploring CV/fig_p_snr_moderate_1000.png","output/cv/basic_dgp/figures/fig_p_snr_moderate_1000.png",TRUE,FALSE
+"Exploring CV/fig_p_snr_moderate_500.png","output/cv/basic_dgp/figures/fig_p_snr_moderate_500.png",TRUE,FALSE
+"Exploring CV/fig_picks_grid.png","output/cv/basic_dgp/figures/fig_picks_grid.png",FALSE,FALSE
+"Exploring CV/fig_picks_vs_opt.png","output/cv/basic_dgp/figures/fig_picks_vs_opt.png",FALSE,FALSE
+"Exploring CV/fig_ridge_default.png","output/cv/basic_dgp/figures/fig_ridge_default.png",TRUE,FALSE
+"Exploring CV/fig_ridge_floor.png","output/cv/basic_dgp/figures/fig_ridge_floor.png",TRUE,FALSE
+"Exploring CV/fig_snr_enet_strong.png","output/cv/basic_dgp/figures/fig_snr_enet_strong.png",TRUE,FALSE
+"Exploring CV/fig_snr_enet_strong_mid.png","output/cv/basic_dgp/figures/fig_snr_enet_strong_mid.png",TRUE,FALSE
+"Exploring CV/fig_snr_enet_weak.png","output/cv/basic_dgp/figures/fig_snr_enet_weak.png",TRUE,FALSE
+"Exploring CV/fig_snr_enet_weak_mid.png","output/cv/basic_dgp/figures/fig_snr_enet_weak_mid.png",TRUE,FALSE
+"Exploring CV/fig_snr_good.png","output/cv/basic_dgp/figures/fig_snr_good.png",TRUE,FALSE
+"Exploring CV/fig_snr_lasso.png","output/cv/basic_dgp/figures/fig_snr_lasso.png",TRUE,FALSE
+"Exploring CV/fig_snr_lasso_strong.png","output/cv/basic_dgp/figures/fig_snr_lasso_strong.png",TRUE,FALSE
+"Exploring CV/fig_snr_lasso_strong_mid.png","output/cv/basic_dgp/figures/fig_snr_lasso_strong_mid.png",TRUE,FALSE
+"Exploring CV/fig_snr_lasso_weak.png","output/cv/basic_dgp/figures/fig_snr_lasso_weak.png",TRUE,FALSE
+"Exploring CV/fig_snr_lasso_weak_mid.png","output/cv/basic_dgp/figures/fig_snr_lasso_weak_mid.png",TRUE,FALSE
+"Exploring CV/fig_spread_a0.5.png","output/cv/basic_dgp/figures/fig_spread_a0.5.png",TRUE,FALSE
+"Exploring CV/fig_spread_a0.png","output/cv/basic_dgp/figures/fig_spread_a0.png",TRUE,FALSE
+"Exploring CV/fig_spread_a1.png","output/cv/basic_dgp/figures/fig_spread_a1.png",TRUE,FALSE
+"Exploring CV/fixed confounding 500.png","archive/exploring_cv/fixed_confounding_500.png",TRUE,TRUE
+"Exploring CV/functions..R","runs/cv/basic_dgp/make_cv_picks.R",FALSE,TRUE
+"Exploring CV/images/clipboard-1646395313.png","archive/exploring_cv/images/clipboard-1646395313.png",FALSE,FALSE
+"Exploring CV/images/clipboard-1924613462.png","archive/exploring_cv/images/clipboard-1924613462.png",TRUE,FALSE
+"Exploring CV/images/clipboard-2522717763.png","archive/exploring_cv/images/clipboard-2522717763.png",TRUE,FALSE
+"Exploring CV/images/clipboard-2535870865.png","archive/exploring_cv/images/clipboard-2535870865.png",FALSE,FALSE
+"Exploring CV/images/clipboard-3187216249.png","archive/exploring_cv/images/clipboard-3187216249.png",FALSE,FALSE
+"Exploring CV/images/clipboard-3950597989.png","archive/exploring_cv/images/clipboard-3950597989.png",FALSE,FALSE
+"Exploring CV/ladder_enet_r500.png","output/cv/basic_dgp/figures/ladder_enet_r500.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_enet_r200.png","output/cv/basic_dgp/figures/n_by_overlap_enet_r200.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_enet_sigma1_r200.png","output/cv/basic_dgp/figures/n_by_overlap_enet_sigma1_r200.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_enet_sigma10_r200.png","output/cv/basic_dgp/figures/n_by_overlap_enet_sigma10_r200.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_enet_sigma3_r200.png","output/cv/basic_dgp/figures/n_by_overlap_enet_sigma3_r200.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_lasso_sigma1_r500.png","output/cv/basic_dgp/figures/n_by_overlap_lasso_sigma1_r500.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_lasso_sigma10_r500.png","output/cv/basic_dgp/figures/n_by_overlap_lasso_sigma10_r500.png",TRUE,FALSE
+"Exploring CV/n_by_overlap_lasso_sigma3_r500.png","output/cv/basic_dgp/figures/n_by_overlap_lasso_sigma3_r500.png",TRUE,FALSE
+"Exploring CV/n_enet_01_r200.rds","results/cv/basic_dgp/n_enet_01_r200.rds",TRUE,FALSE
+"Exploring CV/n_enet_02_r200.rds","results/cv/basic_dgp/n_enet_02_r200.rds",TRUE,FALSE
+"Exploring CV/n_enet_03_r200.rds","results/cv/basic_dgp/n_enet_03_r200.rds",TRUE,FALSE
+"Exploring CV/n_enet_04_r200.rds","results/cv/basic_dgp/n_enet_04_r200.rds",TRUE,FALSE
+"Exploring CV/n_enet_05_r200.rds","results/cv/basic_dgp/n_enet_05_r200.rds",TRUE,FALSE
+"Exploring CV/n_enet_06_r200.rds","results/cv/basic_dgp/n_enet_06_r200.rds",TRUE,FALSE
+"Exploring CV/ov_1k_01_r1000.rds","results/cv/basic_dgp/ov_1k_01_r1000.rds",FALSE,FALSE
+"Exploring CV/ov_1k_02_r1000.rds","results/cv/basic_dgp/ov_1k_02_r1000.rds",FALSE,FALSE
+"Exploring CV/ov_1k_03_r1000.rds","results/cv/basic_dgp/ov_1k_03_r1000.rds",FALSE,FALSE
+"Exploring CV/ov_s1_01_r500.rds","results/cv/basic_dgp/ov_s1_01_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_02_r500.rds","results/cv/basic_dgp/ov_s1_02_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_03_r500.rds","results/cv/basic_dgp/ov_s1_03_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_04_r500.rds","results/cv/basic_dgp/ov_s1_04_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_05_r500.rds","results/cv/basic_dgp/ov_s1_05_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_06_r500.rds","results/cv/basic_dgp/ov_s1_06_r500.rds",TRUE,FALSE
+"Exploring CV/ov_s1_m5_01_r500.rds","results/cv/basic_dgp/ov_s1_m5_01_r500.rds",FALSE,FALSE
+"Exploring CV/ov_s1_m5_02_r500.rds","results/cv/basic_dgp/ov_s1_m5_02_r500.rds",FALSE,FALSE
+"Exploring CV/penalty_paths.csv","archive/exploring_cv/penalty_paths.csv",FALSE,FALSE
+"Exploring CV/penalty_picks.csv","output/cv/basic_dgp/summaries/penalty_picks.csv",FALSE,FALSE
+"Exploring CV/plot_grids.R","analysis/cv/basic_dgp/plot_grids.R",TRUE,FALSE
+"Exploring CV/prep_cv_summary.R","analysis/cv/basic_dgp/prep_cv_summary.R",TRUE,FALSE
+"Exploring CV/second_draw_tune4.rds","archive/exploring_cv/second_draw_tune4.rds",TRUE,FALSE
+"Exploring CV/snr_by_overlap_enet_r500.png","output/cv/basic_dgp/figures/snr_by_overlap_enet_r500.png",TRUE,FALSE
+"Exploring CV/SNR_by_overlap_lasso_r500.png","output/cv/basic_dgp/figures/SNR_by_overlap_lasso_r500.png",TRUE,FALSE
+"Exploring CV/snr_enet_01_r500.rds","results/cv/basic_dgp/snr_enet_01_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_02_r500.rds","results/cv/basic_dgp/snr_enet_02_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_03_r500.rds","results/cv/basic_dgp/snr_enet_03_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_04_r500.rds","results/cv/basic_dgp/snr_enet_04_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_05_r500.rds","results/cv/basic_dgp/snr_enet_05_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_06_r500.rds","results/cv/basic_dgp/snr_enet_06_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_07_r500.rds","results/cv/basic_dgp/snr_enet_07_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_08_r500.rds","results/cv/basic_dgp/snr_enet_08_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_09_r500.rds","results/cv/basic_dgp/snr_enet_09_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_10_r500.rds","results/cv/basic_dgp/snr_enet_10_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_11_r500.rds","results/cv/basic_dgp/snr_enet_11_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_12_r500.rds","results/cv/basic_dgp/snr_enet_12_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_13_r500.rds","results/cv/basic_dgp/snr_enet_13_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_14_r500.rds","results/cv/basic_dgp/snr_enet_14_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_15_r500.rds","results/cv/basic_dgp/snr_enet_15_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_16_r500.rds","results/cv/basic_dgp/snr_enet_16_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_17_r500.rds","results/cv/basic_dgp/snr_enet_17_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_18_r500.rds","results/cv/basic_dgp/snr_enet_18_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_19_r500.rds","results/cv/basic_dgp/snr_enet_19_r500.rds",TRUE,FALSE
+"Exploring CV/snr_enet_20_r500.rds","results/cv/basic_dgp/snr_enet_20_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_01_r500.rds","results/cv/basic_dgp/snr_good_01_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_02_r500.rds","results/cv/basic_dgp/snr_good_02_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_03_r500.rds","results/cv/basic_dgp/snr_good_03_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_04_r500.rds","results/cv/basic_dgp/snr_good_04_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_05_r500.rds","results/cv/basic_dgp/snr_good_05_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_06_r500.rds","results/cv/basic_dgp/snr_good_06_r500.rds",TRUE,FALSE
+"Exploring CV/snr_good_07_r500.rds","results/cv/basic_dgp/snr_good_07_r500.rds",TRUE,FALSE
+"Exploring CV/snr_mb_01_r500.rds","results/cv/basic_dgp/snr_mb_01_r500.rds",FALSE,FALSE
+"Exploring CV/snr_mb_02_r500.rds","results/cv/basic_dgp/snr_mb_02_r500.rds",FALSE,FALSE
+"Exploring CV/snr_mb_03_r500.rds","results/cv/basic_dgp/snr_mb_03_r500.rds",FALSE,FALSE
+"Exploring CV/snr_mb_04_r500.rds","results/cv/basic_dgp/snr_mb_04_r500.rds",FALSE,FALSE
+"Exploring CV/spread_01_r200.rds","results/cv/basic_dgp/spread_01_r200.rds",TRUE,FALSE
+"Exploring CV/spread_02_r200.rds","results/cv/basic_dgp/spread_02_r200.rds",TRUE,FALSE
+"Exploring CV/spread_03_r200.rds","results/cv/basic_dgp/spread_03_r200.rds",TRUE,FALSE
+"Exploring CV/spread_04_r200.rds","results/cv/basic_dgp/spread_04_r200.rds",TRUE,FALSE
+"Exploring CV/spread_05_r200.rds","results/cv/basic_dgp/spread_05_r200.rds",TRUE,FALSE
+"Exploring CV/spread_06_r200.rds","results/cv/basic_dgp/spread_06_r200.rds",TRUE,FALSE
+"Exploring CV/spread_07_r200.rds","results/cv/basic_dgp/spread_07_r200.rds",TRUE,FALSE
+"Exploring CV/spread_08_r200.rds","results/cv/basic_dgp/spread_08_r200.rds",TRUE,FALSE
+"Exploring CV/spread_09_r200.rds","results/cv/basic_dgp/spread_09_r200.rds",TRUE,FALSE
+"Exploring CV/spread_10_r200.rds","results/cv/basic_dgp/spread_10_r200.rds",TRUE,FALSE
+"Exploring CV/spread_11_r200.rds","results/cv/basic_dgp/spread_11_r200.rds",TRUE,FALSE
+"Exploring CV/spread_12_r200.rds","results/cv/basic_dgp/spread_12_r200.rds",TRUE,FALSE
+"Exploring CV/spread_13_r200.rds","results/cv/basic_dgp/spread_13_r200.rds",TRUE,FALSE
+"Exploring CV/spread_14_r200.rds","results/cv/basic_dgp/spread_14_r200.rds",TRUE,FALSE
+"Exploring CV/spread_15_r200.rds","results/cv/basic_dgp/spread_15_r200.rds",TRUE,FALSE
+"Exploring CV/spread_16_r200.rds","results/cv/basic_dgp/spread_16_r200.rds",TRUE,FALSE
+"Exploring CV/spread_17_r200.rds","results/cv/basic_dgp/spread_17_r200.rds",TRUE,FALSE
+"Exploring CV/spread_18_r200.rds","results/cv/basic_dgp/spread_18_r200.rds",TRUE,FALSE
+"Exploring CV/spread_19_r200.rds","results/cv/basic_dgp/spread_19_r200.rds",TRUE,FALSE
+"Exploring CV/spread_20_r200.rds","results/cv/basic_dgp/spread_20_r200.rds",TRUE,FALSE
+"Exploring CV/spread_21_r200.rds","results/cv/basic_dgp/spread_21_r200.rds",TRUE,FALSE
+"Exploring CV/spread_22_r200.rds","results/cv/basic_dgp/spread_22_r200.rds",TRUE,FALSE
+"Exploring CV/spread_23_r200.rds","results/cv/basic_dgp/spread_23_r200.rds",TRUE,FALSE
+"Exploring CV/spread_24_r200.rds","results/cv/basic_dgp/spread_24_r200.rds",TRUE,FALSE
+"Exploring CV/spread_25_r200.rds","results/cv/basic_dgp/spread_25_r200.rds",TRUE,FALSE
+"Exploring CV/spread_26_r200.rds","results/cv/basic_dgp/spread_26_r200.rds",TRUE,FALSE
+"Exploring CV/spread_27_r200.rds","results/cv/basic_dgp/spread_27_r200.rds",TRUE,FALSE
+"Exploring CV/spread_28_r200.rds","results/cv/basic_dgp/spread_28_r200.rds",TRUE,FALSE
+"Exploring CV/spread_29_r200.rds","results/cv/basic_dgp/spread_29_r200.rds",TRUE,FALSE
+"Exploring CV/spread_30_r200.rds","results/cv/basic_dgp/spread_30_r200.rds",TRUE,FALSE
+"Exploring CV/spread_31_r200.rds","results/cv/basic_dgp/spread_31_r200.rds",TRUE,FALSE
+"Exploring CV/spread_32_r200.rds","results/cv/basic_dgp/spread_32_r200.rds",TRUE,FALSE
+"Exploring CV/spread_33_r200.rds","results/cv/basic_dgp/spread_33_r200.rds",TRUE,FALSE
+"Exploring CV/spread_34_r200.rds","results/cv/basic_dgp/spread_34_r200.rds",TRUE,FALSE
+"Exploring CV/spread_35_r200.rds","results/cv/basic_dgp/spread_35_r200.rds",TRUE,FALSE
+"Exploring CV/spread_36_r200.rds","results/cv/basic_dgp/spread_36_r200.rds",TRUE,FALSE
+"Exploring CV/spread_by_penalty_r200.png","output/cv/basic_dgp/figures/spread_by_penalty_r200.png",TRUE,FALSE
+"Exploring CV/spread_by_penalty_r500.png","archive/exploring_cv/spread_by_penalty_r500.png",TRUE,FALSE
+"Exploring CV/tune_grid_r5.png","output/cv/basic_dgp/figures/tune_grid_r5.png",TRUE,FALSE
+"Exploring CV/tune01_r5.rds","archive/exploring_cv/tune01_r5.rds",TRUE,FALSE
+"Exploring CV/tune01_r500.rds","archive/exploring_cv/tune01_r500.rds",TRUE,FALSE
+"Exploring CV/tune02_r5.rds","archive/exploring_cv/tune02_r5.rds",TRUE,FALSE
+"Exploring CV/tune02_r500.rds","archive/exploring_cv/tune02_r500.rds",TRUE,FALSE
+"Exploring CV/tune03_r5.rds","archive/exploring_cv/tune03_r5.rds",TRUE,FALSE
+"Exploring CV/tune03_r500.rds","archive/exploring_cv/tune03_r500.rds",TRUE,FALSE
+"Exploring CV/tune04_r5.rds","archive/exploring_cv/tune04_r5.rds",TRUE,FALSE
+"Exploring CV/tune04_r500.rds","archive/exploring_cv/tune04_r500.rds",TRUE,FALSE
+"Exploring CV/tune05_r5.rds","archive/exploring_cv/tune05_r5.rds",TRUE,FALSE
+"Exploring CV/tune05_r500.rds","archive/exploring_cv/tune05_r500.rds",TRUE,FALSE
+"Exploring CV/tune06_r5.rds","archive/exploring_cv/tune06_r5.rds",TRUE,FALSE
+"Exploring CV/tune06_r500.rds","archive/exploring_cv/tune06_r500.rds",TRUE,FALSE
+"Exploring CV/tune07_r5.rds","archive/exploring_cv/tune07_r5.rds",TRUE,FALSE
+"Exploring CV/tune07_r500.rds","archive/exploring_cv/tune07_r500.rds",TRUE,FALSE
+"Exploring CV/tune08_r5.rds","archive/exploring_cv/tune08_r5.rds",TRUE,FALSE
+"Exploring CV/tune08_r500.rds","archive/exploring_cv/tune08_r500.rds",TRUE,FALSE
+"Exploring CV/tune09_r5.rds","archive/exploring_cv/tune09_r5.rds",TRUE,FALSE
+"Exploring CV/tune09_r500.rds","archive/exploring_cv/tune09_r500.rds",TRUE,FALSE
+"Exploring CV/tune10_r5.rds","archive/exploring_cv/tune10_r5.rds",TRUE,FALSE
+"Exploring CV/tune10_r500.rds","archive/exploring_cv/tune10_r500.rds",TRUE,FALSE
+"Exploring CV/tune11_r5.rds","archive/exploring_cv/tune11_r5.rds",TRUE,FALSE
+"Exploring CV/tune11_r500.rds","archive/exploring_cv/tune11_r500.rds",TRUE,FALSE
+"Exploring CV/tune12_r5.rds","archive/exploring_cv/tune12_r5.rds",TRUE,FALSE
+"Exploring CV/tune12_r500.rds","archive/exploring_cv/tune12_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_01_r500.rds","results/cv/basic_dgp/tune2_01_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_02_r500.rds","results/cv/basic_dgp/tune2_02_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_03_r500.rds","results/cv/basic_dgp/tune2_03_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_04_r500.rds","results/cv/basic_dgp/tune2_04_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_05_r500.rds","results/cv/basic_dgp/tune2_05_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_06_r500.rds","results/cv/basic_dgp/tune2_06_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_07_r500.rds","results/cv/basic_dgp/tune2_07_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_08_r500.rds","results/cv/basic_dgp/tune2_08_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_09_r500.rds","results/cv/basic_dgp/tune2_09_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_10_r500.rds","results/cv/basic_dgp/tune2_10_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_11_r500.rds","results/cv/basic_dgp/tune2_11_r500.rds",TRUE,FALSE
+"Exploring CV/tune2_12_r500.rds","results/cv/basic_dgp/tune2_12_r500.rds",TRUE,FALSE
+"Exploring CV/tune3_01_r500.rds","results/cv/basic_dgp/tune3_01_r500.rds",TRUE,FALSE
+"Exploring CV/tune3_02_r500.rds","results/cv/basic_dgp/tune3_02_r500.rds",TRUE,FALSE
+"Exploring CV/tune3_03_r500.rds","results/cv/basic_dgp/tune3_03_r500.rds",TRUE,FALSE
+"Exploring CV/tune3_04_r500.rds","results/cv/basic_dgp/tune3_04_r500.rds",TRUE,FALSE
+"Exploring CV/tune3_05_r500.rds","results/cv/basic_dgp/tune3_05_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_01_r500.rds","results/cv/basic_dgp/tune4_01_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_02_r500.rds","results/cv/basic_dgp/tune4_02_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_03_r500.rds","results/cv/basic_dgp/tune4_03_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_04_r500.rds","results/cv/basic_dgp/tune4_04_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_05_r500.rds","results/cv/basic_dgp/tune4_05_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_06_r500.rds","results/cv/basic_dgp/tune4_06_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_07_r500.rds","results/cv/basic_dgp/tune4_07_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_08_r500.rds","results/cv/basic_dgp/tune4_08_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_09_r500.rds","results/cv/basic_dgp/tune4_09_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_10_r500.rds","results/cv/basic_dgp/tune4_10_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_11_r500.rds","results/cv/basic_dgp/tune4_11_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_12_r500.rds","results/cv/basic_dgp/tune4_12_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_13_r500.rds","results/cv/basic_dgp/tune4_13_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_14_r500.rds","results/cv/basic_dgp/tune4_14_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_15_r500.rds","results/cv/basic_dgp/tune4_15_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_16_r500.rds","results/cv/basic_dgp/tune4_16_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_17_r500.rds","results/cv/basic_dgp/tune4_17_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_18_r500.rds","results/cv/basic_dgp/tune4_18_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_19_r1000.rds","results/cv/basic_dgp/tune4_19_r1000.rds",FALSE,FALSE
+"Exploring CV/tune4_19_r500.rds","results/cv/basic_dgp/tune4_19_r500.rds",TRUE,FALSE
+"Exploring CV/tune4_20_r500.rds","results/cv/basic_dgp/tune4_20_r500.rds",TRUE,FALSE
+"Exploring CV/tunea_01_r5.rds","archive/exploring_cv/tunea_01_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_01_r50.rds","results/cv/basic_dgp/tunea_01_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_02_r5.rds","archive/exploring_cv/tunea_02_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_02_r50.rds","results/cv/basic_dgp/tunea_02_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_03_r5.rds","archive/exploring_cv/tunea_03_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_03_r50.rds","results/cv/basic_dgp/tunea_03_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_04_r5.rds","archive/exploring_cv/tunea_04_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_04_r50.rds","results/cv/basic_dgp/tunea_04_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_05_r5.rds","archive/exploring_cv/tunea_05_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_05_r50.rds","results/cv/basic_dgp/tunea_05_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_06_r5.rds","archive/exploring_cv/tunea_06_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_06_r50.rds","results/cv/basic_dgp/tunea_06_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_07_r5.rds","archive/exploring_cv/tunea_07_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_07_r50.rds","results/cv/basic_dgp/tunea_07_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_08_r5.rds","archive/exploring_cv/tunea_08_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_08_r50.rds","results/cv/basic_dgp/tunea_08_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_09_r5.rds","archive/exploring_cv/tunea_09_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_09_r50.rds","results/cv/basic_dgp/tunea_09_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_10_r5.rds","archive/exploring_cv/tunea_10_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_10_r50.rds","results/cv/basic_dgp/tunea_10_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_11_r5.rds","archive/exploring_cv/tunea_11_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_11_r50.rds","results/cv/basic_dgp/tunea_11_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_12_r5.rds","archive/exploring_cv/tunea_12_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_12_r50.rds","results/cv/basic_dgp/tunea_12_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_13_r5.rds","archive/exploring_cv/tunea_13_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_13_r50.rds","results/cv/basic_dgp/tunea_13_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_14_r5.rds","archive/exploring_cv/tunea_14_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_14_r50.rds","results/cv/basic_dgp/tunea_14_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_15_r5.rds","archive/exploring_cv/tunea_15_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_15_r50.rds","results/cv/basic_dgp/tunea_15_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_16_r5.rds","archive/exploring_cv/tunea_16_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_16_r50.rds","results/cv/basic_dgp/tunea_16_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_17_r5.rds","archive/exploring_cv/tunea_17_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_17_r50.rds","results/cv/basic_dgp/tunea_17_r50.rds",TRUE,FALSE
+"Exploring CV/tunea_18_r5.rds","archive/exploring_cv/tunea_18_r5.rds",TRUE,FALSE
+"Exploring CV/tunea_18_r50.rds","results/cv/basic_dgp/tunea_18_r50.rds",TRUE,FALSE
+"Exploring CV/tunea2_01_r500.rds","results/cv/basic_dgp/tunea2_01_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_02_r500.rds","results/cv/basic_dgp/tunea2_02_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_03_r500.rds","results/cv/basic_dgp/tunea2_03_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_04_r500.rds","results/cv/basic_dgp/tunea2_04_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_05_r500.rds","results/cv/basic_dgp/tunea2_05_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_06_r500.rds","results/cv/basic_dgp/tunea2_06_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_07_r500.rds","results/cv/basic_dgp/tunea2_07_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_08_r500.rds","results/cv/basic_dgp/tunea2_08_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_09_r500.rds","results/cv/basic_dgp/tunea2_09_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_10_r500.rds","results/cv/basic_dgp/tunea2_10_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_11_r500.rds","results/cv/basic_dgp/tunea2_11_r500.rds",TRUE,FALSE
+"Exploring CV/tunea2_12_r500.rds","results/cv/basic_dgp/tunea2_12_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_01_r500.rds","results/cv/basic_dgp/tunea3_01_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_02_r500.rds","results/cv/basic_dgp/tunea3_02_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_03_r500.rds","results/cv/basic_dgp/tunea3_03_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_04_r500.rds","results/cv/basic_dgp/tunea3_04_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_05_r500.rds","results/cv/basic_dgp/tunea3_05_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_06_r500.rds","results/cv/basic_dgp/tunea3_06_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_07_r500.rds","results/cv/basic_dgp/tunea3_07_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_08_r500.rds","results/cv/basic_dgp/tunea3_08_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_09_r500.rds","results/cv/basic_dgp/tunea3_09_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_10_r500.rds","results/cv/basic_dgp/tunea3_10_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_11_r500.rds","results/cv/basic_dgp/tunea3_11_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_12_r500.rds","results/cv/basic_dgp/tunea3_12_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_13_r500.rds","results/cv/basic_dgp/tunea3_13_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_14_r500.rds","results/cv/basic_dgp/tunea3_14_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_15_r500.rds","results/cv/basic_dgp/tunea3_15_r500.rds",TRUE,FALSE
+"Exploring CV/tunea3_16_r500.rds","results/cv/basic_dgp/tunea3_16_r500.rds",TRUE,FALSE
+"Exploring CV/tunea4_01_r200.rds","results/cv/basic_dgp/tunea4_01_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_02_r200.rds","results/cv/basic_dgp/tunea4_02_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_03_r200.rds","results/cv/basic_dgp/tunea4_03_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_04_r200.rds","results/cv/basic_dgp/tunea4_04_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_05_r200.rds","results/cv/basic_dgp/tunea4_05_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_06_r200.rds","results/cv/basic_dgp/tunea4_06_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_07_r200.rds","results/cv/basic_dgp/tunea4_07_r200.rds",TRUE,FALSE
+"Exploring CV/tunea4_08_r200.rds","results/cv/basic_dgp/tunea4_08_r200.rds",TRUE,FALSE
+"Exploring CV/tunen2_01_r500.rds","results/cv/basic_dgp/tunen2_01_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_02_r500.rds","results/cv/basic_dgp/tunen2_02_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_03_r500.rds","results/cv/basic_dgp/tunen2_03_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_04_r500.rds","results/cv/basic_dgp/tunen2_04_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_05_r500.rds","results/cv/basic_dgp/tunen2_05_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_06_r500.rds","results/cv/basic_dgp/tunen2_06_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_07_r500.rds","results/cv/basic_dgp/tunen2_07_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_08_r500.rds","results/cv/basic_dgp/tunen2_08_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_09_r500.rds","results/cv/basic_dgp/tunen2_09_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_10_r500.rds","results/cv/basic_dgp/tunen2_10_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_11_r500.rds","results/cv/basic_dgp/tunen2_11_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_12_r500.rds","results/cv/basic_dgp/tunen2_12_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_13_r500.rds","results/cv/basic_dgp/tunen2_13_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_14_r500.rds","results/cv/basic_dgp/tunen2_14_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_15_r500.rds","results/cv/basic_dgp/tunen2_15_r500.rds",TRUE,FALSE
+"Exploring CV/tunen2_16_r500.rds","results/cv/basic_dgp/tunen2_16_r500.rds",TRUE,FALSE
+"Exploring CV/tunep_grid_r5.png","output/cv/basic_dgp/figures/tunep_grid_r5.png",TRUE,FALSE
+"Exploring CV/tunep01_r5.rds","archive/exploring_cv/tunep01_r5.rds",TRUE,FALSE
+"Exploring CV/tunep02_r5.rds","archive/exploring_cv/tunep02_r5.rds",TRUE,FALSE
+"Exploring CV/tunep03_r5.rds","archive/exploring_cv/tunep03_r5.rds",TRUE,FALSE
+"Exploring CV/tunep04_r5.rds","archive/exploring_cv/tunep04_r5.rds",TRUE,FALSE
+"Exploring CV/tunep05_r5.rds","archive/exploring_cv/tunep05_r5.rds",TRUE,FALSE
+"Exploring CV/tunep06_r5.rds","archive/exploring_cv/tunep06_r5.rds",TRUE,FALSE
+"Exploring CV/tunep07_r5.rds","archive/exploring_cv/tunep07_r5.rds",TRUE,FALSE
+"Exploring CV/tunep08_r5.rds","archive/exploring_cv/tunep08_r5.rds",TRUE,FALSE
+"Exploring CV/tunep09_r5.rds","archive/exploring_cv/tunep09_r5.rds",TRUE,FALSE
+"Exploring CV/tunep10_r5.rds","archive/exploring_cv/tunep10_r5.rds",TRUE,FALSE
+"Exploring CV/tunep11_r5.rds","archive/exploring_cv/tunep11_r5.rds",TRUE,FALSE
+"Exploring CV/tunep12_r5.rds","archive/exploring_cv/tunep12_r5.rds",TRUE,FALSE
+"Exploring CV/tunep13_r5.rds","archive/exploring_cv/tunep13_r5.rds",TRUE,FALSE
+"Exploring CV/tunep14_r5.rds","archive/exploring_cv/tunep14_r5.rds",TRUE,FALSE
+"Exploring CV/tunep15_r5.rds","archive/exploring_cv/tunep15_r5.rds",TRUE,FALSE
+"Exploring CV/tunep16_r5.rds","archive/exploring_cv/tunep16_r5.rds",TRUE,FALSE
+"Exploring CV/tunep17_r5.rds","archive/exploring_cv/tunep17_r5.rds",TRUE,FALSE
+"Exploring CV/tunep18_r5.rds","archive/exploring_cv/tunep18_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_01_r5.rds","archive/exploring_cv/tunep2_01_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_01_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_01_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_01_r50.rds","results/cv/basic_dgp/tunep2_01_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_02_r5.rds","archive/exploring_cv/tunep2_02_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_02_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_02_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_02_r50.rds","results/cv/basic_dgp/tunep2_02_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_03_r5.rds","archive/exploring_cv/tunep2_03_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_03_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_03_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_03_r50.rds","results/cv/basic_dgp/tunep2_03_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_04_r5.rds","archive/exploring_cv/tunep2_04_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_04_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_04_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_04_r50.rds","results/cv/basic_dgp/tunep2_04_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_05_r5.rds","archive/exploring_cv/tunep2_05_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_05_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_05_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_05_r50.rds","results/cv/basic_dgp/tunep2_05_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_06_r5.rds","archive/exploring_cv/tunep2_06_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_06_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_06_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_06_r50.rds","results/cv/basic_dgp/tunep2_06_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_07_r5.rds","archive/exploring_cv/tunep2_07_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_07_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_07_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_07_r50.rds","results/cv/basic_dgp/tunep2_07_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_08_r5.rds","archive/exploring_cv/tunep2_08_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_08_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_08_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_08_r50.rds","results/cv/basic_dgp/tunep2_08_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_09_r5.rds","archive/exploring_cv/tunep2_09_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_09_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_09_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_09_r50.rds","results/cv/basic_dgp/tunep2_09_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_10_r5.rds","archive/exploring_cv/tunep2_10_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_10_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_10_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_10_r50.rds","results/cv/basic_dgp/tunep2_10_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_11_r5.rds","archive/exploring_cv/tunep2_11_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_11_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_11_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_11_r50.rds","results/cv/basic_dgp/tunep2_11_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_12_r5.rds","archive/exploring_cv/tunep2_12_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_12_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_12_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_12_r50.rds","results/cv/basic_dgp/tunep2_12_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_13_r5.rds","archive/exploring_cv/tunep2_13_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_13_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_13_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_13_r50.rds","results/cv/basic_dgp/tunep2_13_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_14_r5.rds","archive/exploring_cv/tunep2_14_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_14_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_14_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_14_r50.rds","results/cv/basic_dgp/tunep2_14_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_15_r5.rds","archive/exploring_cv/tunep2_15_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_15_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_15_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_15_r50.rds","results/cv/basic_dgp/tunep2_15_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_16_r5.rds","archive/exploring_cv/tunep2_16_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_16_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_16_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_16_r50.rds","results/cv/basic_dgp/tunep2_16_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_17_r5.rds","archive/exploring_cv/tunep2_17_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_17_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_17_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_17_r50.rds","results/cv/basic_dgp/tunep2_17_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_18_r5.rds","archive/exploring_cv/tunep2_18_r5.rds",TRUE,FALSE
+"Exploring CV/tunep2_18_r50 6.04.24 pm.rds","archive/exploring_cv/tunep2_18_r50_6_04_24_pm.rds",TRUE,TRUE
+"Exploring CV/tunep2_18_r50.rds","results/cv/basic_dgp/tunep2_18_r50.rds",TRUE,FALSE
+"Exploring CV/tunep2_grid_r5.png","output/cv/basic_dgp/figures/tunep2_grid_r5.png",TRUE,FALSE
+"Exploring CV/tunep2_grid_r50.png","output/cv/basic_dgp/figures/tunep2_grid_r50.png",TRUE,FALSE
+"Extension_CV/cv_summary.qmd","archive/extension_cv/cv_summary.qmd",FALSE,FALSE
+"Extension_CV/figures/tune_grid_r500.png","output/cv/basic_dgp/figures/tune_grid_r500.png",FALSE,FALSE
+"Extension_CV/R/dgp_cv.R","R/dgp_cv.R",FALSE,FALSE
+"Extension_CV/results/runs/tune01_r500.rds","results/cv/basic_dgp/tune01_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune02_r500.rds","results/cv/basic_dgp/tune02_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune03_r500.rds","results/cv/basic_dgp/tune03_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune04_r500.rds","results/cv/basic_dgp/tune04_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune05_r500.rds","results/cv/basic_dgp/tune05_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune06_r500.rds","results/cv/basic_dgp/tune06_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune07_r500.rds","results/cv/basic_dgp/tune07_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune08_r500.rds","results/cv/basic_dgp/tune08_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune09_r500.rds","results/cv/basic_dgp/tune09_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune10_r500.rds","results/cv/basic_dgp/tune10_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune11_r500.rds","results/cv/basic_dgp/tune11_r500.rds",FALSE,FALSE
+"Extension_CV/results/runs/tune12_r500.rds","results/cv/basic_dgp/tune12_r500.rds",FALSE,FALSE
+"Extension_CV/scripts/analyse_path_end_slope.R","analysis/cv/basic_dgp/analyse_path_end_slope.R",FALSE,FALSE
+"Extension_CV/scripts/cv_smoke_test.R","tests/cv_smoke_test.R",FALSE,FALSE
+"Extension_CV/scripts/plot_rmse_grids_for_qmd.R","archive/extension_cv/scripts/plot_rmse_grids_for_qmd.R",FALSE,FALSE
+"Extension_CV/scripts/run_alpha_sweep_bad_overlap__alpha_bad.R","runs/cv/basic_dgp/run_alpha_sweep_bad_overlap__alpha_bad.R",FALSE,FALSE
+"Extension_CV/scripts/run_alpha_x_overlap_x_density_50reps__tunea.R","runs/cv/basic_dgp/run_alpha_x_overlap_x_density_50reps__tunea.R",FALSE,FALSE
+"Extension_CV/scripts/run_bad_overlap_noise10_1000reps__tune4_19.R","runs/cv/basic_dgp/run_bad_overlap_noise10_1000reps__tune4_19.R",FALSE,FALSE
+"Extension_CV/scripts/run_confounder_spread_x_penalty__spread.R","runs/cv/basic_dgp/run_confounder_spread_x_penalty__spread.R",FALSE,FALSE
+"Extension_CV/scripts/run_high_p_x_alpha_x_overlap__dimhi.R","runs/cv/basic_dgp/run_high_p_x_alpha_x_overlap__dimhi.R",FALSE,FALSE
+"Extension_CV/scripts/run_n_x_overlap_enet__n_enet.R","runs/cv/basic_dgp/run_n_x_overlap_enet__n_enet.R",FALSE,FALSE
+"Extension_CV/scripts/run_noise_axis_moderate_bad__snr_mb.R","runs/cv/basic_dgp/run_noise_axis_moderate_bad__snr_mb.R",FALSE,FALSE
+"Extension_CV/scripts/run_noise_x_overlap_density_diluted__tune.R","runs/cv/basic_dgp/run_noise_x_overlap_density_diluted__tune.R",FALSE,FALSE
+"Extension_CV/scripts/run_noise_x_overlap_density_fixed__tune2.R","runs/cv/basic_dgp/run_noise_x_overlap_density_fixed__tune2.R",FALSE,FALSE
+"Extension_CV/scripts/run_noise_x_overlap_enet__snr_enet.R","runs/cv/basic_dgp/run_noise_x_overlap_enet__snr_enet.R",FALSE,FALSE
+"Extension_CV/scripts/run_noise_x_overlap_lasso__tune4.R","runs/cv/basic_dgp/run_noise_x_overlap_lasso__tune4.R",FALSE,FALSE
+"Extension_CV/scripts/run_overlap_axis__ov_s1.R","runs/cv/basic_dgp/run_overlap_axis__ov_s1.R",FALSE,FALSE
+"Extension_CV/scripts/run_overlap_axis_1000reps__ov_1k.R","runs/cv/basic_dgp/run_overlap_axis_1000reps__ov_1k.R",FALSE,FALSE
+"Extension_CV/scripts/run_overlap_axis_maxit1e5__ov_s1_m5.R","runs/cv/basic_dgp/run_overlap_axis_maxit1e5__ov_s1_m5.R",FALSE,FALSE
+"Extension_CV/scripts/run_p_x_alpha_x_overlap__dima.R","runs/cv/basic_dgp/run_p_x_alpha_x_overlap__dima.R",FALSE,FALSE
+"Extension_CV/scripts/run_p_x_overlap_x_density__tunep2.R","runs/cv/basic_dgp/run_p_x_overlap_x_density__tunep2.R",FALSE,FALSE
+"Extension_CV/scripts/run_ridge_enet_lowered_floor__tunea4.R","runs/cv/basic_dgp/run_ridge_enet_lowered_floor__tunea4.R",FALSE,FALSE
+"Extension_CV/scripts/run_ridge_enet_x_overlap_x_density__tunea3.R","runs/cv/basic_dgp/run_ridge_enet_x_overlap_x_density__tunea3.R",FALSE,FALSE
+"Extension_CV/scripts/summarise_runs_to_csv.R","archive/extension_cv/scripts/summarise_runs_to_csv.R",FALSE,FALSE
+"R/estimators.R","R/estimators_ipw.R",TRUE,TRUE
+"R/testing.R","tests/smoke_simulate.R",TRUE,TRUE
+"results/correctspecDGP1.csv.gz","results/ipw/correctspecDGP1.csv.gz",TRUE,FALSE
+"results/correctspecDGP1_cvcurves.rds","results/ipw/correctspecDGP1_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP1_session.txt","results/ipw/correctspecDGP1_session.txt",TRUE,FALSE
+"results/correctspecDGP2.csv.gz","results/ipw/correctspecDGP2.csv.gz",TRUE,FALSE
+"results/correctspecDGP2_cvcurves.rds","results/ipw/correctspecDGP2_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP2_ks.csv.gz","results/ipw/correctspecDGP2_ks.csv.gz",TRUE,FALSE
+"results/correctspecDGP2_ks_cvcurves.rds","results/ipw/correctspecDGP2_ks_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP2_ks_session.txt","results/ipw/correctspecDGP2_ks_session.txt",TRUE,FALSE
+"results/correctspecDGP2_mixed.csv.gz","results/ipw/correctspecDGP2_mixed.csv.gz",TRUE,FALSE
+"results/correctspecDGP2_mixed_cvcurves.rds","results/ipw/correctspecDGP2_mixed_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP2_mixed_session.txt","results/ipw/correctspecDGP2_mixed_session.txt",TRUE,FALSE
+"results/correctspecDGP2_pos.csv.gz","results/ipw/correctspecDGP2_pos.csv.gz",TRUE,FALSE
+"results/correctspecDGP2_pos_cvcurves.rds","results/ipw/correctspecDGP2_pos_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP2_pos_session.txt","results/ipw/correctspecDGP2_pos_session.txt",TRUE,FALSE
+"results/correctspecDGP2_session.txt","results/ipw/correctspecDGP2_session.txt",TRUE,FALSE
+"results/correctspecDGP2cvfix.csv.gz","results/ipw/correctspecDGP2cvfix.csv.gz",TRUE,FALSE
+"results/correctspecDGP2cvfix_cvcurves.rds","results/ipw/correctspecDGP2cvfix_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP2cvfix_session.txt","results/ipw/correctspecDGP2cvfix_session.txt",TRUE,FALSE
+"results/correctspecDGP400k.csv.gz","results/ipw/correctspecDGP400k.csv.gz",TRUE,FALSE
+"results/correctspecDGP400k_cvcurves.rds","results/ipw/correctspecDGP400k_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP400k_session.txt","results/ipw/correctspecDGP400k_session.txt",TRUE,FALSE
+"results/correctspecDGP800k.csv.gz","results/ipw/correctspecDGP800k.csv.gz",TRUE,FALSE
+"results/correctspecDGP800k_cvcurves.rds","results/ipw/correctspecDGP800k_cvcurves.rds",TRUE,FALSE
+"results/correctspecDGP800k_session.txt","results/ipw/correctspecDGP800k_session.txt",TRUE,FALSE
+"results/dimensionDGP2.csv.gz","results/ipw/dimensionDGP2.csv.gz",TRUE,FALSE
+"results/dimensionDGP2_cvcurves.rds","results/ipw/dimensionDGP2_cvcurves.rds",TRUE,FALSE
+"results/dimensionDGP2_session.txt","results/ipw/dimensionDGP2_session.txt",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_001.csv.gz","results/ipw/dimensionDGP2N5K_cells/cell_001.csv.gz",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_001_cv.rds","results/ipw/dimensionDGP2N5K_cells/cell_001_cv.rds",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_002.csv.gz","results/ipw/dimensionDGP2N5K_cells/cell_002.csv.gz",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_002_cv.rds","results/ipw/dimensionDGP2N5K_cells/cell_002_cv.rds",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_003.csv.gz","results/ipw/dimensionDGP2N5K_cells/cell_003.csv.gz",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_003_cv.rds","results/ipw/dimensionDGP2N5K_cells/cell_003_cv.rds",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_004.csv.gz","results/ipw/dimensionDGP2N5K_cells/cell_004.csv.gz",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_004_cv.rds","results/ipw/dimensionDGP2N5K_cells/cell_004_cv.rds",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_005.csv.gz","results/ipw/dimensionDGP2N5K_cells/cell_005.csv.gz",TRUE,FALSE
+"results/dimensionDGP2N5K_cells/cell_005_cv.rds","results/ipw/dimensionDGP2N5K_cells/cell_005_cv.rds",TRUE,FALSE
+"results/dimensionmisspecDGP2.csv.gz","results/ipw/dimensionmisspecDGP2.csv.gz",TRUE,FALSE
+"results/dimensionmisspecDGP2_cvcurves.rds","results/ipw/dimensionmisspecDGP2_cvcurves.rds",TRUE,FALSE
+"results/dimensionmisspecDGP2_session.txt","results/ipw/dimensionmisspecDGP2_session.txt",TRUE,FALSE
+"results/instrumentsDGP2.csv.gz","results/ipw/instrumentsDGP2.csv.gz",TRUE,FALSE
+"results/instrumentsDGP2_cvcurves.rds","results/ipw/instrumentsDGP2_cvcurves.rds",TRUE,FALSE
+"results/instrumentsDGP2_session.txt","results/ipw/instrumentsDGP2_session.txt",TRUE,FALSE
+"results/misspecDGP2.csv.gz","results/ipw/misspecDGP2.csv.gz",TRUE,FALSE
+"results/misspecDGP2_cvcurves.rds","results/ipw/misspecDGP2_cvcurves.rds",TRUE,FALSE
+"results/misspecDGP2_session.txt","results/ipw/misspecDGP2_session.txt",TRUE,FALSE
+"results/misspecDGP2cvfix.csv.gz","results/ipw/misspecDGP2cvfix.csv.gz",TRUE,FALSE
+"results/misspecDGP2cvfix_cvcurves.rds","results/ipw/misspecDGP2cvfix_cvcurves.rds",TRUE,FALSE
+"results/misspecDGP2cvfix_session.txt","results/ipw/misspecDGP2cvfix_session.txt",TRUE,FALSE
+"results/overlapDGP2.csv.gz","results/ipw/overlapDGP2.csv.gz",TRUE,FALSE
+"results/overlapDGP2_cvcurves.rds","results/ipw/overlapDGP2_cvcurves.rds",TRUE,FALSE
+"results/overlapDGP2_session.txt","results/ipw/overlapDGP2_session.txt",TRUE,FALSE
+"results/overlapmisspecDGP2.csv.gz","results/ipw/overlapmisspecDGP2.csv.gz",TRUE,FALSE
+"results/overlapmisspecDGP2_cvcurves.rds","results/ipw/overlapmisspecDGP2_cvcurves.rds",TRUE,FALSE
+"results/overlapmisspecDGP2_session.txt","results/ipw/overlapmisspecDGP2_session.txt",TRUE,FALSE
+"results/PoverMDGP2.csv.gz","results/ipw/PoverMDGP2.csv.gz",TRUE,FALSE
+"results/PoverMDGP2_cvcurves.rds","results/ipw/PoverMDGP2_cvcurves.rds",TRUE,FALSE
+"results/PoverMDGP2_session.txt","results/ipw/PoverMDGP2_session.txt",TRUE,FALSE
+"results/PoverMmisspecDGP2_cells/cell_001.csv.gz","results/ipw/PoverMmisspecDGP2_cells/cell_001.csv.gz",TRUE,FALSE
+"results/PoverMmisspecDGP2_cells/cell_001_cv.rds","results/ipw/PoverMmisspecDGP2_cells/cell_001_cv.rds",TRUE,FALSE
+"results/prevDGP2correct.csv.gz","results/ipw/prevDGP2correct.csv.gz",TRUE,FALSE
+"results/prevDGP2correct_cvcurves.rds","results/ipw/prevDGP2correct_cvcurves.rds",TRUE,FALSE
+"results/prevDGP2correct_session.txt","results/ipw/prevDGP2correct_session.txt",TRUE,FALSE
+"results/snrDGP2correct.csv.gz","results/ipw/snrDGP2correct.csv.gz",TRUE,FALSE
+"results/snrDGP2correct_cvcurves.rds","results/ipw/snrDGP2correct_cvcurves.rds",TRUE,FALSE
+"results/snrDGP2correct_session.txt","results/ipw/snrDGP2correct_session.txt",TRUE,FALSE
+"results/sparsityDGP2.csv.gz","results/ipw/sparsityDGP2.csv.gz",TRUE,FALSE
+"results/sparsityDGP2_cvcurves.rds","results/ipw/sparsityDGP2_cvcurves.rds",TRUE,FALSE
+"results/sparsityDGP2_session.txt","results/ipw/sparsityDGP2_session.txt",TRUE,FALSE
+"results/sparsityE6ar1DGP2.csv.gz","results/ipw/sparsityE6ar1DGP2.csv.gz",TRUE,FALSE
+"results/sparsityE6ar1DGP2_cvcurves.rds","results/ipw/sparsityE6ar1DGP2_cvcurves.rds",TRUE,FALSE
+"results/sparsityE6ar1DGP2_session.txt","results/ipw/sparsityE6ar1DGP2_session.txt",TRUE,FALSE
+"results/sparsityE6DGP2.csv.gz","results/ipw/sparsityE6DGP2.csv.gz",TRUE,FALSE
+"results/sparsityE6DGP2_cvcurves.rds","results/ipw/sparsityE6DGP2_cvcurves.rds",TRUE,FALSE
+"results/sparsityE6DGP2_session.txt","results/ipw/sparsityE6DGP2_session.txt",TRUE,FALSE
+"runs/correct+misspecDGP2.R","runs/ipw/correct_misspec_dgp2.R",TRUE,TRUE
+"runs/correctspecDGP1.R","runs/ipw/correctspecDGP1.R",TRUE,FALSE
+"runs/correctspecDGP2 N800K.R","runs/ipw/correctspec_dgp2_n800k.R",TRUE,TRUE
+"runs/cvfix.R","runs/ipw/cvfix.R",TRUE,FALSE
+"runs/DimensionDGP2.R","runs/ipw/DimensionDGP2.R",TRUE,FALSE
+"runs/DimensionDGP2N5K.R","runs/ipw/DimensionDGP2N5K.R",TRUE,FALSE
+"runs/Overlap+mispecDGP2.R","runs/ipw/overlap_misspec_dgp2.R",TRUE,TRUE
+"runs/PoverMDGP2.R","runs/ipw/PoverMDGP2.R",TRUE,FALSE
+"runs/SNR.R","runs/ipw/SNR.R",TRUE,FALSE
+"runs/Sparsity 2.R","runs/ipw/sparsity_2.R",TRUE,TRUE
+"runs/Sparsity.R","runs/ipw/Sparsity.R",TRUE,FALSE
+"runs/Treat Prop.R","runs/ipw/treat_prop.R",TRUE,TRUE
+"runs/Weak Instruments.R","runs/ipw/weak_instruments.R",TRUE,TRUE
+"Tests/balnet fix.R","archive/tests/balnet_fix.R",TRUE,TRUE
+"Tests/balnetfix.R","tests/balnet_cvfix_gate.R",TRUE,TRUE
+"Tests/DGP2 validity T1.R","archive/tests/dgp2_validity_t1.R",TRUE,TRUE
+"Tests/DGP2 validity.R","tests/dgp2_validity.R",TRUE,TRUE
+"thesis/DGP2 prose WIP.qmd","thesis/chapters/dgp2_prose_wip.qmd",TRUE,TRUE
+"Readings/AIPW paper.pdf","readings/AIPW paper.pdf",NA,FALSE
+"Readings/Asharkan, Erefarie, biometrics_79_2_1029.pdf","readings/Asharkan, Erefarie, biometrics_79_2_1029.pdf",NA,FALSE
+"Readings/Austin and Stuart - 2015 - Moving towards best practice when using inverse probability of treatment weighting (IPTW) using the.pdf","readings/Austin and Stuart - 2015 - Moving towards best practice when using inverse probability of treatment weighting (IPTW) using the.pdf",NA,FALSE
+"Readings/Ben-Michael et al. - 2021 - The Balancing Act in Causal Inference.pdf","readings/Ben-Michael et al. - 2021 - The Balancing Act in Causal Inference.pdf",NA,FALSE
+"Readings/Bruns-Smith et al. - Augmented balancing weights as linear regression.pdf","readings/Bruns-Smith et al. - Augmented balancing weights as linear regression.pdf",NA,FALSE
+"Readings/Chattopadhyay et al. - 2020 - Balancing vs modeling approaches to weighting in practice.pdf","readings/Chattopadhyay et al. - 2020 - Balancing vs modeling approaches to weighting in practice.pdf",NA,FALSE
+"Readings/Friedman et al. - 2010 - Regularization Paths for Generalized Linear Models via Coordinate Descent.pdf","readings/Friedman et al. - 2010 - Regularization Paths for Generalized Linear Models via Coordinate Descent.pdf",NA,FALSE
+"Readings/Hainmueller - 2012 - Entropy Balancing for Causal Effects A Multivariate Reweighting Method to Produce Balanced Samples.pdf","readings/Hainmueller - 2012 - Entropy Balancing for Causal Effects A Multivariate Reweighting Method to Produce Balanced Samples.pdf",NA,FALSE
+"Readings/Imai and Ratkovic - 2014 - Covariate Balancing Propensity Score.pdf","readings/Imai and Ratkovic - 2014 - Covariate Balancing Propensity Score.pdf",NA,FALSE
+"Readings/Kang and Schafer - 2007 - Demystifying Double Robustness A Comparison of Alternative Strategies for Estimating a Population M.pdf","readings/Kang and Schafer - 2007 - Demystifying Double Robustness A Comparison of Alternative Strategies for Estimating a Population M.pdf",NA,FALSE
+"Readings/Keele et al. - 2025 - Balancing Weights for Estimating Treatment Effects in Educational Studies.pdf","readings/Keele et al. - 2025 - Balancing Weights for Estimating Treatment Effects in Educational Studies.pdf",NA,FALSE
+"Readings/Morris et al. - 2019 - Using simulation studies to evaluate statistical methods.pdf","readings/Morris et al. - 2019 - Using simulation studies to evaluate statistical methods.pdf",NA,FALSE
+"Readings/Rosenbaum and Rubin - The central role of the propensity score in observational studies for causal effects.pdf","readings/Rosenbaum and Rubin - The central role of the propensity score in observational studies for causal effects.pdf",NA,FALSE
+"Readings/Shang et al. - 2025 - Robust propensity score estimation via loss function calibration.pdf","readings/Shang et al. - 2025 - Robust propensity score estimation via loss function calibration.pdf",NA,FALSE
+"Readings/Sun and Tan - 2020 - High-dimensional Model-assisted Inference for Local Average Treatment Effects with Instrumental Vari.pdf","readings/Sun and Tan - 2020 - High-dimensional Model-assisted Inference for Local Average Treatment Effects with Instrumental Vari.pdf",NA,FALSE
+"Readings/Sverdrup and Hastie - 2026 - balnet Pathwise Estimation of Covariate Balancing Propensity Scores.pdf","readings/Sverdrup and Hastie - 2026 - balnet Pathwise Estimation of Covariate Balancing Propensity Scores.pdf",NA,FALSE
+"Readings/Tan - 2020 - Model-assisted inference for treatment effects using regularized calibrated estimation with high-dim.pdf","readings/Tan - 2020 - Model-assisted inference for treatment effects using regularized calibrated estimation with high-dim.pdf",NA,FALSE
+"Readings/Tan - 2020 - Regularized calibrated estimation of propensity scores with model misspecification and high-dimensio.pdf","readings/Tan - 2020 - Regularized calibrated estimation of propensity scores with model misspecification and high-dimensio.pdf",NA,FALSE
+"Readings/Wager - Causal Inference A Statistical Learning Approach.pdf","readings/Wager - Causal Inference A Statistical Learning Approach.pdf",NA,FALSE
+"Readings/WangZubizarreta2020.pdf","readings/WangZubizarreta2020.pdf",NA,FALSE
+"Readings/Wyss et al. - 2026 - Tuning LASSO Models for Propensity Score Weighting and Using Synthetic Negative Control Exposures fo.pdf","readings/Wyss et al. - 2026 - Tuning LASSO Models for Propensity Score Weighting and Using Synthetic Negative Control Exposures fo.pdf",NA,FALSE
+"Readings/Zhao - 2017 - Covariate Balancing Propensity Score by Tailored Loss Functions.pdf","readings/Zhao - 2017 - Covariate Balancing Propensity Score by Tailored Loss Functions.pdf",NA,FALSE
