@@ -17,14 +17,14 @@
 
 library(parallel)
 
-dir         <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
+res_dir     <- here::here("results", "cv", "wz_replication")
 batch_id    <- "wc_att_v1"
 n           <- 5000
 n_rep       <- 1000
 master_seed <- 20260903
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2)  # Algorithm 1
 
-source(paste0(dir, "sbw_wc.R"))          # dgp_wc(), cstat()
+source(here::here("R", "estimators_cv.R"))          # dgp_wc(), cstat()
 library(balnet)
 
 # Seeds (identical streams to wc_sbw_v2) ----
@@ -89,10 +89,10 @@ one_rep <- function(i) {
 
 # Run ----
 cl <- makeCluster(detectCores() - 1)
-clusterExport(cl, c("dir", "seeds", "n", "lam", "grid", "one_rep"))
+clusterExport(cl, c("seeds", "n", "lam", "grid", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
-  source(paste0(dir, "sbw_wc.R"))
+  source(here::here("R", "estimators_cv.R"))
   library(balnet)
 }))
 res <- parLapply(cl, seq_len(n_rep), one_rep)
@@ -103,6 +103,6 @@ saveRDS(list(batch_id = batch_id, master_seed = master_seed, n = n,
              n_rep = n_rep, lam = lam, grid = grid,
              balnet = as.character(packageVersion("balnet")),
              r = R.version.string, date = Sys.Date(), res = res),
-        paste0(dir, "results/", batch_id, ".rds"))
+        file.path(res_dir, paste0(batch_id, ".rds")))
 table(failed = vapply(res, \(r) !is.null(r$err), logical(1)))
 summary(vapply(res, `[[`, numeric(1), "time_sec"))

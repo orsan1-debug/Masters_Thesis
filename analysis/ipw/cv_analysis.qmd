@@ -8,20 +8,21 @@ embed-resources: true
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
 # tag spec on load: not stored in the results files, and delta_ms / spec_grid pair on it
 df_ov <- bind_rows(
-  mutate(load_sim("../results/overlapDGP2.csv.gz"),        misspec = FALSE),
-  mutate(load_sim("../results/overlapmisspecDGP2.csv.gz"), misspec = TRUE)) |>
+  mutate(load_sim(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE)) |>
   mutate(p = 50)
 
 cur_ov <- bind_rows(
-  mutate(load_cv_curves("../results/overlapDGP2.csv.gz"),        misspec = FALSE),
-  mutate(load_cv_curves("../results/overlapmisspecDGP2.csv.gz"), misspec = TRUE)) |>
+  mutate(load_cv_curves(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_cv_curves(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE)) |>
   group_by(across(any_of(c(design_cols, "arm", "rep")))) |> filter(min(cv) > 0) |> ungroup()
 
-mis <- load_sim("../results/misspecDGP2.csv.gz") |> mutate(p = 50)
-cur <- load_cv_curves("../results/misspecDGP2.csv.gz") |>
+mis <- load_sim(here::here("results", "ipw", "misspecDGP2.csv.gz")) |> mutate(p = 50)
+cur <- load_cv_curves(here::here("results", "ipw", "misspecDGP2.csv.gz")) |>
   group_by(across(any_of(c(design_cols, "arm", "rep")))) |> filter(min(cv) > 0) |> ungroup()
 
 

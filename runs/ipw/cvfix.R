@@ -1,8 +1,8 @@
 ## runs/run_cvfix_test.R: DGP2 grids under runtime-patched cv.balnet
 ## seeds identical to broken base_seed 202 batches: fixed-lambda + glmnet rows
 ## must match those batches exactly; balnetcv rows must differ (patch delivered)
-source("R/dgp.R"); source("R/estimators.R")
-source("R/simulate.R"); source("R/registry.R")
+source(here::here("R", "dgp.R")); source(here::here("R", "estimators_ipw.R"))
+source(here::here("R", "simulate.R")); source(here::here("R", "registry.R"))
 
 patch_cv_balnet <- function() {
   target <- function(e, head)
@@ -97,7 +97,7 @@ balnet_ver <- paste0(utils::packageVersion("balnet"),
 res_cor_fix <- run_batch(dgp_gen(FALSE), grid,
                          num_sim   = 1000,
                          base_seed = 202,
-                         out_file  = "results/correctspecDGP2cvfix.csv.gz",
+                         out_file  = here::here("results", "ipw", "correctspecDGP2cvfix.csv.gz"),
                          meta = list(label = "DGP2correctspecCVFIX",
                                      seed_shared_with = "DGP2correctspec",
                                      balnet_version = balnet_ver,
@@ -105,7 +105,7 @@ res_cor_fix <- run_batch(dgp_gen(FALSE), grid,
 res_mis_fix <- run_batch(dgp_gen(TRUE), grid,
                          num_sim   = 1000,
                          base_seed = 202,
-                         out_file  = "results/misspecDGP2cvfix.csv.gz",
+                         out_file  = here::here("results", "ipw", "misspecDGP2cvfix.csv.gz"),
                          meta = list(label = "DGP2misspecCVFIX",
                                      seed_shared_with = "DGP2misspec",
                                      balnet_version = balnet_ver,

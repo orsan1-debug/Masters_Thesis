@@ -13,10 +13,11 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
 df_ov <- bind_rows(
-  mutate(load_sim("../results/overlapDGP2.csv.gz"),        misspec = FALSE),
-  mutate(load_sim("../results/overlapmisspecDGP2.csv.gz"), misspec = TRUE))
+  mutate(load_sim(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE))
 summ_ov <- summarise_sim(df_ov)
 ```
 

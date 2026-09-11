@@ -1,6 +1,7 @@
 # Build cleaned summary tables for the CV exploration ----
 library(dplyr)
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+dir     <- here::here("results", "cv", "basic_dgp")
+sum_dir <- here::here("output", "cv", "basic_dgp", "summaries")
 stopifnot(dir.exists(dir))
 sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
 
@@ -105,7 +106,7 @@ tab <- bind_rows(lapply(files, summarise_file)) |>
          r2 = 2.23 / (2.23 + sigma_y^2),
          mcse_rel = 1 / sqrt(2 * n_ok)) |>
   relocate(family, design, alpha)
-readr::write_csv(tab, file.path(dir, "cv_summary.csv"))
+readr::write_csv(tab, file.path(sum_dir, "cv_summary.csv"))
 
 # win counts per family x alpha (z beyond 2 = win; interior = floor > 5% above min)
 counts <- tab |>
@@ -115,7 +116,7 @@ counts <- tab |>
             cvbloss_wins = sum(z_cvbloss < -2),
             any_sel_win = sum(z_best < -2), floor_wins = sum(z_best > 2),
             .groups = "drop")
-readr::write_csv(counts, file.path(dir, "cv_family_counts.csv"))
+readr::write_csv(counts, file.path(sum_dir, "cv_family_counts.csv"))
 
 # best EN/ridge selector against the lasso floor for the same design
 vs_floor <- function(d, by) {
@@ -140,7 +141,7 @@ vs_lasso <- bind_rows(
   vs_floor(filter(tab, family %in% c("dimhi", "dimsnr")),
            c("overlap", "p", "sigma_y")) |> mutate(design = "high p")) |>
   relocate(design, overlap, sigma_y, n, p, s)
-readr::write_csv(vs_lasso, file.path(dir, "cv_vs_lasso_floor.csv"))
+readr::write_csv(vs_lasso, file.path(sum_dir, "cv_vs_lasso_floor.csv"))
 print(vs_lasso, n = Inf)
 
 # Rebuild RMSE tables from simulation cases in the current summary.
@@ -181,8 +182,8 @@ overlap_rmse <- make_rmse_table(
   dplyr::filter(tab, family == overlap_family, alpha == 1, sigma_y == 1), "c_prop")
 
 # Compute both tables successfully before writing either output.
-readr::write_csv(noise_rmse, file.path(dir, "cv_rmse_noise.csv"))
-readr::write_csv(overlap_rmse, file.path(dir, "cv_rmse_overlap.csv"))
+readr::write_csv(noise_rmse, file.path(sum_dir, "cv_rmse_noise.csv"))
+readr::write_csv(overlap_rmse, file.path(sum_dir, "cv_rmse_overlap.csv"))
 message("Exported noise family: ", noise_family,
         "; overlap family: ", overlap_family)
 

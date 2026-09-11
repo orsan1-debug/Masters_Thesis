@@ -11,8 +11,9 @@ embed-resources: true
 #| warning: false
 # Setup ------------------------------------------------------------
 library(purrr)
-source("Analysis.R")
-res <- if (dir.exists("results")) "results/" else "../results/"
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+res <- paste0(here::here("results", "ipw"), "/")
 ld <- \(f, m, b) mutate(load_sim(paste0(res, f, ".csv.gz")),
                         misspec = m, build = factor(b, c("bug", "fix")))
 df_fx <- bind_rows(

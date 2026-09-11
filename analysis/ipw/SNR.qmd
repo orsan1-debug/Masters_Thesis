@@ -13,8 +13,9 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
-df_snr <- load_sim("../results/snrDGP2correct.csv.gz")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+df_snr <- load_sim(here::here("results", "ipw", "snrDGP2correct.csv.gz"))
 summ_snr <- summarise_sim(df_snr) |>
   mutate(stf = factor(strength, sort(unique(strength))))
 ```

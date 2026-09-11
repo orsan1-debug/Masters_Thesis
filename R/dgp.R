@@ -157,3 +157,145 @@ dgp2 <- function(n, p, s = 4,
   list(Y = Y, W = W, X = X, X_true = X_true, tau = tau, e = e, eta = eta, e0 = e0)
 }
 
+
+
+## --- merged from R/dgp_wc.R (Phase 3, verbatim) ----------------------------
+
+# dgp_wc.R -----------------------------------------------------------------
+# Side study: Wong & Chan (2018) design as run by Wang & Zubizarreta (2020,
+# Biometrika 107:93-105, Appendix D.4). Standalone; not part of the main
+# analysis sequence.
+# Ten latent N(0,1) covariates Z; propensity and outcomes are functions of
+# Z. The analyst observes K&S-style transforms of Z (misspec = TRUE, the
+# paper's design) or Z itself. Returns one draw with columns of Y sharing
+# (Z, W, eps). tau = 0 is the PATE for both models; tau_i are the model A
+# individual effects (model B has none), so SATE = mean(tau_i) and
+# SATT = mean(tau_i[W == 1]); the true ATT is about -17.7.
+
+dgp_wc <- function(n, outcome = c("A", "B"), misspec = TRUE) {
+  outcome <- match.arg(outcome, several.ok = TRUE)
+  
+  Z   <- matrix(rnorm(n * 10), n, 10)
+  eta <- -Z[, 1] - 0.1 * Z[, 4]
+  e   <- 1 / (1 + exp(-eta))
+  W   <- rbinom(n, 1, e)
+  
+  g   <- 27.4 * Z[, 1] + 13.7 * Z[, 2] + 13.7 * Z[, 3] + 13.7 * Z[, 4]
+  f   <- function(o) switch(o,
+                            A = 210 + (1.5 * W - 0.5) * g,
+                            B = Z[, 1] * Z[, 2]^3 * Z[, 3]^2 * Z[, 4] + Z[, 4] * abs(Z[, 1])^0.5
+  )
+  eps <- rnorm(n)
+  Y   <- vapply(outcome, \(o) f(o) + eps, numeric(n))
+  
+  X <- Z
+  if (misspec) {
+    X[, 1] <- exp(Z[, 1] / 2)
+    X[, 2] <- Z[, 2] / (1 + exp(Z[, 1]))
+    X[, 3] <- (Z[, 1] * Z[, 3] / 25 + 0.6)^3
+    X[, 4] <- (Z[, 2] + Z[, 4] + 20)^2
+  }
+  
+  tau_i <- 1.5 * g                                   # model A; model B is 0
+  list(Y = Y, W = W, X = X, X_true = Z, tau = 0, tau_i = tau_i,
+       e = e, eta = eta, e0 = 1 - e)
+}
+
+# Overlap / noise variant (our extension, not in either paper) ------------
+# Identical to dgp_wc() except: the treatment logit is multiplied by
+# overlap (1 reproduces dgp_wc(); larger pushes propensities toward 0 and
+# 1, the device Wang & Zubizarreta use in their RHC study), and the outcome
+# noise SD is sigma (1 reproduces dgp_wc()). Z, W and eps / sigma are
+# identical to dgp_wc() for the same seed when overlap = 1.
+dgp_wc_overlap <- function(n, overlap = 1, sigma = 1,
+                           outcome = c("A", "B"), misspec = TRUE) {
+  outcome <- match.arg(outcome, several.ok = TRUE)
+  
+  Z   <- matrix(rnorm(n * 10), n, 10)
+  eta <- overlap * (-Z[, 1] - 0.1 * Z[, 4])
+  e   <- 1 / (1 + exp(-eta))
+  W   <- rbinom(n, 1, e)
+  
+  g   <- 27.4 * Z[, 1] + 13.7 * Z[, 2] + 13.7 * Z[, 3] + 13.7 * Z[, 4]
+  f   <- function(o) switch(o,
+                            A = 210 + (1.5 * W - 0.5) * g,
+                            B = Z[, 1] * Z[, 2]^3 * Z[, 3]^2 * Z[, 4] + Z[, 4] * abs(Z[, 1])^0.5
+  )
+  eps <- sigma * rnorm(n)
+  Y   <- vapply(outcome, \(o) f(o) + eps, numeric(n))
+  
+  X <- Z
+  if (misspec) {
+    X[, 1] <- exp(Z[, 1] / 2)
+    X[, 2] <- Z[, 2] / (1 + exp(Z[, 1]))
+    X[, 3] <- (Z[, 1] * Z[, 3] / 25 + 0.6)^3
+    X[, 4] <- (Z[, 2] + Z[, 4] + 20)^2
+  }
+  
+  tau_i <- 1.5 * g                                   # model A; model B is 0
+  list(Y = Y, W = W, X = X, X_true = Z, tau = 0, tau_i = tau_i,
+       e = e, eta = eta, e0 = 1 - e)
+}
+
+## --- merged from R/dgp_cv.R (Phase 3, verbatim) ----------------------------
+
+#' High-dimensional DGP for estimating a counterfactual treated mean.
+#'
+#' Features are AR(1)-correlated with parameter rho. The first `s_prop`
+#' features drive the propensity; the first `s_y` features drive the
+#' outcome. They overlap on the first min(s_prop, s_y) coordinates (the
+#' "confounders"); any remaining propensity-only coordinates are
+#' instruments and outcome-only coordinates are pure predictors.
+#'
+#' Target: mu1 = E[Y(1)]. By construction E[X] = 0, so mu1 = 0.
+#' Only Y for treated units is used by mu1 estimators; Y for controls
+#' is returned for convenience but plays no role in the target.
+#'
+#' Overlap is controlled via the propensity coefficient magnitude:
+#'   Var(eta) grows quadratically in the scale; large Var(eta) drives
+#'   propensities toward 0 and 1.
+gen_data <- function(n = 1000, p = 100, rho = 0.5,
+                     s_prop = 5, s_y = 5,
+                     overlap = c("bad", "moderate", "good"),
+                     sigma_y = 1,
+                     seed = NULL) {
+  overlap <- match.arg(overlap)
+  if (!is.null(seed)) set.seed(seed)
+  
+  # AR(1) covariance across features
+  Sigma <- rho ^ abs(outer(1:p, 1:p, `-`))
+  X <- matrix(rnorm(n * p), n, p) %*% chol(Sigma)
+  
+  # Propensity coefficient scale controls overlap
+  c_prop <- switch(overlap,
+                   good     = 0.7,   # SD(eta) ~ 1,  most props in [0.2, 0.8]
+                   moderate = 1.5,   # SD(eta) ~ 2,  some near 0/1
+                   bad      = 2.5)   # SD(eta) ~ 3.7, many near 0/1
+  # bad      = 4)   # SD(eta) ~ 3.7, many near 0/1
+  
+  beta_prop <- rep(0, p)
+  beta_prop[seq_len(s_prop)] <- c_prop / sqrt(s_prop)
+  
+  beta_y <- rep(0, p)
+  beta_y[seq_len(s_y)] <- 1 / sqrt(s_y)
+  
+  eta  <- as.numeric(X %*% beta_prop)
+  prop <- plogis(eta)
+  W    <- rbinom(n, 1, prop)
+  
+  # Y is Y(1): potential outcome under treatment. mu1 = E[Y(1)] = 0.
+  Y <- as.numeric(X %*% beta_y) + rnorm(n, sd = sigma_y)
+  
+  list(X = X, W = W, Y = Y, prop = prop, true = 0,
+       active_prop = which(beta_prop != 0),
+       active_y    = which(beta_y != 0))
+}
+
+
+# *** Parallel helper ***
+#' added in for parallel runs on windows
+run_par <- function(X, FUN, ...) {
+  parallel::clusterSetRNGStream(cl)     
+  parallel::clusterExport(cl, setdiff(ls(globalenv()), "cl"))
+  parallel::parLapply(cl, X, FUN) # X reps per regieme
+}

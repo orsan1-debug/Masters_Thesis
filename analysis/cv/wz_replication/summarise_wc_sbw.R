@@ -12,9 +12,8 @@
 
 library(dplyr)
 
-dir      <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
 batch_id <- "wc_sbw_v2"
-res <- data.table::fread(file = paste0(dir, "results/", batch_id, ".csv.gz"))
+res <- data.table::fread(file = here::here("results", "cv", "wz_replication", paste0(batch_id, ".csv.gz")))
 
 c0   <- integrate(\(x) plogis(x) * (1 - plogis(x)) * dnorm(x, 0, sqrt(1.01)),
                   -Inf, Inf)$value

@@ -1,6 +1,12 @@
-.Rproj.user
+.Rproj.user/
 .Rhistory
 .RData
 .Ruserdata
 .positai
 .posit/assistant
+.DS_Store
+/*.png
+/results/
+/output/
+/readings/
+archive/.RData

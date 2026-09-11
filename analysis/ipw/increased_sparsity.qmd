@@ -13,9 +13,10 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
 # DGP2, correct spec, p = 50, s × decay × covcor grid, overlap = 1, 1000 reps
-df_sp <- load_sim("../results/sparsityDGP2.csv.gz")
+df_sp <- load_sim(here::here("results", "ipw", "sparsityDGP2.csv.gz"))
 summ_sp <- summarise_sim(df_sp) |>
   mutate(sf = factor(s, sort(unique(s))))
 ```

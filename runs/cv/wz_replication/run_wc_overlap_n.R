@@ -13,13 +13,13 @@
 
 library(parallel)
 
-dir         <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
+res_dir     <- here::here("results", "cv", "wz_replication")
 n_rep       <- 1000
 master_seed <- 20260903
 cells       <- expand.grid(n = c(1000, 2500, 5000, 10000, 20000), c = c(1, 2, 3, 4))
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
 
-source(paste0(dir, "sbw_wc.R"))          # dgp_wc_overlap(), cstat()
+source(here::here("R", "estimators_cv.R"))          # dgp_wc_overlap(), cstat()
 library(balnet); library(glmnet)
 
 # Seeds ----
@@ -83,16 +83,16 @@ one_rep <- function(i) {
 
 # Run ----
 cl <- makeCluster(detectCores() - 1)
-clusterExport(cl, c("dir", "seeds", "grid", "one_rep"))
+clusterExport(cl, c("seeds", "grid", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
-  source(paste0(dir, "sbw_wc.R"))
+  source(here::here("R", "estimators_cv.R"))
   library(balnet); library(glmnet)
 }))
 t0 <- Sys.time()
 for (j in seq_len(nrow(cells))) {
   cell <- cells[j, ]
-  out_file <- paste0(dir, "results/wc_on_n", cell$n, "_c", cell$c, ".rds")
+  out_file <- file.path(res_dir, paste0("wc_on_n", cell$n, "_c", cell$c, ".rds"))
   if (file.exists(out_file)) next
   assign(".Random.seed", seeds[[1]], envir = .GlobalEnv)
   d0  <- dgp_wc_overlap(cell$n, overlap = cell$c)

@@ -13,8 +13,9 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
-df_prev <- load_sim("../results/prevDGP2correct.csv.gz")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+df_prev <- load_sim(here::here("results", "ipw", "prevDGP2correct.csv.gz"))
 summ_prev <- summarise_sim(df_prev) |>
   mutate(tpf = factor(treat_prop, sort(unique(treat_prop), decreasing = TRUE)))
 ```

@@ -1,5 +1,6 @@
 # Legible RMSE-path grids, base graphics as in Erik's script ----
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+dir     <- here::here("results", "cv", "basic_dgp")   # grid_png()/path_png()/penalty_picks_csv() also WRITE via dir (function bodies untouched in Phase 3): split into res_dir/fig_dir before running
+fig_dir <- here::here("output", "cv", "basic_dgp", "figures")
 ov_lev <- c("good", "moderate", "bad", "awful")
 sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
 sel_col <- c("forestgreen", "dodgerblue", "dodgerblue", "red", "red")
@@ -70,7 +71,7 @@ grid_png <- function(family, n_rep, rows, cols, out, keep = \(cell) TRUE,
 }
 
 # Figures, at most three columns each ----
-file.remove(list.files(dir, "^fig_", full.names = TRUE))
+file.remove(list.files(fig_dir, "^fig_", full.names = TRUE))
 ov_pair <- list(strong = c("good", "moderate"), weak = c("bad", "awful"))
 sig3 <- c(1, 3, 10)
 for (k in names(ov_pair)) {
@@ -173,7 +174,7 @@ use <- use[cells$sigma_y[use] %in% full]
 use <- use[order(cells$overlap[use], cells$sigma_y[use])]
 nr <- length(full)
 nc <- length(use) / nr
-png(file.path(dir, "fig_snr_lasso.png"), 480 * nc, 360 * nr + 60, res = 150)
+png(file.path(fig_dir, "fig_snr_lasso.png"), 480 * nc, 360 * nr + 60, res = 150)
 par(mfcol = c(nr, nc), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
     oma = c(0, 0, 2, 0), cex = 0.7)
 for (i in use) {
@@ -229,7 +230,7 @@ right <- axis_panels("(tune4|ov_s1|ov_1k)", "c_prop", \(c) c$sigma_y == 1,
                      prefer = "ov_1k",
                      tag = c(ov_1k = ", maxit 1e5, 1000 reps"))
 nr <- max(length(left), length(right))
-png(file.path(dir, "fig_axes_noise_overlap.png"), 960, 360 * nr + 60,
+png(file.path(fig_dir, "fig_axes_noise_overlap.png"), 960, 360 * nr + 60,
     res = 150)
 par(mfcol = c(nr, 2), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
     oma = c(0, 0, 2, 0), cex = 0.7)
@@ -287,7 +288,7 @@ penalty_picks_csv()
 
 
 #  penalty section grids from penalty_paths.csv ----
-paths <- read.csv(file.path(dir, "penalty_paths.csv"), check.names = FALSE)
+paths <- read.csv(here::here("archive", "exploring_cv", "penalty_paths.csv"), check.names = FALSE)
 path_png <- function(d, rows, cols, out, title) {
   lev <- \(v) if (v == "overlap") ov_lev else sort(unique(d[[v]]))
   d[[rows]] <- factor(d[[rows]], lev(rows))

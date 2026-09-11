@@ -2,7 +2,7 @@
 ## Smoke test for R/simulate.R driver mechanics. Uses stubs so it runs
 ## standalone (no balnet/glmnet). Run from project root: source("tests/smoke_simulate.R")
 
-source("R/simulate.R")
+source(here::here("R", "simulate.R"))
 
 ## --- stubs mimicking the dgp_gen / estimate_all contract ---------------------
 dgp_stub <- function(cell) list(x = rnorm(cell$n))

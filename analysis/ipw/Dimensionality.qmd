@@ -13,10 +13,11 @@ editor_options:
 #| message: false
 #| warning: false
 # Setup ------------------------------------------------------------
-source("Analysis.R")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
 df_ov <- bind_rows(
-  mutate(load_sim("../results/dimensionDGP2.csv.gz"),        misspec = FALSE),
-  mutate(load_sim("../results/dimensionmisspecDGP2.csv.gz"), misspec = TRUE))
+  mutate(load_sim(here::here("results", "ipw", "dimensionDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "dimensionmisspecDGP2.csv.gz")), misspec = TRUE))
 summ_dim <- summarise_sim(df_ov) |>
   mutate(pn = p / n, pnf = factor(pn, sort(unique(pn))))
 ```
@@ -118,7 +119,7 @@ These results support that the balnet.cv cross validation criterion *(out-of-sam
 # Extended grid: merge p/n ∈ {4, 8} (linear + quad1 only) with correct-spec results
 df_pm <- bind_rows(
   filter(df_ov, !misspec, outcome != "exp"),
-  mutate(load_sim("../results/PoverMDGP2.csv.gz"), misspec = FALSE))
+  mutate(load_sim(here::here("results", "ipw", "PoverMDGP2.csv.gz")), misspec = FALSE))
 summ_pm <- summarise_sim(df_pm) |>
   mutate(pn = p / n, pnf = factor(pn, sort(unique(pn))))
 

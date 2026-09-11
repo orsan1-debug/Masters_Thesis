@@ -11,11 +11,11 @@ execute:
 ```{r setup}
 
 library(dplyr)
-dir <- paste0(here::here("CV Extension"), "/")
-source(paste0(dir, "wc_grids.R"))   # rmse(), mcse(), cols, ltys, read_cell(), panel(),
+dir <- paste0(here::here("results", "cv", "wz_replication"), "/")   # read_grid() in wc_grids.R still prepends "results/" to dir (function bodies untouched in Phase 3)
+source(here::here("analysis", "cv", "wz_replication", "wc_grids.R"))   # rmse(), mcse(), cols, ltys, read_cell(), panel(),
 # read_grid(), grid_fig(), pick_fig(), lambda_tab(), rmse_tab()
-sbw <- data.table::fread(file = paste0(dir, "results/wc_sbw_v2.csv.gz"))
-x   <- readRDS(paste0(dir, "results/wc_att_v2.rds"))
+sbw <- data.table::fread(file = here::here("results", "cv", "wz_replication", "wc_sbw_v2.csv.gz"))
+x   <- readRDS(here::here("results", "cv", "wz_replication", "wc_att_v2.rds"))
 sig <- c(1, 10, 30, 100); cc <- 1:4          # path grids, drawn in the last section
 ns  <- c(1000, 2500, 5000, 10000, 20000)
 ks  <- c(10, 20, 65, 125); cb <- c(1, 3)

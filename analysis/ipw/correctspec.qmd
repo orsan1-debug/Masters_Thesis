@@ -11,13 +11,14 @@ embed-resources: true
 #| warning: false
 # Setup ------------------------------------------------------------
 library(purrr)
-source("Analysis.R")
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
 
 df_sg <- imap(batches, \(f, b)
               mutate(load_sim(paste0(res, f, ".csv.gz")), batch = b)) |>
   bind_rows()
 
-res <- if (dir.exists("results")) "results/" else "../results/"
+res <- paste0(here::here("results", "ipw"), "/")
 batches <- c(DGP1 = "correctspecDGP1", DGP2_ks = "correctspecDGP2_ks",
              DGP2_mixed = "correctspecDGP2_mixed", DGP2_pos = "correctspecDGP2_pos")
 

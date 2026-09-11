@@ -1,6 +1,6 @@
 ## CV-PATCH TEST, session-only: no package or pipeline files touched ----------
-source("R/dgp.R"); source("R/estimators.R")
-source("R/simulate.R"); source("R/registry.R")
+source(here::here("R", "dgp.R")); source(here::here("R", "estimators_ipw.R"))
+source(here::here("R", "simulate.R")); source(here::here("R", "registry.R"))
 
 
 patch_cv_balnet <- function() {

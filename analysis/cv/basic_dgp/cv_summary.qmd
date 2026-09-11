@@ -15,7 +15,7 @@ execute:
 library(readr)
 library(dplyr)
 library(ggplot2)
-dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+dir <- here::here("output", "cv", "basic_dgp", "summaries")
 ov_lev <- c("good", "moderate", "bad", "awful")
 sel_lab <- c(cv.bloss = "CV bal.loss", cv.smd = "CV mean SMD",
              cv.inf = "CV max SMD", boot.smd = "boot mean SMD",
@@ -65,7 +65,7 @@ All selectors use `X` and `W` only and return `lambda.min`, the path value minim
 - `sigma_y` increases outcome noise (reduces $R^2$, lowers SNR).
 - `c_prop` $\in \{0.7, 1.5, 2.5\}$ for `overlap` good $>$ moderate $>$ bad: degrades overlap.
 
-![](fig_density_sy5.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_density_sy5.png){width="100%"}
 
 **A:** with `sigma_y = 5`, interior solutions exist at all 3 overlap levels.
 
@@ -95,13 +95,13 @@ DGP isolates the effect of outcome density by holding confounder signal fixed:
 
 Appendix 1 shows a diluted case where `beta_y[1:s_y] <- 1/sqrt(s_y)` makes increasing density also decrease confounder signal (in effect, increasing `sigma_y`).
 
-![](fig_density_fixed_sigma5.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_density_fixed_sigma5.png){width="100%"}
 
 Under both high and low noise settings *(Appendix 3)* outcome density does not appear to drive selection performance, or interior minimums. Results for density show only minor changes to relative performance, with any ranking differences likely sampling noise.
 
 ## Investigating noise X overlap.
 
-![](fig_snr_lasso.png){width="23.2in"}
+![](../../../output/cv/basic_dgp/figures/fig_snr_lasso.png){width="23.2in"}
 
 *cell (5,3 - sigma 10 bad overlap at 1000 reps to confirm pattern change.*
 
@@ -137,7 +137,7 @@ This pattern inverses between $\sigma_y = 7$ and $\sigma_y = 10$, where the orde
 
 ## Independent: noise and overlap
 
-![](fig_axes_noise_overlap.png){#fig-axes fig-pos="p" width="15in"}
+![](../../../output/cv/basic_dgp/figures/fig_axes_noise_overlap.png){#fig-axes fig-pos="p" width="15in"}
 
 **Figure:** LHS: increasing noise, (sigma_y=1 to 18). RHS: degrading overlap(0.7 to 16), sigma_y=1.
 
@@ -244,9 +244,9 @@ show(\(o) get_sel(o, "boot.inf"), "boot.inf median pick")
 show(\(o) get_sel(o, "cv.inf"), "cv.inf median pick")
 ```
 
-![](fig_picks_vs_opt.png){#fig-picks-vs-opt alt="Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, along the noise axis (good overlap) and the overlap axis ($\\sigma_y = 1$). Log scales."}
+![](../../../output/cv/basic_dgp/figures/fig_picks_vs_opt.png){#fig-picks-vs-opt alt="Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, along the noise axis (good overlap) and the overlap axis ($\\sigma_y = 1$). Log scales."}
 
-![Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, by overlap level. Log scales.](fig_picks_grid.png){#fig-picks-grid}
+![Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, by overlap level. Log scales.](../../../output/cv/basic_dgp/figures/fig_picks_grid.png){#fig-picks-grid}
 
 **Some of the "how", maybe some of the why:**
 
@@ -322,7 +322,7 @@ knitr::kable(out, booktabs = TRUE, align = rep("r", 7),
 
 ## Elastic net over overlap and noise. 
 
-![](fig_enet_grid.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_enet_grid.png){width="100%"}
 
 **Figure:** Elastic net, alpha 0.5, sparse outcome, 500 reps.
 
@@ -340,7 +340,7 @@ Relative to lasso, three things change.
 
 ## Alpha sweep: Ridge to Lasso.
 
-![](fig_alpha_sweep.png){width="100%" fig-pos="H"}
+![](../../../output/cv/basic_dgp/figures/fig_alpha_sweep.png){width="100%" fig-pos="H"}
 
 **Figure:** alpha 0 to 1, over bad overlap, sigma degrading.\
 
@@ -354,13 +354,13 @@ Relative to lasso, three things change.
 
 ## Ridge against the 1e-4 floor
 
-![](fig_ridge_floor.png){width="100%" fig-pos="H"}
+![](../../../output/cv/basic_dgp/figures/fig_ridge_floor.png){width="100%" fig-pos="H"}
 
 **Figure:** ridge (alpha 0), fixed overlap,
 
 ## Ridge against the 1e-4 floor
 
-![](fig_enet_floor.png){width="100%" fig-pos="H"}
+![](../../../output/cv/basic_dgp/figures/fig_enet_floor.png){width="100%" fig-pos="H"}
 
 **Figure:** same layout for elastic net (alpha 0.5), sparse outcome, sigma_y = 1. Left: default floor, 500 reps. Right: lambda.min.ratio 1e-4, 200 reps. Dotted line = lambda_opt.
 
@@ -374,18 +374,18 @@ Relative to lasso, three things change.
 - **Confounder signal is diluted:** `beta_y[1:s_y] <- 1/sqrt(s_y)` shrinks every outcome coefficient as `s_y` grows, including the 5 confounders.
   - Increasing density decreases confounder signal, in effect lowering the confounders' share of outcome variance, which `sigma_y` already does.
 
-![](fig_density_sy100.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_density_sy100.png){width="100%"}
 
 ## Appendix 2: Sparse outcome replicate
 
 Same DGP and reps as the sparse figure in Section 2, independent draws.
 
-![](fig_density_fixed_sparse.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_density_fixed_sparse.png){width="100%"}
 
 ## Appendix 3: Sparse vs dense, sigma_y = 1
 
-![](fig_density_fixed_sigma1.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_density_fixed_sigma1.png){width="100%"}
 
 ## Appendix 4: Noise by overlap, including awful
 
-![](fig_snr_lasso_all.png){width="100%"}
+![](../../../output/cv/basic_dgp/figures/fig_snr_lasso_all.png){width="100%"}

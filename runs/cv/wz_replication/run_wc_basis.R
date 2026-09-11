@@ -12,14 +12,14 @@
 
 library(parallel)
 
-dir         <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/CV Extension/"
+res_dir     <- here::here("results", "cv", "wz_replication")
 n           <- 5000
 n_rep       <- 1000
 master_seed <- 20260903
 cells       <- expand.grid(K = c(10, 20, 65, 125), c = c(1, 3))
 grid        <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
 
-source(paste0(dir, "sbw_wc.R"))          # dgp_wc_overlap(), cstat()
+source(here::here("R", "estimators_cv.R"))          # dgp_wc_overlap(), cstat()
 library(balnet); library(glmnet)
 
 # Basis of size K from the 10 observed covariates ----
@@ -93,16 +93,16 @@ one_rep <- function(i) {
 
 # Run ----
 cl <- makeCluster(detectCores() - 1)
-clusterExport(cl, c("dir", "seeds", "n", "grid", "basis", "one_rep"))
+clusterExport(cl, c("seeds", "n", "grid", "basis", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
-  source(paste0(dir, "sbw_wc.R"))
+  source(here::here("R", "estimators_cv.R"))
   library(balnet); library(glmnet)
 }))
 t0 <- Sys.time()
 for (j in seq_len(nrow(cells))) {
   cell <- cells[j, ]
-  out_file <- paste0(dir, "results/wc_basis_K", cell$K, "_c", cell$c, ".rds")
+  out_file <- file.path(res_dir, paste0("wc_basis_K", cell$K, "_c", cell$c, ".rds"))
   if (file.exists(out_file)) next
   assign(".Random.seed", seeds[[1]], envir = .GlobalEnv)
   d0  <- dgp_wc_overlap(n, overlap = cell$c)

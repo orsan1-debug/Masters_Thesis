@@ -9,7 +9,7 @@ registry_cols <- c("batch_id", "batch_file", "label", "seed",
 empty_registry <- function()
   setNames(data.frame(matrix("", 0, length(registry_cols))), registry_cols)
 
-register_run <- function(entry, path = "registry.csv") {
+register_run <- function(entry, path = here::here("registry.csv")) {
   reg <- if (file.exists(path)) read.csv(path, colClasses = "character")
   else empty_registry()
   
@@ -26,7 +26,7 @@ register_run <- function(entry, path = "registry.csv") {
 }
 
 run_batch <- function(dgp_gen, grid, num_sim, base_seed, out_file,
-                      meta = list(), registry = "registry.csv") {
+                      meta = list(), registry = here::here("registry.csv")) {
   status <- "failed"; n_err <- NA
   
   on.exit(register_run(c(meta, list(
