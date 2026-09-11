@@ -2,8 +2,8 @@
 dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
 ov_lev <- c("good", "moderate", "bad", "awful")
 sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
-sel_col <- c("dodgerblue", "dodgerblue", "dodgerblue", "red", "red")
-sel_lty <- c(4, 1, 2, 1, 2)
+sel_col <- c("forestgreen", "dodgerblue", "dodgerblue", "red", "red")
+sel_lty <- c(1, 1, 2, 1, 2)
 
 #' RMSE path (to the 95 percent floor) and selector RMSE for one file,
 #' column s of est_path when the file holds several sigma_y.
@@ -154,25 +154,186 @@ for (sg in c(1, 5)) {
 }
 
 
-grid_png("tune4", 500, "sigma_y", "overlap", "fig_snr_lasso.png",
-         keep = \(c) c$overlap != "awful", title = "Noise by overlap")
-grid_png("tune4", 500, "sigma_y", "overlap", "fig_snr_lasso_all.png",
-         title = "Noise by overlap, all four levels")
-
-grid_png("tune4", 500, "overlap", "sigma_y", "fig_snr_sigma2.png",
-         keep = \(c) c$sigma_y == 2 & c$overlap != "awful",
-         title = "sigma_y = 2")
-
-
-
+# Noise by overlap, sigma_y rows x overlap columns; largest rep file per
+# cell (tune4_19_r1000 over its r500 copy), non-500 cells tagged with their
+# rep count, snr_good and snr_mb cells added; only sigma_y levels present
+# in every column are drawn ----
+files <- list.files(dir, "^(tune4|snr_good|snr_mb)_\\d+_r\\d+\\.rds$",
+                    full.names = TRUE)
+runs <- lapply(files, readRDS)
+cells <- do.call(rbind, lapply(runs, `[[`, "cell"))
+cells$reps <- as.integer(sub(".*_r(\\d+)\\.rds$", "\\1", files))
+cells$overlap <- factor(cells$overlap, ov_lev)
+key <- paste(cells$overlap, cells$sigma_y)
+use <- which(cells$overlap != "awful" & cells$sigma_y <= 10 &
+               cells$reps == ave(cells$reps, key, FUN = max))
+n_ov <- length(unique(cells$overlap[use]))
+full <- as.numeric(names(which(table(cells$sigma_y[use]) == n_ov)))
+use <- use[cells$sigma_y[use] %in% full]
+use <- use[order(cells$overlap[use], cells$sigma_y[use])]
+nr <- length(full)
+nc <- length(use) / nr
+png(file.path(dir, "fig_snr_lasso.png"), 480 * nc, 360 * nr + 60, res = 150)
+par(mfcol = c(nr, nc), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
+    oma = c(0, 0, 2, 0), cex = 0.7)
+for (i in use) {
+  r <- panel_rmse(runs[[i]])
+  plot(r$lam, r$path, log = "x", xlim = rev(range(r$lam)), type = "l",
+       xlab = "lambda", ylab = "RMSE", cex.main = 0.85,
+       main = sprintf("sigma_y = %g, overlap = %s%s", cells$sigma_y[i],
+                      as.character(cells$overlap[i]),
+                      if (cells$reps[i] == 500) "" else
+                        sprintf(", %d reps", cells$reps[i])))
+  abline(v = r$lam[which.min(r$path)], lty = 3, col = "gray40")
+  abline(h = r$sel, col = sel_col, lty = sel_lty, lwd = 1.5)
+}
+legend("topright", sels, col = sel_col, lty = sel_lty, lwd = 2, bg = "white",
+       cex = 0.8)
+mtext("Noise by overlap", outer = TRUE, cex = 0.9, font = 2)
+dev.off()
 
 
 #  noise axis at good overlap: tune4 plus snr_good, 12 levels ----
 grid_png("(tune4|snr_good)", 500, "sigma_y", "overlap", "fig_snr_good.png",
          keep = \(c) c$overlap == "good",
          title = "Lasso, good overlap, sigma_y 1 to 20")
+#  two axes side by side: noise at good overlap (tune4 + snr_good), overlap at
+#  sigma_y = 1 (tune4 + ov_s1, ov_1k replacing ov_s1 at 6 and 8, adding 16);
+#  tune4 labels mapped to c_prop ----
+c_of <- c(good = 0.7, moderate = 1.5, bad = 2.5, awful = 4)
+axis_panels <- function(family, key, keep, prefer = NULL, tag = NULL) {
+  files <- list.files(dir, sprintf("^%s_?\\d+_r\\d+\\.rds$", family),
+                      full.names = TRUE)
+  runs <- lapply(files, readRDS)
+  cells <- do.call(rbind, lapply(runs, \(x) {
+    cell <- x$cell
+    if (is.null(cell$c_prop)) cell$c_prop <- c_of[[cell$overlap]]
+    cell[c("c_prop", "sigma_y")]
+  }))
+  cells$family <- sub("_?\\d+_r\\d+\\.rds$", "", basename(files))
+  use <- which(keep(cells))
+  if (!is.null(prefer)) {                   # earlier families in prefer win
+    rank <- match(cells$family, prefer, nomatch = length(prefer) + 1)
+    best <- tapply(rank[use], cells[[key]][use], min)
+    use <- use[rank[use] == best[as.character(cells[[key]][use])]]
+  }
+  use <- use[order(cells[use, key])]
+  lapply(use, \(i) list(
+    label = paste0(sprintf("%s = %g", key, cells[i, key]),
+                   if (cells$family[i] %in% names(tag)) tag[[cells$family[i]]]),
+    rmse = panel_rmse(runs[[i]])))
+}
+left  <- axis_panels("(tune4|snr_good)", "sigma_y",
+                     \(c) c$c_prop == 0.7 & c$sigma_y <= 18)
+right <- axis_panels("(tune4|ov_s1|ov_1k)", "c_prop", \(c) c$sigma_y == 1,
+                     prefer = "ov_1k",
+                     tag = c(ov_1k = ", maxit 1e5, 1000 reps"))
+nr <- max(length(left), length(right))
+png(file.path(dir, "fig_axes_noise_overlap.png"), 960, 360 * nr + 60,
+    res = 150)
+par(mfcol = c(nr, 2), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
+    oma = c(0, 0, 2, 0), cex = 0.7)
+for (ax in list(left, right)) {
+  for (pnl in ax) {
+    r <- pnl$rmse
+    plot(r$lam, r$path, log = "x", xlim = rev(range(r$lam)), type = "l",
+         xlab = "lambda", ylab = "RMSE", main = pnl$label, cex.main = 0.85)
+    abline(v = r$lam[which.min(r$path)], lty = 3, col = "gray40")
+    abline(h = r$sel, col = sel_col, lty = sel_lty, lwd = 1.5)
+  }
+  for (k in seq_len(nr - length(ax))) plot.new()   # pad the shorter column
+}
+legend("topright", sels, col = sel_col, lty = sel_lty, lwd = 2, bg = "white",
+       cex = 0.8)
+mtext("Noise axis, good overlap (c_prop = 0.7)", outer = TRUE, adj = 0.2,
+      cex = 0.9, font = 2)
+mtext("Overlap axis, sigma_y = 1", outer = TRUE, adj = 0.8, cex = 0.9,
+      font = 2)
+dev.off()
+
+
+#  per-cell floor, RMSE-optimal lambda, median picks and ratios, penalty
+#  families ----
+penalty_picks_csv <- function(fams = c("alpha_bad", "tunea3", "tunea4",
+                                       "snr_enet", "n_enet")) {
+  pat <- sprintf("^(%s)_\\d+_r\\d+\\.rds$", paste(fams, collapse = "|"))
+  files <- list.files(dir, pat, full.names = TRUE)
+  fld <- c("alpha", "overlap", "c_prop", "sigma_y", "n", "p", "dense")
+  out <- do.call(rbind, lapply(files, function(f) {
+    x <- readRDS(f)
+    stem <- sub("\\.rds$", "", basename(f))
+    res <- x$res[vapply(x$res, \(r) is.null(r$err), logical(1))]
+    ls <- do.call(rbind, lapply(res, `[[`, "lam_sel"))
+    picks <- apply(ls[, sels, drop = FALSE], 2, median)
+    sig <- if (!is.null(x$sigmas)) x$sigmas else
+      if (!is.null(x$cell$sigma_y)) x$cell$sigma_y else 1
+    do.call(rbind, lapply(seq_along(sig), function(s) {
+      r <- panel_rmse(x, if (is.null(x$sigmas)) NULL else s)
+      cell <- lapply(fld, \(v) if (is.null(x$cell[[v]])) NA else x$cell[[v]])
+      names(cell) <- fld
+      cell$overlap <- as.character(cell$overlap)
+      cell$sigma_y <- sig[s]
+      vs <- setNames(r$sel / min(r$path), paste0(sels, "_vs_min"))
+      data.frame(cell = stem, family = sub("_\\d+_r\\d+$", "", stem),
+                 n_ok = length(res), cell, lam_floor = min(r$lam),
+                 lambda_opt = r$lam[which.min(r$path)],
+                 floor_vs_min = r$path[which.min(r$lam)] / min(r$path),
+                 as.list(picks), as.list(vs), check.names = FALSE)
+    }))
+  }))
+  write.csv(out, file.path(dir, "penalty_picks.csv"), row.names = FALSE)
+}
+penalty_picks_csv()
+
+
+#  penalty section grids from penalty_paths.csv ----
+paths <- read.csv(file.path(dir, "penalty_paths.csv"), check.names = FALSE)
+path_png <- function(d, rows, cols, out, title) {
+  lev <- \(v) if (v == "overlap") ov_lev else sort(unique(d[[v]]))
+  d[[rows]] <- factor(d[[rows]], lev(rows))
+  d[[cols]] <- factor(d[[cols]], lev(cols))
+  cells <- unique(d[, c(rows, cols)])
+  cells <- cells[order(cells[[cols]], cells[[rows]]), ]
+  nr <- length(unique(cells[[rows]]))
+  nc <- length(unique(cells[[cols]]))
+  png(file.path(dir, out), width = 480 * nc, height = 360 * nr + 60,
+      res = 150)
+  par(mfcol = c(nr, nc), mar = c(3.5, 3.5, 2.5, 0.5), mgp = c(2.2, 0.7, 0),
+      oma = c(0, 0, 2, 0), cex = 0.7)
+  for (i in seq_len(nrow(cells))) {
+    k <- d[d[[rows]] == cells[[rows]][i] & d[[cols]] == cells[[cols]][i], ]
+    k <- k[order(-k$lam), ]
+    plot(k$lam, k$rmse, log = "x", xlim = rev(range(k$lam)), type = "l",
+         xlab = "lambda", ylab = "RMSE", cex.main = 0.85,
+         main = sprintf("%s = %s, %s = %s", rows, cells[[rows]][i], cols,
+                        cells[[cols]][i]))
+    abline(v = k$lam[which.min(k$rmse)], lty = 3, col = "gray40")
+    abline(h = unlist(k[1, sels]), col = sel_col, lty = sel_lty, lwd = 1.5)
+  }
+  legend("topright", sels, col = sel_col, lty = sel_lty, lwd = 2,
+         bg = "white", cex = 0.8)
+  mtext(title, outer = TRUE, cex = 0.9, font = 2)
+  dev.off()
+}
+path_png(paths[paths$family == "snr_enet" & paths$overlap != "awful" &
+                 paths$sigma_y %in% c(1, 5, 10), ],
+         "overlap", "sigma_y", "fig_enet_grid.png", "Elastic net, alpha 0.5")
 
 
 
+#  alpha sweep at bad overlap, alpha 0.5 from snr_enet ----
+sw <- paths[paths$family == "alpha_bad" |
+              (paths$family == "snr_enet" & paths$overlap == "bad" &
+                 paths$sigma_y %in% c(1, 5, 10)), ]
+sw$alpha[sw$family == "snr_enet"] <- 0.5
+path_png(sw, "alpha", "sigma_y", "fig_alpha_sweep.png",
+         "Alpha sweep, bad overlap")
 
 
+
+#  elastic net, default floor (tunea3, sparse) against the 1e-4 floor (tunea4)
+eg <- paths[(paths$family == "tunea3" & paths$alpha == 0.5 & !paths$dense) |
+              (paths$family == "tunea4" & paths$alpha == 0.5), ]
+eg$floor <- ifelse(eg$family == "tunea3", "default", "extended 1e-4")
+path_png(eg, "overlap", "floor", "fig_enet_floor.png",
+         "Elastic net, alpha 0.5, sigma_y = 1")

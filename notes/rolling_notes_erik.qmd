@@ -17,3 +17,12 @@ editor: visual
 - number of covariates - might be easy to overfit, so 100\>200\>300\>1000 covaraites in the model
 
 - n=fold:
+
+## Notes on Y. Wang. 
+
+highlighted sections
+
+p96 "theorm 1 helps us to articulate the role of approx balance constraints"
+
+abstract "minimum dispersion weights approx balance cov" and "tuning algorithm for choosing the degree of approximate balance in minimal weights."\
+\

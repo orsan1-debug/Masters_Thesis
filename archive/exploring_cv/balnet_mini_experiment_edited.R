@@ -1094,9 +1094,236 @@ dev.off()
 
 
 
+# overlap axis, maxit 1e5 so the path floor is reached, sigma_y = 1 ----
+dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+stopifnot(dir.exists(dir))
+cl <- parallel::makeCluster(parallel::detectCores() - 1)
+parallel::clusterEvalQ(cl, library(balnet))
+n <- 1000
+p <- 100
+n_rep <- 500
+alpha_run <- 1
+maxit_run <- 1e5                            # ov_s1 used 1e4
+grid <- data.frame(c_prop = c(8, 16), sigma_y = 1)
+gen_cell <- function(g) {                   # numeric c_prop, as the awful cells
+  dat <- gen_data(n, p = p, overlap = "good", s_y = 5, sigma_y = g$sigma_y)
+  eta <- as.numeric(dat$X[, 1:5] %*% rep(g$c_prop / sqrt(5), 5))
+  dat$prop <- plogis(eta)
+  dat$W <- rbinom(n, 1, dat$prop)
+  dat
+}
+one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                            maxit = maxit_run, tol = 1e-5, ...)
+  path <- fit(balnet)
+  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
+              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
+              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
+              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
+              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
+  list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
+       lam_end  = min(path$lambda),
+       est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
+       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
+}, error = \(e) list(err = conditionMessage(e)))
+t0 <- Sys.time()
+for (i in seq_len(nrow(grid))) {
+  out_file <- file.path(dir, sprintf("ov_s1_m5_%02d_r%d.rds", i, n_rep))
+  if (file.exists(out_file)) next
+  g <- grid[i, ]
+  set.seed(2400 + i)
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                maxit = maxit_run)$lambda
+  saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
+          out_file)
+  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
+}
+parallel::stopCluster(cl)
+
+
+# overlap axis rerun, c_prop 6, 8 and 16, maxit 1e5, 1000 reps, sigma_y = 1 ----
+dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+stopifnot(dir.exists(dir))
+cl <- parallel::makeCluster(parallel::detectCores() - 1)
+parallel::clusterEvalQ(cl, library(balnet))
+n <- 1000
+p <- 100
+n_rep <- 1000
+alpha_run <- 1
+maxit_run <- 1e5                            # ov_s1 used 1e4
+grid <- data.frame(c_prop = c(6, 8, 16), sigma_y = 1)
+gen_cell <- function(g) {                   # numeric c_prop, as the awful cells
+  dat <- gen_data(n, p = p, overlap = "good", s_y = 5, sigma_y = g$sigma_y)
+  eta <- as.numeric(dat$X[, 1:5] %*% rep(g$c_prop / sqrt(5), 5))
+  dat$prop <- plogis(eta)
+  dat$W <- rbinom(n, 1, dat$prop)
+  dat
+}
+one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                            maxit = maxit_run, tol = 1e-5, ...)
+  path <- fit(balnet)
+  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
+              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
+              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
+              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
+              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
+  list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
+       lam_end  = min(path$lambda),
+       est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
+       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
+}, error = \(e) list(err = conditionMessage(e)))
+t0 <- Sys.time()
+for (i in seq_len(nrow(grid))) {
+  out_file <- file.path(dir, sprintf("ov_1k_%02d_r%d.rds", i, n_rep))
+  if (file.exists(out_file)) next
+  g <- grid[i, ]
+  set.seed(2500 + i)
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                maxit = maxit_run)$lambda
+  saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
+          out_file)
+  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
+}
+parallel::stopCluster(cl)
 
 
 
+# bad overlap, sigma_y = 10 rerun, 1000 reps, maxit 1e4, replaces tune4_19 ----
+library(balnet)
+dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+stopifnot(dir.exists(dir))
+cl <- parallel::makeCluster(parallel::detectCores() - 1)
+parallel::clusterEvalQ(cl, library(balnet))
+run_par <- function(X, FUN, ...) {
+  parallel::clusterSetRNGStream(cl)
+  parallel::clusterExport(cl, setdiff(ls(globalenv()), "cl"))
+  parallel::parLapply(cl, X, FUN)
+}
+gen_data <- function(n = 1000, p = 100, rho = 0.5, s_prop = 5, s_y = 5,
+                     overlap = c("bad", "moderate", "good"), sigma_y = 1,
+                     seed = NULL) {
+  overlap <- match.arg(overlap)
+  if (!is.null(seed)) set.seed(seed)
+  Sigma <- rho ^ abs(outer(1:p, 1:p, `-`))
+  X <- matrix(rnorm(n * p), n, p) %*% chol(Sigma)
+  c_prop <- switch(overlap, good = 0.7, moderate = 1.5, bad = 2.5)
+  beta_prop <- rep(0, p)
+  beta_prop[seq_len(s_prop)] <- c_prop / sqrt(s_prop)
+  beta_y <- rep(0, p)
+  beta_y[seq_len(s_y)] <- 1 / sqrt(s_y)
+  eta  <- as.numeric(X %*% beta_prop)
+  prop <- plogis(eta)
+  W    <- rbinom(n, 1, prop)
+  Y <- as.numeric(X %*% beta_y) + rnorm(n, sd = sigma_y)
+  list(X = X, W = W, Y = Y, prop = prop, true = 0,
+       active_prop = which(beta_prop != 0), active_y = which(beta_y != 0))
+}
+n <- 1000
+p <- 100
+n_rep <- 1000
+alpha_run <- 1
+g <- data.frame(overlap = "bad", sigma_y = 10, stringsAsFactors = FALSE)
+gen_cell <- function(g) gen_data(n, p = p, overlap = g$overlap, s_y = 5,
+                                 sigma_y = g$sigma_y)
+one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                            maxit = 1e4, tol = 1e-5, ...)
+  path <- fit(balnet)
+  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
+              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
+              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
+              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
+              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
+  list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
+       lam_end  = min(path$lambda),
+       est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
+       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
+}, error = \(e) list(err = conditionMessage(e)))
+out_file <- file.path(dir, sprintf("tune4_19_r%d.rds", n_rep))
+t0 <- Sys.time()
+if (!file.exists(out_file)) {
+  set.seed(1000 + 19)                       # same seed grid as tune4_19
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run)$lambda
+  saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
+          out_file)
+  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
+}
+parallel::stopCluster(cl)
+
+
+# noise axis at moderate and bad overlap: sigma_y 4 and 7, 500 reps ----
+library(balnet)
+dir <- "C:/Users/otisr/Documents/Thesis 2026/Masters_Thesis/Exploring CV"
+stopifnot(dir.exists(dir))
+cl <- parallel::makeCluster(parallel::detectCores() - 1)
+parallel::clusterEvalQ(cl, library(balnet))
+run_par <- function(X, FUN, ...) {
+  parallel::clusterSetRNGStream(cl)
+  parallel::clusterExport(cl, setdiff(ls(globalenv()), "cl"))
+  parallel::parLapply(cl, X, FUN)
+}
+gen_data <- function(n = 1000, p = 100, rho = 0.5, s_prop = 5, s_y = 5,
+                     overlap = c("bad", "moderate", "good"), sigma_y = 1,
+                     seed = NULL) {
+  overlap <- match.arg(overlap)
+  if (!is.null(seed)) set.seed(seed)
+  Sigma <- rho ^ abs(outer(1:p, 1:p, `-`))
+  X <- matrix(rnorm(n * p), n, p) %*% chol(Sigma)
+  c_prop <- switch(overlap, good = 0.7, moderate = 1.5, bad = 2.5)
+  beta_prop <- rep(0, p)
+  beta_prop[seq_len(s_prop)] <- c_prop / sqrt(s_prop)
+  beta_y <- rep(0, p)
+  beta_y[seq_len(s_y)] <- 1 / sqrt(s_y)
+  eta  <- as.numeric(X %*% beta_prop)
+  prop <- plogis(eta)
+  W    <- rbinom(n, 1, prop)
+  Y <- as.numeric(X %*% beta_y) + rnorm(n, sd = sigma_y)
+  list(X = X, W = W, Y = Y, prop = prop, true = 0,
+       active_prop = which(beta_prop != 0), active_y = which(beta_y != 0))
+}
+n <- 1000
+p <- 100
+n_rep <- 500
+alpha_run <- 1
+grid <- expand.grid(overlap = c("moderate", "bad"), sigma_y = c(4, 7),
+                    stringsAsFactors = FALSE)
+gen_cell <- function(g) gen_data(n, p = p, overlap = g$overlap, s_y = 5,
+                                 sigma_y = g$sigma_y)
+one_rep <- function(rep_i) tryCatch({       # g, lam exported by run_par
+  dat <- gen_cell(g)
+  fit <- function(f, ...) f(dat$X, dat$W, target = "treated", alpha = alpha_run,
+                            maxit = 1e4, tol = 1e-5, ...)
+  path <- fit(balnet)
+  sel <- list(cv.bloss = fit(cv.balnet, type.measure = "balance.loss"),
+              cv.smd   = fit(cv.balnet, type.measure = "imbalance.mean"),
+              cv.inf   = fit(cv.balnet, type.measure = "imbalance.inf"),
+              boot.smd = fit(cv.boot.balnet, type.measure = "imbalance.mean"),
+              boot.inf = fit(cv.boot.balnet, type.measure = "imbalance.inf"))
+  list(est_path = colMeans(balweights(path, lambda = lam) * dat$Y),
+       lam_end  = min(path$lambda),
+       est_sel  = vapply(sel, \(m) mean(balweights(m) * dat$Y), numeric(1)),
+       lam_sel  = vapply(sel, \(m) m$lambda.min, numeric(1)))
+}, error = \(e) list(err = conditionMessage(e)))
+t0 <- Sys.time()
+for (i in seq_len(nrow(grid))) {
+  out_file <- file.path(dir, sprintf("snr_mb_%02d_r%d.rds", i, n_rep))
+  if (file.exists(out_file)) next
+  g <- grid[i, ]
+  set.seed(2600 + i)
+  dat <- gen_cell(g)
+  lam <- balnet(dat$X, dat$W, target = "treated", alpha = alpha_run)$lambda
+  saveRDS(list(cell = g, lam = lam, res = run_par(seq_len(n_rep), one_rep)),
+          out_file)
+  message(out_file, "  ", format(Sys.time() - t0, digits = 3))
+}
+parallel::stopCluster(cl)
 
 
 

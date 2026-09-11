@@ -11,7 +11,11 @@ dimhi,"p in {1000, 2000} x alpha x overlap",1,4,0,0,0,0,4
 dimsnr,SNR at high p x alpha x overlap,0.5,12,12,12,12,12,0
 dimsnr,SNR at high p x alpha x overlap,1,12,1,1,1,1,8
 n_enet,"n x overlap x SNR (EN, bad/awful)",0.5,18,18,13,6,15,1
+ov_1k,"overlap axis, sigma_y = 1 (lasso, maxit 1e5, 1000 reps)",1,3,0,0,3,3,0
+ov_s1,"overlap axis, sigma_y = 1 (lasso, maxit 1e4)",1,6,0,0,1,1,4
 snr_enet,SNR x overlap (elastic net),0.5,20,16,14,6,15,3
+snr_good,"noise axis, good overlap (lasso)",1,7,7,7,6,7,0
+snr_mb,"noise axis, moderate/bad, sigma_y 4 and 7 (lasso)",1,4,2,2,2,2,1
 spread,confounder spread x overlap x penalty,0,12,0,0,0,0,12
 spread,confounder spread x overlap x penalty,0.5,12,2,1,0,1,10
 spread,confounder spread x overlap x penalty,1,12,0,0,1,1,10

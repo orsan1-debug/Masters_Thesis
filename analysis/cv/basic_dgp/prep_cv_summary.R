@@ -8,9 +8,10 @@ sels <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
 # cell has no alpha column
 keep_fam <- c("tune", "tune2", "tune4", "tunea3", "tunea4", "tunen2", "tunep2",
               "snr_enet", "n_enet", "alpha_bad", "spread", "dima", "dimhi",
-              "dimsnr")
+              "dimsnr", "snr_good", "snr_mb", "ov_s1", "ov_1k")
 alpha_of <- c(tune = 1, tune2 = 1, tune4 = 1, tunen2 = 1, tunep2 = 1,
-              snr_enet = 0.5, n_enet = 0.5)
+              snr_enet = 0.5, n_enet = 0.5, snr_good = 1, snr_mb = 1,
+              ov_s1 = 1, ov_1k = 1)
 fam_label <- c(tune = "SNR x overlap, diluted confounding (lasso)",
                tune2 = "SNR x overlap, fixed confounding (lasso)",
                tune4 = "SNR x overlap (lasso)",
@@ -24,7 +25,15 @@ fam_label <- c(tune = "SNR x overlap, diluted confounding (lasso)",
                spread = "confounder spread x overlap x penalty",
                dima = "p x alpha x overlap",
                dimhi = "p in {1000, 2000} x alpha x overlap",
-               dimsnr = "SNR at high p x alpha x overlap")
+               dimsnr = "SNR at high p x alpha x overlap",
+               snr_good = "noise axis, good overlap (lasso)",
+               snr_mb = "noise axis, moderate/bad, sigma_y 4 and 7 (lasso)",
+               ov_s1 = "overlap axis, sigma_y = 1 (lasso, maxit 1e4)",
+               ov_1k = "overlap axis, sigma_y = 1 (lasso, maxit 1e5, 1000 reps)")
+
+
+fams <- sub("_?\\d+_r\\d+\\.rds$", "", list.files(dir, "_r\\d+\\.rds$"))
+table(fams)[!names(table(fams)) %in% keep_fam]
 
 summarise_file <- function(f) {
   x <- readRDS(f)
@@ -50,6 +59,14 @@ summarise_file <- function(f) {
     j_min <- which.min(rp)
     j_floor <- max(which(keep))
     rs <- sqrt(colMeans(es^2))[sels]
+    # Mean selected lambdas identify the same cases as the existing pick tables.
+    # Shared-noise files may store one lambda vector or one row per sigma.
+    lm <- colMeans(do.call(rbind, lapply(res, function(r) {
+      v <- r$lam_sel
+      if (is.null(v)) return(c(cv.bloss = NA_real_, boot.inf = NA_real_))
+      if (!is.null(dim(v))) v <- v[s, ]
+      v[c("cv.bloss", "boot.inf")]
+    })))
     best <- sels[which.min(rs)]
     z_vs_floor <- function(k) {                  # negative = selector better
       d <- es[, k]^2 - ep[, j_floor]^2
@@ -60,6 +77,13 @@ summarise_file <- function(f) {
                rmse_min = rp[j_min], rmse_floor = rp[j_floor],
                gain_floor = rp[j_floor] / rp[j_min] - 1,
                as.list(setNames(rs / rp[j_min], paste0(sels, "_vs_min"))),
+               lam_bloss = unname(lm["cv.bloss"]),
+               lam_bootinf = unname(lm["boot.inf"]),
+               # True target is zero; es contains each replication's selected estimate.
+               RMSE_cv = unname(rs["cv.bloss"]),
+               RMSE_boot = unname(rs["boot.inf"]),
+               CV_excess_pct = 100 * (unname(rs["cv.bloss"]) / rp[j_min] - 1),
+               Boot_excess_pct = 100 * (unname(rs["boot.inf"]) / rp[j_min] - 1),
                best = best, rmse_best = rs[best],
                best_vs_floor = rs[best] / rp[j_floor] - 1,
                z_best = z_vs_floor(best), z_bootinf = z_vs_floor("boot.inf"),
@@ -72,6 +96,10 @@ files <- list.files(dir, "_r\\d+\\.rds$", full.names = TRUE)
 tab <- bind_rows(lapply(files, summarise_file)) |>
   mutate(family = sub("_?\\d+_r\\d+\\.rds$", "", file)) |>
   filter(family %in% keep_fam, n_ok >= 200) |>
+  group_by(family, across(any_of(c("overlap", "c_prop", "sigma_y", "n", "p",
+                                   "s", "s_y", "dense", "alpha")))) |>
+  slice_max(n_ok, n = 1, with_ties = FALSE) |>   # largest rep file per cell
+  ungroup() |>
   mutate(alpha = coalesce(alpha, unname(alpha_of[family])),
          design = unname(fam_label[family]),
          r2 = 2.23 / (2.23 + sigma_y^2),
@@ -114,3 +142,51 @@ vs_lasso <- bind_rows(
   relocate(design, overlap, sigma_y, n, p, s)
 readr::write_csv(vs_lasso, file.path(dir, "cv_vs_lasso_floor.csv"))
 print(vs_lasso, n = Inf)
+
+# Rebuild RMSE tables from simulation cases in the current summary.
+# Use a single family for each table. ov_1k is the 1000-rep overlap sweep;
+# use ov_s1 only when ov_1k is absent from the saved summary.
+noise_family <- "snr_good"
+overlap_family <- if ("ov_1k" %in% tab$family) "ov_1k" else "ov_s1"
+
+make_rmse_table <- function(d, axis) {
+  if (nrow(d) == 0L) {
+    stop("No summary rows for ", axis, ". Available families: ",
+         paste(sort(unique(tab$family)), collapse = ", "))
+  }
+  if (anyNA(d[[axis]]) || anyDuplicated(d[[axis]])) {
+    print(d |> dplyr::select(dplyr::any_of(
+      c("file", "family", axis, "n", "p", "overlap", "c_prop", "sigma_y", "alpha"))))
+    stop(axis, " must identify one simulation case per row; ",
+         "filter the design shown above before exporting.")
+  }
+  d |>
+    dplyr::arrange(.data[[axis]]) |>
+    dplyr::transmute(
+      dplyr::across(dplyr::all_of(axis)),
+      lam_opt = lam_min,
+      dplyr::across(dplyr::any_of(c("lam_bloss", "lam_bootinf"))),
+      rmse_min,
+      RMSE_cv = rmse_min * .data[["cv.bloss_vs_min"]],
+      RMSE_boot = rmse_min * .data[["boot.inf_vs_min"]],
+      CV_excess_pct = 100 * (.data[["cv.bloss_vs_min"]] - 1),
+      Boot_excess_pct = 100 * (.data[["boot.inf_vs_min"]] - 1),
+      source_file = file, n_ok
+    )
+}
+
+noise_rmse <- make_rmse_table(
+  dplyr::filter(tab, family == noise_family, alpha == 1), "sigma_y")
+overlap_rmse <- make_rmse_table(
+  dplyr::filter(tab, family == overlap_family, alpha == 1, sigma_y == 1), "c_prop")
+
+# Compute both tables successfully before writing either output.
+readr::write_csv(noise_rmse, file.path(dir, "cv_rmse_noise.csv"))
+readr::write_csv(overlap_rmse, file.path(dir, "cv_rmse_overlap.csv"))
+message("Exported noise family: ", noise_family,
+        "; overlap family: ", overlap_family)
+
+
+
+
+

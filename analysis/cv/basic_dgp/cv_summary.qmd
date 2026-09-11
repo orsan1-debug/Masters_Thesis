@@ -37,13 +37,27 @@ vs_lasso <- read_csv(file.path(dir, "cv_vs_lasso_floor.csv")) |>
 **A:** Is the optimal (minimizes RMSE) $\lambda$ interior, i.e. not the path floor $\lambda_{\min}$?\
 **B:** If so, does any selector beat the path floor?
 
+**Target criterion**
+
+All selectors use `X` and `W` only and return `lambda.min`, the path value minimising their criterion on held-out units (treated arm):
+
+- `bloss`: balance loss $\frac{1}{n}\sum_i [W_i e^{-\eta_i} +
+  (1 - W_i)\eta_i]$, the balnet objective (Tan, 2020).
+- `smd`: mean $|\mathrm{SMD}_j|$, IPW-weighted treated mean against the full-sample mean, in full-sample SDs.
+- `inf`: max $|\mathrm{SMD}_j|$.
+
+**CV vs bootstrap**
+
+- CV (`cv.balnet`, 10 folds): refit on the training folds, criterion on the held-out fold, averaged over folds.
+- Bootstrap (`cv.boot.balnet`, 500 half-samples): no refitting; the full-sample weights are scored on random half-samples against the full-sample means and SDs (Wang and Zubizarreta, 2020).
+
 **notes:**
 
 - *Path floor* $\lambda_{\min}$ *is balnet default,* $\lambda_{\max}/100$*, stated if changed.*
 - *Sampling noise: 500 reps, relative MCSE 3% (Morris et al, 2019).*
 - *Default penalty* $\alpha = 1$*, lasso regularisation (stated if changed).*
 
-# Outcome Noise, Density, and Overlap
+# Outcome Noise and Overlap
 
 ## Sparse outcome
 
@@ -85,9 +99,11 @@ Appendix 1 shows a diluted case where `beta_y[1:s_y] <- 1/sqrt(s_y)` makes incre
 
 Under both high and low noise settings *(Appendix 3)* outcome density does not appear to drive selection performance, or interior minimums. Results for density show only minor changes to relative performance, with any ranking differences likely sampling noise.
 
-## Investigating noise
+## Investigating noise X overlap.
 
-![](fig_snr_lasso.png){width="100%"}
+![](fig_snr_lasso.png){width="23.2in"}
+
+*cell (5,3 - sigma 10 bad overlap at 1000 reps to confirm pattern change.*
 
 **A:** interior minimums appear at lower noise under strong overlap; as overlap degrades, more noise is needed.
 
@@ -111,113 +127,242 @@ Under both high and low noise settings *(Appendix 3)* outcome density does not a
 
 **Interior minimums:** Interior minimums depend on both noise and overlap. $\lambda_{\min}$ is more robust to degredation in overlap, while the CV/BS selectors that are competitive, are generally more robust to increased outcome noise.
 
-**Criterion selection:** `cv.bloss` and `boot.inf` are the most effective criteria. `cv.bloss` is more robust to overlap degradation, outperforming `boot.inf` under "bad" overlap for $\sigma_y \le 5$ and underperforming for "good" and "moderate" overlap.r
+**Criterion selection:** `cv.bloss` and `boot.inf` are the most effective criteria. `cv.bloss` is more robust to overlap degradation, outperforming `boot.inf` under "bad" overlap for $\sigma_y \le 5$ and underperforming for "good" and "moderate" overlap.
 
-This pattern inverses at $\sigma_y = 10$, where the order flips with `cv.bloss` \> `boot.inf` for good and moderate overlap, and `cv.bloss` \< `boot.inf` for bad overlap. **Why?**
+This pattern inverses between $\sigma_y = 7$ and $\sigma_y = 10$, where the order flips with `cv.bloss` \> `boot.inf` for good and moderate overlap, and `cv.bloss` \< `boot.inf` for bad overlap. **Why?**
 
-- maybe overlap causes the $\lambda$ selector to stop earlier, and noise increases the optimal $\lambda$. At low noise the deeper selector wins and at high noise the earlier one does, so the winner flips with noise, and since overlap sets which selector is the earlier one, it flips with overlap too.
+- *Possibly:* nas either selector observed outcome, each pick is fixed while noise pushes the optimal $\lambda$ up. The deeper pick wins at low $\sigma_y$, the earlier at high $\sigma_y$, and overlap sets which selector stops first: `boot.inf` stops deeper under good and moderate overlap, earlier under bad.
+
+*Holds at 1000 reps, explored below.*
+
+## Independent: noise and overlap
+
+![](fig_axes_noise_overlap.png){#fig-axes fig-pos="p" width="15in"}
+
+**Figure:** LHS: increasing noise, (sigma_y=1 to 18). RHS: degrading overlap(0.7 to 16), sigma_y=1.
+
+**Overlap and Noise, Seperatly:**
+
+- **overlap axis** ($\sigma_y = 1$): there is no interior solution, the path is still falling, indicating $\lambda_{\min}$ is best at every level and its apparent losses in the figure (`c_prop` 6 to 16) are likely artifacts . The order of `cv.bloss` and `boot.inf` flips between `c_prop` 2 and 2.5.
+
+  - `c_prop` = 0.7 to 1.5: `boot.inf` \> `cv.bloss`
+  - `c_prop` = 2: `cv.bloss` $\approx$ `boot.inf`
+  - `c_prop` = 2.5 to 16: `cv.bloss` \> `boot.inf`
+
+- **noise axis** (good overlap): $\lambda_{\min}$ is best only at $\sigma_y$ = 1; `boot.inf` ties it at 2 and beats it from 3, `cv.bloss` ties it at 5 and beats it from 7; the order of `cv.bloss` and `boot.inf` flips between $\sigma_y$ 7 and 10.
+
+  - $\sigma_y$ = 1: $\lambda_{\min}$ \> `boot.inf` \> `cv.bloss`
+
+  - $\sigma_y$ = 2: `boot.inf` $\approx$ $\lambda_{\min}$ \> `cv.bloss`
+
+  - $\sigma_y$ = 3 to 4: `boot.inf` \> $\lambda_{\min}$ \> `cv.bloss`
+
+  - $\sigma_y$ = 5: `boot.inf` \> `cv.bloss` $\approx$ $\lambda_{\min}$
+
+  - $\sigma_y$ = 7: `cv.bloss` $\approx$ `boot.inf` \> $\lambda_{\min}$
+
+  - $\sigma_y$ = 10 to 18: `cv.bloss` \> `boot.inf` \> $\lambda_{\min}$
+
+**New evidence for bootstrapping vs cross-validation:** earlier finding (bootstrap \> CV for `smd`, `inf` at every overlap level) holds on the overlap axis, breaks on the noise axis.
+
+- overlap axis: bootstrap \> CV at every `c_prop`
+- noise axis: bootstrapping's relative advantage fades when noise is high enough.
+  - `cv.inf` \> `boot.inf` from $\sigma_y$ = 12
+  - `cv.smd` \> `boot.smd` by 18
+
+**The pattern and the flip:** our findings support the initial pattern as:
+
+- At good overlap, `boot.inf` \> `cv.bloss`, by `c_prop = 2` they perform the same, by bad overlap, `cv.bloss` \> `boot.inf`.
+- `boot.inf` \> `cv.bloss` for noise up to 5, at noise 7 `cv.bloss` $\approx$ `boot.inf`, by 10 `cv.bloss` \> `boot.inf`.
+
+These are consistent with the initial pattern. The only change in relative performance we see on the noise axis is that `cv.bloss` outperforms `boot.inf` somewhere over $\sigma_y$ = 7. This is consistent with its relative performance overtaking `boot.inf` at $\sigma_y$ = 10 for good and moderate overlap. **the flip under bad overlap is not supported by this evidence**., where `boot.inf` \> `cv.bloss` $\sigma_y$ = 10, is not supported however, **Why?**
+
+```{r}
+#| layout-ncol: 2
+#| echo: false
+noise <- read.csv(file.path(dir, "cv_picks_noise.csv"), check.names = FALSE)
+overlap <- read.csv(file.path(dir, "cv_picks_overlap.csv"),
+                    check.names = FALSE)
+fmt <- \(d, first) {
+  d <- d[order(d[[first]]), ]
+  out <- data.frame(
+    d[[first]],
+    sprintf("%.3f", d$lambda_opt),
+    sprintf("%.3f", d$cv.bloss),
+    sprintf("%.3f", d$boot.inf))
+  out[out == "NA"] <- ""
+  out
+}
+cn <- c("lambda_opt", "cv.bloss", "boot.inf")
+knitr::kable(fmt(noise, "sigma_y"), booktabs = TRUE, align = rep("r", 4),
+             col.names = c("sigma_y", cn))
+knitr::kable(fmt(overlap, "c_prop"), booktabs = TRUE, align = rep("r", 4),
+             col.names = c("c_prop", cn))
+```
+
+As selection models are outcome blind, increasing noise doesnt change their selection lambda, it only raises optimal level of imbalance, CV bloss selects higher, so when noise is high enough - it wins.
+
+Interestingly, at c_prop=16, boot inf is closer to lambda optimum but still has a higher RMSE, \*\*possibly artifact, maybe investigate.\*\*
+
+```{r}
+#| echo: false
+#| results: asis
+tab <- read.csv(file.path(dir, "cv_summary.csv"), check.names = FALSE)
+picks <- read.csv(file.path(dir, "cv_picks.csv"), check.names = FALSE)
+c_of <- c(good = 0.7, moderate = 1.5, bad = 2.5)
+rel <- \(v) v / v[1]
+col <- function(ov) {
+  d <- tab[tab$overlap %in% ov & tab$family %in%
+             c("tune4", "snr_good", "snr_mb"), c("sigma_y", "lam_min",
+                                                 "n_ok")]
+  d <- d[order(d$sigma_y, -d$n_ok), ]
+  d[!duplicated(d$sigma_y), ]
+}
+sy <- sort(unique(unlist(lapply(names(c_of), \(o) col(o)$sigma_y))))
+sy <- sy[sy <= 12]
+get_opt <- function(ov) col(ov)$lam_min[match(sy, col(ov)$sigma_y)]
+get_sel <- function(ov, s) {
+  d <- picks[picks$c_prop == c_of[[ov]], ]
+  d[[s]][match(sy, d$sigma_y)]
+}
+show <- function(f, cap) {
+  v <- lapply(names(c_of), f)
+  out <- data.frame(sy,
+                    sprintf("%.3f", v[[1]]), sprintf("%.2f", rel(v[[1]])),
+                    sprintf("%.3f", v[[2]]), sprintf("%.2f", rel(v[[2]])),
+                    sprintf("%.3f", v[[3]]), sprintf("%.2f", rel(v[[3]])))
+  out[trimws(out) == "NA"] <- ""
+  print(knitr::kable(out, booktabs = TRUE, align = rep("r", 7),
+                     col.names = c("sigma_y", "good", "cum. change",
+                                   "moderate", "cum. change",
+                                   "bad", "cum. change"),
+                     caption = cap))
+}
+show(get_opt, "RMSE-optimal lambda")
+show(\(o) get_sel(o, "cv.bloss"), "cv.bloss median pick")
+show(\(o) get_sel(o, "boot.inf"), "boot.inf median pick")
+show(\(o) get_sel(o, "cv.inf"), "cv.inf median pick")
+```
+
+![](fig_picks_vs_opt.png){#fig-picks-vs-opt alt="Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, along the noise axis (good overlap) and the overlap axis ($\\sigma_y = 1$). Log scales."}
+
+![Median selected lambda for cv.bloss and boot.inf against the RMSE-optimal lambda, by overlap level. Log scales.](fig_picks_grid.png){#fig-picks-grid}
+
+**Some of the "how", maybe some of the why:**
+
+1.  **Noise dynamics.** The cumulative interaction of degraded overlap with increased noise, causes the optimal lambda to increase outweighing the robustness of targeting balancing loss, (cv or not). Both boot.inf and cv.inf will outperform cv.bloss when noise is high enough.
+
+2.  **Flip dynamic related to criterion not bootstrapping.** When outcome isnt visible, the `inf` (max $|\mathrm{SMD}_j|$) criterion variants, which minimise the worst balanced co-variate, always choose a higher lambda, making them more robust to highly degraded overlap, since as overlap weakens the optimal RMSE rises.
+
+The bootstrap component is not relevent to the flip, with cross-validation likely to perform worse when overlap degrades past a certain point, given.
+
+- `cv.inf` \> `boot.inf` from $\sigma_y$ = 12
+
+- `cv.smd` \> `boot.smd` by 18
+
+```{r}
+#| layout-ncol: 2
+#| echo: false
+noise <- read.csv(file.path(dir, "cv_picks_noise.csv"))
+overlap <- read.csv(file.path(dir, "cv_picks_overlap.csv"))
+keep <- c("lambda_opt", "cv.bloss", "cv.smd", "boot.smd", "cv.inf",
+          "boot.inf")
+labs <- c("lambda_opt", "CV bal.loss", "CV mean SMD", "boot mean SMD",
+          "CV max SMD", "boot max SMD")
+fmt <- \(d, first) d |>
+  select(all_of(c(first, keep))) |>
+  mutate(across(-1, \(v) sprintf("%.3f", v)))
+knitr::kable(fmt(noise, "sigma_y"), booktabs = TRUE,
+             align = rep("r", 7), col.names = c("sigma_y", labs))
+knitr::kable(fmt(overlap, "c_prop"), booktabs = TRUE,
+             align = rep("r", 7), col.names = c("c_prop", labs))
+
+#| layout-ncol: 2
+#| echo: false
+picks <- read.csv(file.path(dir, "cv_picks.csv"), check.names = FALSE)
+rel <- \(v) c(NA, v[-1] / v[-length(v)])
+fmt <- \(cp) {
+  d <- picks[picks$c_prop == cp, ]
+  d <- d[order(d$sigma_y), ]
+  out <- data.frame(
+    d$sigma_y,
+    sprintf("%.3f", d$lambda_opt), sprintf("%.2f", rel(d$lambda_opt)),
+    sprintf("%.3f", d$cv.inf), sprintf("%.2f", rel(d$cv.inf)),
+    sprintf("%.3f", d$boot.inf), sprintf("%.2f", rel(d$boot.inf)))
+  out[out == "NA"] <- ""
+  out
+}
+cn <- c("lambda_opt", "rel. change", "cv.inf", "rel. change",
+        "boot.inf", "rel. change")
+knitr::kable(fmt(1.5), booktabs = TRUE, align = rep("r", 7),
+             col.names = c("sigma_y", cn), caption = "moderate overlap")
+knitr::kable(fmt(2.5), booktabs = TRUE, align = rep("r", 7),
+             col.names = c("sigma_y", cn), caption = "bad overlap")
+
+
+#| echo: false
+picks <- read.csv(file.path(dir, "cv_picks.csv"), check.names = FALSE)
+rel <- \(v) c(NA, v[-1] / v[-length(v)])
+d <- picks[picks$sigma_y == 1, ]
+d <- d[order(d$c_prop), ]
+out <- data.frame(
+  d$c_prop,
+  sprintf("%.3f", d$lambda_opt), sprintf("%.2f", rel(d$lambda_opt)),
+  sprintf("%.3f", d$cv.inf), sprintf("%.2f", rel(d$cv.inf)),
+  sprintf("%.3f", d$boot.inf), sprintf("%.2f", rel(d$boot.inf)))
+out[out == "NA"] <- ""
+knitr::kable(out, booktabs = TRUE, align = rep("r", 7),
+             col.names = c("c_prop", "lambda_opt", "rel. change",
+                           "cv.inf", "rel. change",
+                           "boot.inf", "rel. change"),
+             caption = "overlap axis, sigma_y = 1")
+```
 
 # Penalty
 
-## Alpha sweep at bad overlap
+## Elastic net over overlap and noise. 
 
-Varies: alpha (0, 0.25, 0.75, 1) by sigma_y (1, 5, 10) on shared fits. Fixed: bad overlap, baseline otherwise. Alpha 0.5 is the bad row of the elastic net section. Lasso row uses maxit 1e5.
+![](fig_enet_grid.png){width="100%"}
 
-![](fig_alpha_bad.png){width="100%"}
+**Figure:** Elastic net, alpha 0.5, sparse outcome, 500 reps.
 
-## Ridge and elastic net at the default floor
+Elastic net,
 
-Varies: overlap (all four) by alpha (0, 0.5). Fixed: sigma_y = 1, sparse outcome. Path ends at the package default, lambda max over 100.
+Relative to lasso, three things change.
 
-![](fig_ridge_default.png){width="100%"}
+**A:** interior minimums appear earlier at lower noise levels (ie: overlap moderate, sigma = 1).
 
-## Ridge and elastic net with the path extended to 1e-4
+**B:** at bad overlap, $\sigma_y = 5$, `boot.inf` beats the path floor $\lambda_{\min}$ where under lasso it only tied.
 
-Same grid, path floor lowered to 1e-4. Pair with the previous figure.
+**Criterion selection:** the `cv.bloss` / `boot.inf` performance is difference, by bad overlap, **the flip has not happened,** but the pattern is still there.
 
-![](fig_ridge_floor.png){width="100%"}
+**Bootstrapping vs cross-validation:** same as lasso.\
 
-# Sample size
+## Alpha sweep: Ridge to Lasso.
 
-## Lasso, sigma_y = 1
+![](fig_alpha_sweep.png){width="100%" fig-pos="H"}
 
-Varies: overlap by n (250, 2000, 5000). Fixed: baseline, lasso. Strong overlap then weak overlap.
+**Figure:** alpha 0 to 1, over bad overlap, sigma degrading.\
 
-![](fig_n_lasso_s1_strong.png){width="100%"}
+**A:** interior minimums appear at lower noise as $\alpha$ rises: only at $\sigma_y = 10$ for $\alpha = 0$, from $\sigma_y = 1$ for $\alpha = 0.25$ to 0.75.
 
-![](fig_n_lasso_s1_weak.png){width="100%"}
+**B:** $\sigma_y = 1$: no selector beats the path floor $\lambda_{\min}$; `boot.inf` ties it for $\alpha = 0$ to 0.5. $\sigma_y = 5$: `boot.inf` wins at $\alpha = 0.5$, `cv.bloss` at 0.75. $\sigma_y = 10$: `cv.bloss` wins at $\alpha = 0$ to 0.5, `cv.inf` at 0.75, `boot.inf` at 1.
 
-## Lasso, sigma_y = 3
+**Criterion selection:** the `cv.bloss` / `boot.inf` noise flip moves earlier as $\alpha$ rises. $\alpha = 1$ alone shows the Section 2 reversal, `boot.inf` \> `cv.bloss` at $\sigma_y = 10$.
 
-![](fig_n_lasso_s3_strong.png){width="100%"}
+**Bootstrapping vs cross-validation:** bootstrap \> CV everywhere except $\alpha = 0.75$, $\sigma_y = 10$, where `cv.inf` \> `boot.inf` and `boot.inf` drops below `boot.smd`.
 
-![](fig_n_lasso_s3_weak.png){width="100%"}
+## Ridge against the 1e-4 floor
 
-## Lasso, sigma_y = 10
+![](fig_ridge_floor.png){width="100%" fig-pos="H"}
 
-![](fig_n_lasso_s10_strong.png){width="100%"}
+**Figure:** ridge (alpha 0), fixed overlap,
 
-![](fig_n_lasso_s10_weak.png){width="100%"}
+## Ridge against the 1e-4 floor
 
-## Elastic net, weak overlap
+![](fig_enet_floor.png){width="100%" fig-pos="H"}
 
-Varies: sigma_y (1, 3, 10, shared fits) by n (250, 500, 2000). Fixed: alpha 0.5, p = 100. Bad overlap then awful.
-
-![](fig_n_enet_bad.png){width="100%"}
-
-![](fig_n_enet_awful.png){width="100%"}
-
-# Dimension
-
-## p in 100, 500, elastic net
-
-Varies: overlap (moderate, bad) by p. Fixed: alpha 0.5, sigma_y = 1, n = 1000.
-
-![](fig_p_low.png){width="100%"}
-
-## p = 1000, elastic net and lasso
-
-Varies: overlap (moderate, bad) by alpha (0.5, 1). Fixed: p = 1000, sigma_y = 1, n = 1000.
-
-![](fig_p_high_1000.png){width="100%"}
-
-## p = 2000, elastic net and lasso
-
-![](fig_p_high_2000.png){width="100%"}
-
-## SNR at high p, moderate overlap
-
-Varies: sigma_y (1, 3, 10) by alpha (0.5, 1). Fixed: n = 1000. p = 500 then p = 1000.
-
-![](fig_p_snr_moderate_500.png){width="100%"}
-
-![](fig_p_snr_moderate_1000.png){width="100%"}
-
-## SNR at high p, bad overlap
-
-![](fig_p_snr_bad_500.png){width="100%"}
-
-![](fig_p_snr_bad_1000.png){width="100%"}
-
-# Confounder spread
-
-## Lasso
-
-Varies: overlap (all four) by number of confounders s (5, 20, 50), coefficient 1/sqrt(s) in propensity and outcome. Fixed: sigma_y = 1, p = 100, n = 1000.
-
-![](fig_spread_a1.png){width="100%"}
-
-## Elastic net, alpha 0.5
-
-![](fig_spread_a0.5.png){width="100%"}
-
-## Ridge, alpha 0
-
-![](fig_spread_a0.png){width="100%"}
-
-# Selector ranking
-
-# Against the lasso floor
+**Figure:** same layout for elastic net (alpha 0.5), sparse outcome, sigma_y = 1. Left: default floor, 500 reps. Right: lambda.min.ratio 1e-4, 200 reps. Dotted line = lambda_opt.
 
 # Caveats
 
