@@ -1,0 +1,75 @@
+# project_state.md — current state (REPLACED at each [CHECKPOINT])
+# Rules: bullets only, no prose, ≤200 lines. Newest checkpoint date at top.
+last checkpoint: 2026-09-13
+## implemented
+- DGP `dgp1()` (legacy, Kang-Schafer logistic on 4 covariates) — R/dgp.R
+- DGP `dgp2()` (current: sparse normalised propensity, signs, decay, fixed4/track_s, treat_prop, strength) — R/dgp.R
+- DGP `dgp_wc()`, `dgp_wc_overlap()` (Wong & Chan / Wang & Zubizarreta design, overlap and noise knobs) — R/dgp.R
+- DGP `gen_data()` (cv basic_dgp: AR(1) covariates, mu1 target, overlap good/moderate/bad) and `run_par()` — R/dgp.R
+- ipw estimators `balnetcv`, `balnet0`, `balnet05`, `balnet10`, `balnetrate`, `glmnetcv_ht`, `glmnetcv_hajek`, `oracle_ht`, `oracle_hajek` via `estimate_all()` — R/estimators_ipw.R
+- ipw helpers `ate_ht()`, `ate_hajek()`, `ate_bal()`, `max_smd()`, `cv_loss()` and 26 logged diagnostics — R/estimators_ipw.R
+- cv selectors on the balnet path: cv.bloss, cv.smd, cv.inf (cv.balnet), boot.smd, boot.inf (cv.boot.balnet) — inline in every runs/cv script
+- wz estimators `fit_sbw()`, `cstat()` (W&Z Algorithm 1), `estimate_wc_sbw()`; alg1, glmnet, glm, naive ATT arms inline — R/estimators_cv.R, runs/cv/wz_replication/
+- driver `make_seeds()`, `run_rep()`, `simulate_grid()` (L'Ecuyer streams, furrr, per-cell checkpoints, cvcurves and session sidecars) — R/simulate.R
+- ledger `register_run()`, `run_batch()`, `rel_path()`, `balnet_source()`; 13 columns incl. balnet/glmnet versions — R/registry.R
+- performance measures with MCSE, diagnostics summaries, CV-curve stats — R/summarise.R; figure and table helpers — R/plots.R
+- packages and select/filter aliases, sourced first by every run script and qmd — R/packages.R
+- run script (ipw) correctspecDGP1 — runs/ipw/correctspecDGP1.R
+- run script (ipw) correct and misspec DGP2 — runs/ipw/correct_misspec_dgp2.R
+- run script (ipw) overlap and overlap-misspec — runs/ipw/overlap_misspec_dgp2.R
+- run script (ipw) dimensionality — runs/ipw/DimensionDGP2.R; n = 5000 variant — runs/ipw/DimensionDGP2N5K.R
+- run script (ipw) p >> n — runs/ipw/PoverMDGP2.R
+- run script (ipw) sparsity — runs/ipw/Sparsity.R; high-p sparsity E6 iid and ar1 — runs/ipw/sparsity_2.R
+- run script (ipw) weak instruments — runs/ipw/weak_instruments.R
+- run script (ipw) SNR — runs/ipw/SNR.R; treated share — runs/ipw/treat_prop.R
+- run script (ipw) n 200k/400k/800k — runs/ipw/correctspec_dgp2_n800k.R
+- run script (ipw) cv.balnet patch reruns — runs/ipw/cvfix.R
+- run scripts (cv basic_dgp, 18) tune, tune2, tune4, tune4_19, snr_enet, snr_mb, tunea, tunea3, tunea4, alpha_bad, n_enet, tunep2, spread, dima, dimhi, ov_s1, ov_s1_m5, ov_1k — runs/cv/basic_dgp/run_*.R
+- run script (cv basic_dgp) cv_picks tables — runs/cv/basic_dgp/make_cv_picks.R
+- run scripts (cv wz) overlap, noise, n, basis, path — runs/cv/wz_replication/run_wc_overlap.R, run_wc_noise.R, run_wc_overlap_n.R, run_wc_basis.R, run_wc_path.R
+- every run script: N_SIM and OUT_DIR environment overrides; register_run() on success only
+- analysis (ipw) 11 qmds — analysis/ipw/; (cv) cv_summary.qmd, plot_grids.R, prep_cv_summary.R, analyse_path_end_slope.R — analysis/cv/basic_dgp/; wc_findings.qmd, wc_grids.R, plot_wc_grids.R, plot_wc_att.R, summarise_wc_sbw.R — analysis/cv/wz_replication/
+- tests dgp2_validity.R, smoke_simulate.R, balnet_cvfix_gate.R, cv_smoke_test.R — tests/
+- results on disk (git-ignored): 21 ipw batches — results/ipw/; 23 cv families, 259 rds — results/cv/basic_dgp/; 65 wz files — results/cv/wz_replication/
+- docs: README.md, _quarto.yml (renders to output/rendered), notes/protocol.md (ADEMP headings), notes/exploration_log.md, notes/phase4_report.md, notes/restructure_manifest.csv, notes/rename_map.csv, notes/checkpoint_prompt.md
+## decided
+- one repo root = .Rproj folder; all paths via here::here(); no setwd(), no absolute paths — CLAUDE.md, Phase 3 (4c51c2e)
+- results/ read-only and git-ignored; nothing deleted, superseded material goes to archive/ — Phases 2, 2b, 3
+- layout R/ runs/ results/ analysis/ output/ thesis/ tests/ notes/ readings/ archive/ with components ipw and cv (wz_replication, basic_dgp, thesis_dgp) — Phase 2 (5d5f880)
+- duplicate pairs: keeper = later modified date (Exploring CV scripts kept; 10 Sep tune reruns kept, 2 Sep originals archived) — Phase 2
+- orphan results and figures with no producer archived; PoverMmisspecDGP2 cells kept under results/ipw because results/ is untouchable — Phase 2
+- function bodies untouched in Phases 3 and 4; only path strings changed, via `root = here::here()` arguments — Phase 3b (1040a58)
+- R/ has no side effects except R/packages.R; plots.R requires summarise.R first — Phase 5 (109fa9e)
+- registry redesigned: row written only after results exist; columns batch_id, component, dgp, estimators, n_sim, seed, script, result_file, date, status, balnet_version, glmnet_version, balnet_source; history reset (old 47 rows at c88e082) — Phase 5
+- balnet 0.0.4 (experimental local build) kept as installed; no package installs or updates by the assistant — Phase 5
+- line endings: .gitattributes `* text=auto eol=lf`, core.autocrlf false — Phase 3b
+- Quarto: root _quarto.yml, output-dir output/rendered; .quarto/ and *_files/ ignored — Phase 5
+- analysis uses Hajek-normalised MLE only (HT explodes under misspecification) and the normalised oracle — analysis/ipw/correctspec.qmd:117-119
+- baseline sign profile = fully aligned "pos"; dgp2 current, dgp1 legacy — analysis/ipw/correctspec.qmd:101, R/dgp.R
+- balnetcv results quarantined until the cv.balnet rowMeans fix; the CV-rate critique judged a bug artefact — analysis/ipw/cvfix.qmd:201
+- results/ipw/correctspecDGP2.csv.gz recognised as the 7-cell, 2-outcome n800k batch (balnet 0.0.3); shared cells match the 0.0.4 rerun exactly — notes/phase4_report.md
+- stored cv_summary.csv marked stale (built from 2 Sep tune*.rds) — notes/restructure_manifest.csv
+- pushurl/fetch of origin moved to https://github.com/otisramisandford/Masters_Thesis.git — 2026-09-12
+## open
+- push blocked: origin returns "Repository not found"; main at 5110b42 is 10 commits ahead of origin/main f7c63a9
+- Masters_Thesis - old/.git is the only other copy of the Phase commits; keep until pushed
+- 29 uncaptured R warnings in the 2026-09-11 regression run — notes/phase4_report.md
+- 4 empty outcome entries per column at n = 500 in both correctspecDGP2 files, unexplained — notes/phase4_report.md
+- dimensionDGP2N5K: 5 of 12 cell checkpoints, never finished — results/ipw/dimensionDGP2N5K_cells
+- correctspecDGP200k: no file; correctspecDGP2.csv.gz not reproducible by correct_misspec_dgp2.R
+- ipw batches without scripts: correctspecDGP2_ks, _pos, _mixed; cvtune* (results2/) never produced
+- cv basic_dgp families without scripts: tunen2, dimsnr, snr_good (used by summaries); tune3, tunea2, dim (superseded); tunep2 at 50 reps only
+- wz producers missing: wc_att_v2, wc_sbw_v1/v2, wc_tuner_*; run_wc_path.R writes wc_att_v1 (absent); sbw Supplement code unchecked
+- wz replication: model A approximate arm 2.4 to 2.7x the paper's RMSE — analysis/cv/wz_replication/wc_findings.qmd:68
+- cv/thesis_dgp reserved, empty
+- analysis without prose: Instruments.qmd, sparsity_hd.qmd, sparsity_hd_check.qmd, cv_analysis.qmd
+- cvfix.qmd: level and selection-noise channels, and the misspecification effect on lambda_cv, still to re-check on fixed runs
+- prep_cv_summary.R and plot_grids.R not rerun on the restructured tree; fig_snr_lasso_all.png missing (include commented out)
+- 22 script-local helper names duplicated across scripts, not merged — notes/pending_consolidation.md
+- registry.csv empty; no batch logged under the new ledger yet
+- 49 roxygen blocks written from code reading; none marked TODO but not yet reviewed by the author
+- 15 untracked pre-existing files under archive/
+## next
+- add AIPW-glmnet and ABW estimators; slim simulate_grid() output
+- get the push through (repository visibility or credential), then confirm origin/main = HEAD
+- exercise the new ledger with one smoke batch (N_SIM=2, OUT_DIR=tmp) and one real batch
