@@ -1,4 +1,4 @@
-# project_state.md — current state (REPLACED at each [CHECKPOINT])
+# repo_state.md — current state (REPLACED at each [CHECKPOINT])
 # Rules: bullets only, no prose, ≤200 lines. Newest checkpoint date at top.
 last checkpoint: 2026-09-13
 ## implemented
