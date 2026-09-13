@@ -1,0 +1,60 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+df_snr <- load_sim(here::here("results", "ipw", "snrDGP2correct.csv.gz"))
+summ_snr <- summarise_sim(df_snr) |>
+  mutate(stf = factor(strength, sort(unique(strength))))
+```
+
+# Increasing SNR
+
+```{r}
+dfm <- summ_snr
+snr_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n),
+                  labs(x = "strength"))
+# RMSE | |Bias| vs strength, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = stf, extra = snr_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = stf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = snr_extra))
+#- table -#
+perf_table(dfm, cols = c("strength", "n"),
+           span_lab = \(x) paste0("strength = ", x), span_desc = FALSE,
+           group = "outcome", title = "SNR grid, iid, correct spec (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = strength, cols = n,
+              xlab = "strength",
+              x_scale = scale_x_continuous(trans = "log2",
+                                           breaks = c(0.25, 0.5, 1, 2, 4)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = strength, xlab = "strength",
+             x_desc = FALSE)
+```
+
+- bal0 outperforms again
+
+- Bal.CV, slightly outperforms glmnet with n increeases.
+
+- bal05, bal10 are outperformed by MLE with increases in SNR.
+
+Under linear outcomes: Increased confounding doesnt effect bal0.
+
+Under quadratic outcomes: bal0 also degrades with SNR increases.

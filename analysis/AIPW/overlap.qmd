@@ -1,0 +1,268 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+df_ov <- bind_rows(
+  mutate(load_sim(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE))
+summ_ov <- summarise_sim(df_ov)
+```
+
+# Correct specification: degrading overlap
+
+```{r}
+# ── E3: Correct specification, degrading overlap (DGP2) ──
+ov_show <- c(1, 0.5, 0.25)                    # excludes c = 2 and c = 0.75
+co      <- summ_ov |> filter(!misspec) |> mutate(cf = as_c(overlap))
+co_show <- filter(co, overlap %in% ov_show)
+ov_facets <- list(scale_x_n, facet_wrap(~cf, nrow = 1, scales = "free_y"))
+
+#plots>RMSE decomp
+for (oc in names(oc_labs)) {
+  print(panel(co_show, oc, ests = est_main, extra = ov_facets))
+  print(panel(co_show, oc, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+              extra = ov_facets))                                  
+  print(decomp_plot(filter(co, outcome == oc), ests = est_main, cols = cf,
+                    title = paste("RMSE Decomposition (%),", oc_labs[oc])))
+}
+
+#table
+perf_table(co_show, cols = c("overlap", "n"), group = "outcome",
+           title = "E3: Degrading Overlap (DGP2)")
+extreme_heat(co)
+```
+
+**summary:** our expectation that under weak overlap balancing estimators performance would degrade at a reduced rate compared to MLE holds. all n.
+
+As expected, overlap degradation inflates variance most steeply for MLE. The bias-variance composition is n-dependent: bal0 degrades through bias at small n, variance at large n; fixed-λ estimators and balnetcv through bias throughout. Convergences of fixed $\lambda$ estimators as overlap degrades supports our expectation that balnet's regularization path will truncate earlier as overlap degrades.
+
+**Best Estimator**
+
+- **Bal0 is the best estimator, consistently outperforming or matching other estimators.**
+
+  - beats normalized oracle at every overlap level, supporting Wagers efficiency result.
+
+  - Converges with set balancing estimators as overlap degrade and the minimum feasible balance $\lambda_{endpoint}$ rises. There are no instances where it loses to bal05 under any outcome; coincident cells are identical.
+
+#### Balancing vs MLE
+
+- **Covariate balancing outperforms MLE over every overlap level, and for every** $n$**.**
+
+  - **MLE never beats bal0**, and it decisively beats bal05 when $c\geq0.5$ and $n\geq5,000$ for all outcomes. beats bal10 more often.
+
+  - bal05 outperforms glmnet at every sample size when overlap is weak (c = 0.25)
+
+  - Despite over-regularizing, cv.balnet still outperforms glmnet-Hajek in the majority of weak-overlap cells.
+
+- **As overlap degrades, the RMSE convergence rate of the MLE estimator degrades with it.**
+
+  - performs best under exponential outcomes:
+
+    - For $c=0.5$, MLE beats balnet.cv and bal10 between $n=500$ and $n=1000$ (crossover point not specified, but gradient implies before $n=1000$). Beats bal05 by $n=5,000$.
+
+    - *same ranking for linear and quadratic, but relative magnitude reduced.*
+
+  - MLE 1 win at $c=0.25$
+
+- **MLE bias is less competitive,** implying its RMSE performance losses are bias driven.
+
+  - *under linear outcomes:* for $c=.25$ its bias beats balnet.cv and bal10 by $n=10,000$, ties with cv.balnet at $n=5000$
+
+  - *under quadratic outcomes:* for $c=.25$, beats balnet.cv by $n=1000$, and bal10 by $n=5000$.
+
+  - f*or exponential outcomes:* same as quadratic.
+
+#### Within Balancing
+
+- **CV. Balnet's relative performance is degraded against fixed balancing estimators with reductions in overlap.**
+
+  - **balnet.cv becomes less competitive against bal0 and bal05 as overlap degrades:** this calls into question its CV criterion.
+
+<!-- -->
+
+- **Path truncation mechanism: Bal05 is the only estimator competitive with Bal0, due to path truncation.** As overlap degradrs, the $\lambda_{endpoint}$ increases, and with increases in $n$ it decreases. Bal0 generally either outperforms or matches bal05, but in smaller samples as overlap degrades bal05 becomes increasingly competitive.
+
+  - at smaller $n$ Bal05 and converge with bal0 as overlap degrades. numerically, bal05 has no wins under degraded overlap; coincident estimates are identical, and remaining differences are sign-resolved against it.
+
+- **bal10's relative performance improves as overlap degrades:** for both bias and RMSE.
+
+  - indicates the minimum viable $\lambda_{endpoint}$ truncates somwhere close to $.1$ as overlap declines.
+
+**Notes:**
+
+- **Outcome complexity:** does effect magnitudes under different overlap levels, but not rankings, both between estimation methods (MLE/balancing), and within balancing estimators.
+
+- **bal05 attenuation bias is stable and invariant to overlap, likely predictable with AIPW:** for exponential, across all $n$ st $c=.5$ and for large $n$ at $c=.25$ bias $\approx .23$ and $\approx .24$ respectively. For linear, across all$n$ at $c=.5$ and for large $n$ at $c=.25$ bias $\approx .25 \to .25$ respectively. Results at $c=1$ at high $n$ also converge to around $.25$.
+
+  - *exception under quadratic outcomes at* $c=.25$.
+
+- no extreme $|\tau| > 10$ results for any MLE or balnet estimators under overlap degredation.
+
+- Hajek is still efficient and converges at every overlap condition, just slower than whenspecified at $c=1$
+
+- identify $\lambda$ truncation points and convergence rates with lambda logging.
+
+# Misspecification x overlap
+
+```{r}
+# ── E3: Correct specification, degrading overlap (DGP2) ──
+ov_show <- c(1, 0.5, 0.25)                    # excludes c = 2 and c = 0.75
+co      <- summ_ov |> filter(misspec) |> mutate(cf = as_c(overlap))
+co_show <- filter(co, overlap %in% ov_show)
+ov_facets <- list(scale_x_n, facet_wrap(~cf, nrow = 1, scales = "free_y"))
+
+#plots>RMSE decomp
+for (oc in names(oc_labs)) {
+  print(panel(co_show, oc, ests = est_main, extra = ov_facets))
+  print(panel(co_show, oc, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+              extra = ov_facets))                                  
+  print(decomp_plot(filter(co, outcome == oc), ests = est_main, cols = cf,
+                    title = paste("RMSE Decomposition (%),", oc_labs[oc])))
+}
+
+#table
+perf_table(co_show, cols = c("overlap", "n"), group = "outcome",
+           title = "E3: Degrading Overlap + Misspec (DGP2)")
+extreme_heat(co)
+```
+
+As expected, misspecification and overlap compound, and MLE methods are considerably outperformed by balancing methods. MLE RMSE increases substantially, with its bias behaving erratically as it converges to the wrong prediction (sign flips under quadratic), and extreme behaviour concentrated under quadratic outcomes, while the balancing estimators remain stable.
+
+between methods, balancing protects against MLE's divergence, it's balnet's attenuation bias is the cost of stability. RMSE stays bounded and improves with $n$, while MLE diverges with $n$ under non-linear outcomes, fastest at moderate degradation ($c = 0.5$).
+
+Within balnet, $\lambda$ is a bias/variance dial where less is better at every $n$ and overlap level; balcv provides no evidence for cross validation, even at small $n$ and weak overlap, where it over-regularizes most (quarantined pending the cv.balnet fix). In large samples, its bias floor is too high. Despite marginal wins\*, Still no strong evidence supporting for setting $\lambda > 0$.
+
+*\*MCSE (Morris 2019) can be used to determine between crossover/convergance later. A lot of estimates are under 0.05 in magnitude, assumed now to be convergence unless clear divergence.*
+
+### Between Methods
+
+**RMSE:** balancing consistently outperforms MLE at degraded overlap.
+
+- decreases in $c$ degrade MLE RMSE across all outcomes, and increases in $n$ degrade it under non-linear outcomes (under linear it still improves, slowly), while balancing RMSE decreases with $n$.
+
+- as $n$ decreases and overlap degrades bal0 becomes increasingly competitive with the oracle, the gap driven primarily by its reduced relative variance. It is always more biased; its only outright wins are under quadratic outcomes, at small $n$ and at $c = 0.25$ for $n \geq 5000$.
+
+- strong overlap, increases in $c$, shield MLE from misspecification: at $c = 2$ it overtakes bal05 by $n = 5000$ and bal10 at every $n$, but never bal0. *worth testing at higher* $c$?
+
+- balancing RMSE gradients across $c$ are smooth and stable across $n$, with intercepts declining (magnitude varies by outcome). MLE gradients are jagged and inconsistent across $n$ under non-linear outcomes.
+
+- divergence is clearest under quadratic outcomes, followed by exponential. under linear outcomes, balancing slopes decrease noticeably with $n$ and intercept reductions are smaller.
+
+**Bias:** MLE is generally more biased than balancing at small $n$, with the gap reversing as $n$ grows, outcome-by-outcome. At $c = 2$, bal0 is consistently less biased. Detail at $c < 1$:
+
+- linear: at $n \leq 1000$, bal0 less biased at every $c$. by $n = 5000$, MLE less biased at $c \in \{0.50, 0.75, 1\}$; bal0 at $c \in \{0.25, 2\}$. by $n = 10000$, MLE less biased at $c \leq 1$; bal0 at $c = 2$.
+
+- quadratic: at $n = 500$, bal0 less biased at every $c$. at $n = 1000$, bal0 less biased at $c \in \{0.25, 1, 2\}$; $c \in \{0.50, 0.75\}$ unresolved. by $n = 5000$, MLE less biased only at $c = 0.25$; as its bias overshoots positive, bal0 is less biased at every $c$ by $n = 10000$, and all balancing less biased at ($c = 0.50$, $n = 10000$).
+
+- exponential: at $n \leq 1000$, bal0 less biased at every $c$. by $n = 5000$, MLE less biased at $c \in \{0.50, 0.75, 1\}$; bal0 at $c \in \{0.25, 2\}$.
+
+- motivation for AIPW to mitigate balancing estimators' native bias.
+
+**Decomposition:** balancing RMSE is overwhelmingly bias-driven; MLE is variance-driven. Outcome complexity matters:
+
+- for balancing, RMSE becomes increasingly variance-driven as linear $>$ exp $>$ quadratic.
+
+- for MLE, this ordering holds at small $n$ but reverses at $n = 5000$ as it converges to the wrong $\tau$ (quadratic most bias-driven). MLE is mostly variance-driven at $c < 2$ from $n \geq 5000$ (from $n \geq 1000$ under quadratic); at $c = 2$, predominantly bias-driven, most clearly for linear.
+
+**Extremes:** MLE produces 28 extreme estimates ($|\hat{\tau}| > 10$), concentrated in quadratic outcomes and moderate overlap ($0.5 \leq c \leq 1$). Balancing produces 0. *No need for ad hoc weight trimming/truncation with balnet.*
+
+### Within Balancing
+
+**bal0 is the best estimator overall;** its edge grows with $n$ (least biased) and is outcome-dependent, strongest under quadratic outcomes at large $n$.
+
+*RMSE:*
+
+- linear: converges with bal05 at $c = 0.25$ for $n < 5000$.
+
+- exponential: converges with bal05 at $c = 0.25$ for $n \leq 1000$ (bal05 marginally ahead at $n = 500$). separated by $n = 5000$.
+
+- quadratic: at $n = 500$, converges with bal05 at $c = 0.25$; the gap at $c = 0.50$ is marginal. at $n = 1000$, $c = 0.25$: converges with bal05. beats balcv at every cell.
+
+  - *exception\* bal05 \> bal0 at exp n=500 c=0.25, marginal.* *Confirm in MCSE analysis*
+
+*Bias:*
+
+- linear: at lower $n$, converges with set-$\lambda$ estimators by $c = 0.25$. by $n = 5000$, lower than all others.
+
+- exponential: same pattern at reduced relative magnitude.
+
+- quadratic: similar, except bal0 bias keeps shrinking at large $n$ and weak overlap while set-$\lambda$ estimators retain their bias floors.
+
+- pre/post convergence pattern: bal0 outperforms set-$\lambda$ estimators until it converges with them at $\lambda_{\text{end}}$. a minimum $\lambda$ either doesn't bind (truncated regime, irrelevant) or does bind and imposes a bias floor that grows costly with $n$.
+
+- **idea:** simulate with the true $\lambda_{\min}$ fixed around 0.05 and 0.10.
+
+**balcv is third within balnet at** $c < 2$, and second at $c = 2$, where it beats bal05 at every $n$; it never beats bal0.
+
+- at weak overlap its selected $\lambda$ exceeds even 0.10 (more biased than bal10): the CV criterion over-regularizes where variance protection would matter most.
+
+- no support for balcv as a practical choice; CV criterion performance is questionable. *\[quarantined pending the cv.balnet fix\]*
+
+**bal10 illustrates the cost of setting** $\lambda$ above the true minimum. Clearest under quadratic outcomes: as $n$ increases, bal10 RMSE stays flat while bal0 keeps improving; under linear, all fixed-$\lambda$ estimators sit on their bias floors from $n = 1000$.
+
+# Delta (misspecified - correct)
+
+```{r}
+# base_seed = 203 in both batches: pairs are seed-shared
+d_ov <- delta_ms(summ_ov, ests = est_main) |> filter(!is.na(d_rmse))
+
+for (oc in names(oc_labs)) {
+  print(delta_panel(d_ov, oc, ests = est_main))
+  print(delta_panel(d_ov, oc, ests = est_bal))
+}
+
+delta_table(d_ov, ests = est_main, at_n = 1000)
+delta_table(d_ov, ests = est_main)                 # n = 5000
+
+# |Bias| and SD vs overlap, correct vs misspecified (n = 5000, all c)
+spec_grid(summ_ov, ests = est_bal)
+```
+
+\
+**RMSE:**
+
+Under linear outcomes
+
+- at $n \leq 1000$, misspecification hurts bal0/bal05 more than MLE at every $c$ (bal10 is hurt less than MLE at $c \geq 0.75$). MLE's delta overtakes from $n = 5000$ at $0.50 \leq c \leq 1$, receding to a tie with bal0 at ($c = 1$, $n = 10000$).
+
+- at $c = 0.25$, balancing (bal05/bal10) stays the most affected at every $n$; MLE is the least affected at every $n$. at $c = 2$, deltas are small and bal0's is the largest.
+
+Under quadratic outcomes
+
+- MLE is substantially the most affected at $c \leq 1$ from $n = 1000$, around 10-18x bal0 by $n \geq 5000$. at $c = 2$ its delta vanishes.
+
+- bal10's delta is negative at $c \geq 0.50$ ($\approx 0$ at $n = 500$, $c = 0.50$): misspecification improves it.
+
+Under exponential outcomes
+
+- same pattern as quadratic at reduced magnitude: MLE most affected at $0.50 \leq c \leq 1$ from $n = 1000$, around 3x bal0 at large $n$. at $c = 0.25$ it is less affected than bal0 at $n \leq 1000$ and only slightly more by $n \geq 5000$. at $c = 2$, deltas are small and bal0's is the largest.
+
+- $\delta(\text{RMSE}) = \delta(\text{bias}^2) + \delta(\text{variance})$: balancing deltas are bias-driven throughout. MLE's delta is variance-driven at $c < 2$ for $n \geq 5000$ (at every $n$ under quadratic), bias-driven at small $n$ under linear and exponential, and bias-driven at $c = 2$. MLE's misspec bias flips sign between $n = 1000$ and $5000$ under quadratic at $0.50 \leq c \leq 1$ (by $n = 10000$ at $c = 0.25$) and by $n = 10000$ under exponential at $c \in \{0.50, 0.75\}$.
+
+**BIAS**
+
+Under linear outcomes
+
+- bias less effected under MLE, at both small and large n.
+
+Quadratic
+
+- balancing less effected until c=0.25 at small n. under large n, is more biased consistently.
+
+Exponential
+
+- MLE bias generally less effected.

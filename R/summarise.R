@@ -36,10 +36,11 @@ load_sim <- function(path) {
 #' Identify diagnostic rows by their estimator label
 #'
 #' @param x Character vector of estimator labels.
-#' @return Logical vector, TRUE for logged diagnostics (lam_, nnz_, smd,
-#'   cvloss, trunc05, prev, emin, emax, nout).
+#' @return Logical vector, TRUE for logged diagnostics (lam_, nnz_, smd, ess,
+#'   wmax, time_, cvloss, trunc05, prev, emin, emax, nout).
 is_diag <- function(x)
-  grepl("^(lam_|nnz_|smd[01]_|cvloss_|logcvloss_|trunc05|prev|emin|emax|nout)", x) |
+  grepl(paste0("^(lam_|nnz_|smd|ess|wmax|time_|cvloss_|logcvloss_|",
+               "trunc05|prev|emin|emax|nout)"), x) |
   x %in% c("trunc05", "prev", "emin", "emax", "nout05", "nout01")
 
 

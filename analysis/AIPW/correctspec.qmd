@@ -1,0 +1,357 @@
+---
+title: "CORRECT SPEC (DGP1 and 2 locked, all signs)"
+format: html
+embed-resources: true
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+library(purrr)
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+
+df_sg <- imap(batches, \(f, b)
+              mutate(load_sim(paste0(res, f, ".csv.gz")), batch = b)) |>
+  bind_rows()
+
+res <- paste0(here::here("results", "ipw"), "/")
+batches <- c(DGP1 = "correctspecDGP1", DGP2_ks = "correctspecDGP2_ks",
+             DGP2_mixed = "correctspecDGP2_mixed", DGP2_pos = "correctspecDGP2_pos")
+
+
+
+summ_sg <- imap(split(df_sg, df_sg$batch),
+                \(d, b) mutate(summarise_sim(d), batch = b)) |>
+  bind_rows() |>
+  mutate(batch = factor(batch, names(batches)))
+
+# screen: full reps on estimator rows; no errors; logcvloss NAs report-only
+est_keep <- c(est_main, "glmnetcv_ht", "oracle_hajek", "oracle_ht")
+
+stopifnot(all(filter(summ_sg, estimator %in% est_keep)$m == 1000),
+          all(df_sg$err == ""))
+
+summ_sg |> filter(m < 1000 | n_na > 0) |> count(batch, estimator, n, name = "cells")
+```
+
+note# fix cv.loss overflow in run script.
+
+# Correct Spec
+
+```{r}
+# DGP1 vs DGP2 (K&S signs) -----------------------------------------
+d12 <- filter(summ_sg, batch %in% c("DGP1", "DGP2_ks"))
+
+walk(names(oc_labs), \(oc) print(
+  panel(d12, oc, ests = c(est_main, "oracle_hajek", "oracle_ht"),
+        extra = list(scale_x_n, facet_wrap(~batch)))))
+
+perf_table(d12, ests = est_keep, cols = c("batch", "n"),
+           group = "outcome", span_desc = FALSE,
+           title = "Correct spec, c = 1: DGP1 vs DGP2 (K&S signs)")
+
+# DGP2 sign patterns: pos vs mixed ---------------------------------
+dsg <- filter(summ_sg, batch %in% c("DGP2_pos", "DGP2_mixed"))
+
+walk(names(oc_labs), \(oc) print(
+  panel(dsg, oc, ests = c(est_main, "oracle_hajek", "oracle_ht"),
+        extra = list(scale_x_n, facet_wrap(~batch)))))
+
+perf_table(dsg, ests = est_keep, cols = c("batch", "n"),
+           group = "outcome", span_desc = FALSE,
+           title = "Correct spec, c = 1: DGP2 sign patterns (pos vs mixed)")
+
+
+# RMSE decomposition + extremes ------------------------------------
+walk(levels(summ_sg$batch), \(b)
+     print(decomp_plot(filter(summ_sg, batch == .env$b), ests = est_main,
+                       title = paste0("MSE decomposition (%) \u2014 ", b))))
+
+summ_sg |> filter(n_extreme > 0, estimator %in% est_keep) |>
+  select(batch, estimator, outcome, n, n_extreme)
+```
+
+**ALL CV.BALNET ESTIMATES AND DIAGNOSTICS ARE INVALID UNTIL FIX.**
+
+#### **Balancing vs MLE**
+
+- **Balnet (path endpoint) RMSE dominates all estimators including both oracles (HT and Hájek) at every** $\bf n$**,** consistent with Wager (2024). *(single exception: quad1 n=500 vs bal05 is unresolved, paired z = −0.13, a tie by our convention).*
+  - **In the legacy run it hit a bias floor around 0.01**. This does not contradict Wager's consistency results. The bias floor is a tuning artifact where the package's default path floor is $\lambda = \frac{\lambda_{max}}{100} \approx 0.004$ (*confirmed in* `WagnertestE1.R`).
+  - DGP and solver are correctly implemented. Bias floor removed with `max.imbalance` $= 10^{-4}$ in the probe (20 seeds, `WagnertestE1.R`); under which bias $\approx 0$ at every $n$ (−0.004 at n=500 to −0.0004 at n=50,000).
+- **at** $\bf n=500$**,** balancing methods outperform MLE.
+- **as** $\bf n$ **increases,** penalized MLE `glmnet.cv` consistency property wins out.
+  - `bal05` outperforms `glmnet` at $n \leq 1000$; `bal10` only at $n = 500$**.** As $n$ increases, `bal05` and `bal10` are outperformed by `glmnet` as their bias converges to a floor as their imbalance converges to their set maximum imbalance, $\lambda$.
+  - `balnet.cv` may be consistent, but regardless, it converges at a significantly slower rate. *(suggests issues with CV criterion)*.
+
+#### **Within Balancing Estimators**
+
+- **balnet.cv over-regularizes, erasing the loss function advantage.**
+  - This suggests its CV criterion *(out of sample balancing loss)*, may converge to a $\lambda_{cv}$ above the optimal $\lambda$ for ATE estimation.
+  - while sample size increases reduce its RMSE/bias, the slope of this improvement is very slow.
+    - median $\lambda_{cv}$ decays 0.011 → 0.006 over $n$ = 500 → 50,000 ($\approx n^{-0.12}$), against $n^{-0.53}$ for `cv.glmnet` and $\lambda_{end}$ = 1e-4 throughout. In KKT terms, the selected maximum allowable imbalance barely shrinks with $n$.
+- **outcome complexity improves balnet.cv's relative performance.** Under non-linear specifications balnet.cv overtakes bal05 from $n \geq 5000$ *(already tied at n=1000)*.
+
+#### **Sign Changes**
+
+Bal0's performance is invariant to sign changes, confirming that exact balancing is insensitive to confounding alignment (the degree to which propensity coefficient signs match outcome coefficient signs). For our baseline-covariate sign profiles moving forward, we will use the fully aligned case, $\bf \sigma = (1,1,....,1)$, where the sign of outcome and propensity score coefficients match perfectly. This is where the normalized MLE's relative performance over fixed-$\lambda$ balancing is strongest (glm/bal05 RMSE ratio at $n$=50,000: 0.18 pos vs 0.33 mixed), while bal0's advantage over MLE is simultaneously largest here (glm/bal0: 4.2 pos vs 1.6 mixed) (exception at small $n$, but doesnt change observed crossovers).
+
+- MLE's relative advantage over fixed-$\lambda$ balancing increases with $n$ (crossover in (1000, 5000\] under pos and ks; under mixed with nonlinear outcomes MLE never overtakes bal05), and at low $n$ its performance gaps are actually the most pronounced under full alignment (glm-Hájek bias −0.40 at $n$=500 pos).
+
+balnet.cv: under aligned signs, balnetcv improves relative to bal05/bal10 (their bias scales linearly in alignment, −0.050/−0.150/−0.250 for bal05 at 50k mixed/ks/pos, while its own grows sublinearly, −0.044/−0.092/−0.162; on RMSE the improvement is mixed → aligned, then flat between ks and pos).
+
+- no reason to worry about sign effects again, summarise this all better in the appendix.
+- prior results with DGP 1 use K&S signs (Kang & Schafer 2007, as used in Tan 2020a).
+
+`DGP2corsignTEST` shows that under AR(1) correlated covariates these sign effects generally hold (pos effects unchanged by correlation; mixed-sign geometry shifts — quad1-mixed bias flips sign, the exact iid cancellation is iid-specific)
+
+**Notes:**
+
+- **outcome complexity:** effects attenuation magnitude, not ranking.
+  - quadratic: *increases variance for all estimators.*
+  - exponential: *reduces bias for balancing estimators.*
+- Under correct specification non-normalized MLE *(glmHT)* and normalized MLE *(glmHajek)* are competitive. However, glmHajek imposes the Hájek normalization by construction (Chattopadhyay et al., 2020), and introducing mispeccification causes *glmHT's* RMSE and bias to explode, so we will only use the normalised version for our analysis.
+
+*will also use normalized oracle.*
+
+# Diagnostics
+
+**ALL CV.BALNET RELATED DIAGNOSTICS ARE INVALID UNTIL FIX.**
+
+```{r}
+# CV lambda selection (DGP2, all-positive signs, correct spec) -----
+d_pos <- filter(df_sg, batch == "DGP2_pos")
+
+dg <- summarise_diag(d_pos) |> filter(outcome == "linear")
+lambda_plot(dg, stats = c("lam_balcv1", "lam_balcv0"), ribbon = TRUE) + scale_x_n
+
+dg |> summarise(cv  = coef(lm(log(lam_balcv1_med) ~ log(n)))[2],
+                glm = coef(lm(log(lam_glmcv_med)  ~ log(n)))[2])
+
+# Held-out CB loss at the path endpoint vs the CV-selected lambda
+as_diag(d_pos) |> filter(outcome == "linear") |>
+  mutate(r = exp(logcvloss_end1 - logcvloss_cv1)) |>
+  group_by(n) |>
+  summarise(med = median(r, na.rm = TRUE),
+            p10 = mean(r > 10, na.rm = TRUE),
+            n_na = sum(is.na(r))) |>
+  mutate(med = ifelse(med >= 100, sprintf("%.0f", med), sprintf("%.2f", med)),
+         p10 = drop0(sprintf("%.2f", p10)), n_na = as.character(n_na)) |>
+  rename(`Median r` = med, `P(r > 10)` = p10, `NA reps` = n_na) |>
+  pivot_longer(-n, names_to = "stat") |>
+  pivot_wider(names_from = n, values_from = value, names_prefix = "n=") |>
+  gt() |> cols_label(stat = "") |>
+  cols_label_with(starts_with("n="), \(x) n_relabel(sub(".*=", "", x))) |>
+  cols_align("center", starts_with("n=")) |>
+  tab_source_note(md(paste0(
+    "_Treated arm; r = exp(logcvloss_end \u2212 logcvloss_cv). ",
+    "Overflow reps land as NA and are excluded._")))
+
+
+
+## corr(lambda_cv, tau) across replications
+as_diag(d_pos) |> filter(outcome == "linear") |>
+  transmute(n, sim, lam_cv = (lam_balcv1 + lam_balcv0) / 2) |>
+  inner_join(d_pos |> filter(outcome == "linear", estimator == "balnetcv") |>
+               select(n, sim, tau_hat), by = c("n", "sim")) |>
+  group_by(n) |>
+  summarise(cor = cor(tau_hat, lam_cv, use = "complete.obs"))
+
+## Degree: RMSE ratio and bias2 share, balnetcv vs bal0/bal05
+d_pos |> filter(estimator %in% c("balnetcv", "balnet0", "balnet05")) |>
+  group_by(estimator, outcome, n) |>
+  summarise(mse = mean(tau_hat^2), v = var(tau_hat), .groups = "drop") |>
+  mutate(bias2_pct = 100 * (mse - v) / mse) |>
+  select(-v) |>
+  pivot_wider(names_from = estimator, values_from = c(mse, bias2_pct)) |>
+  transmute(outcome = factor(oc_labs[outcome], oc_labs), n,
+            `vs bal0`  = sqrt(mse_balnet0  / mse_balnetcv),
+            `vs bal05` = sqrt(mse_balnet05 / mse_balnetcv),
+            balnetcv = bias2_pct_balnetcv,
+            bal0     = bias2_pct_balnet0,
+            bal05    = bias2_pct_balnet05) |>
+  arrange(outcome, n) |>
+  gt(groupname_col = "outcome") |>
+  fmt_number(c(`vs bal0`, `vs bal05`), decimals = 2) |>
+  fmt_number(c(balnetcv, bal0, bal05), decimals = 0) |>
+  cols_label(n = "") |>
+  tab_spanner("RMSE ratio (comp / CV)", c(`vs bal0`, `vs bal05`)) |>
+  tab_spanner("Bias\u00b2 share of MSE (%)", c(balnetcv, bal0, bal05)) |>
+  cols_align("center", -outcome) |>
+  tab_source_note(md(
+    "_Ratios below 1 favour the comparator. Bias\u00b2 = MSE \u2212 var (true \u03c4 = 0)._"))
+
+
+```
+
+- BalNet (CV) does not share the fixed-λ estimators' variance behaviour: fixed-λ variance decays at the standard rate, so their bias² share of MSE rises toward 100%, while BalNet (CV)'s plateaus below it. This is true across all outcomes."
+
+  - balnet.cv carries \~1.8x bal0's RMSE on linear/exponential at every n, up to 3.4x on quadratic where the gap widens with n. vs bal05 it only pulls ahead after \~5k, and by ≤11%.
+
+- misspeccification appears to not effect where the CV selected $\lambda$ lands, or its spread over replications.
+
+- Cross-validation targeting CB loss rejects the best-performing λ at small n, and is indifferent to it at large n.
+
+- At n=500 with small λ, the fitted coefficients are large. bal0 uses them once, on the same data they were fit to, and the estimate stays fine. CV takes those coefficients to a held-out fold, where they don't balance anything, and the exponential loss overflows. So CV scores small λ as catastrophic and never selects it — the λ region that actually works.
+
+- at large n, CV selected lambda still too high but is flatter, less varied.
+
+- correlation($\lambda_{cv}, \hat\tau$) is almost 1 for 1 in magnitude, increases with sample size. suggests balnet.cv variance is CV $\lambda$ selection noise, as sampling noise shrinks with n while the variance on balnet.cv reduces only slightly (leftover variance is from selection)
+
+# CV CURVE
+
+```{r}
+## CV curves: x = lambda path, y = held-out CB loss
+# CV criterion: cv.balnet selects the lambda minimising this. 
+load_cv <- function(csv, rds) {
+  cells  <- distinct(tibble::as_tibble(data.table::fread(csv, select = c("n", "overlap"))))
+  curves <- readRDS(rds)
+  stopifnot(nrow(cells) == length(curves))
+  bind_rows(lapply(seq_along(curves), \(ci) bind_cols(
+    cells[ci, ],
+    bind_rows(lapply(seq_along(curves[[ci]]), \(r) {
+      x <- curves[[ci]][[r]]; if (is.null(x)) return(NULL)
+      bind_rows(lapply(c("treated", "control"), \(a)
+                       tibble(rep = r, arm = a, lambda = x$lambda[[a]], cv = x$cv.mean[[a]])))
+    })))))
+}
+
+f_pos <- paste0(res, "correctspecDGP2_pos.csv.gz")
+stopifnot(file.exists(f_pos))
+cur <- load_cv(f_pos, sub("\\.csv\\.gz$", "_cvcurves.rds", f_pos))
+
+## curve with cutoff every 20 x, (L=100, K=5, L/K =20)
+cur |> filter(n == 500, rep == 1, arm == "treated") |>
+  mutate(idx = row_number()) |>
+  ggplot(aes(idx, cv)) + geom_line() +
+  geom_vline(xintercept = c(20.5, 40.5, 60.5, 80.5), linetype = 3) +
+  scale_y_log10() + theme_sim
+
+
+## All curves: locate >20x single-step drops
+# (ratio threshold 20 is arbitrary; unrelated to the period 20 = 100/nfolds)
+cur |>
+  group_by(n, overlap, rep, arm) |>
+  mutate(idx = row_number()) |>
+  filter(cv < lag(cv) / 20) |>
+  ungroup() |> count(idx, sort = TRUE)
+```
+
+- 5 curves, one for each CV fold. Should be 1 CV curve. Drops occur every 20 indicies, for each CV fold.
+
+- curve is stored wrong or possible estimation issue.
+
+# Storage VS Estimation/Package issue.
+
+```{r}
+#  If cv.balnet's lambda selection uses the stored vector, each curve's
+# argmin lambda equals the recorded lam_balcv. match = 1: it does, so the
+# scrambled curve drives selection, not just storage.
+rec <- as_diag(d_pos) |> filter(outcome == "linear") |>   # dedup: diags repeat per outcome
+  select(n, sim, treated = lam_balcv1, control = lam_balcv0) |>
+  pivot_longer(c(treated, control), names_to = "arm", values_to = "lam_rec")
+
+cur |>
+  group_by(n, overlap, rep, arm) |>
+  slice_min(cv, with_ties = FALSE) |>                     # argmin row of each curve
+  ungroup() |>
+  inner_join(rec, by = c("n", "rep" = "sim", "arm")) |>
+  summarise(curves = n(),
+            match  = mean(abs(lambda - lam_rec) / lam_rec < 1e-8))  #tolerance
+
+
+```
+
+- each lambda is the minimum of the compressed vector, storage is not the issue.
+
+# Fixing VS Estimation/Package issue.
+
+```{r}
+## Reprex: rebuild per-fold held-out losses manually, same foldid/settings/path
+# v is fold-major: stored cv.mean = column-major reshape (bug); fold mean = fix
+library(balnet)
+set.seed(1)
+n <- 400; p <- 10
+X <- matrix(rnorm(n * p), n, p)
+W <- rbinom(n, 1, plogis(X[, 1]))
+nfolds <- 5
+foldid <- sample(rep(seq_len(nfolds), length.out = n))
+
+cvfit <- cv.balnet(X, W, nfolds = nfolds, foldid = foldid, max.imbalance = 1e-2)
+
+lam <- cvfit$`_lambda`
+v <- unlist(lapply(seq_len(nfolds), \(k) {
+  tr <- foldid != k
+  f  <- balnet(X[tr, ], W[tr], standardize = ".inplace", max.imbalance = 1e-2)
+  balnet:::get_balance_loss(f, X[!tr, , drop = FALSE], W[!tr],
+                            rep(1, sum(!tr)), lam)$treated
+}))
+L   <- length(lam$treated)
+bug <- colMeans(matrix(v, nfolds, L))   # cv.balnet.R lines 79/84
+fix <- rowMeans(matrix(v, L, nfolds))   # fold mean at each lambda
+
+isTRUE(all.equal(cvfit$`_cv.info`$cv.mean$treated, bug))   # confirms our "bugged" version is the same as cv.balnet estimation
+cvfit$lambda.min$treated                                   # selected
+lam$treated[which.min(fix)]                                # correct
+
+
+
+## Visual: stored vector vs corrected criterion
+num  <- function(z) as.numeric(unlist(z, use.names = FALSE))
+cv   <- num(cvfit$`_cv.info`$cv.mean$treated)
+lamT <- num(lam$treated)
+
+par(mfrow = c(1, 2))
+plot(cv, log = "y", type = "l", xlab = "path index", ylab = "held-out CB loss",
+     main = "stored cv.mean")
+abline(v = c(20.5, 40.5, 60.5, 80.5), lty = 3)
+plot(lamT, fix, log = "xy", type = "l", xlab = "lambda", ylab = "",
+     main = "fold mean (fix)")
+abline(v = c(num(cvfit$lambda.min$treated), lamT[which.min(fix)]), lty = c(3, 1))
+par(mfrow = c(1, 1))
+```
+
+- confirmed our fix, taking the average over rows, produces 1 smooth curved row.
+
+```{r}
+## Reprex: rebuild per-fold held-out losses manually, same foldid/settings/path
+# v is fold-major: stored cv.mean = column-major reshape (bug); fold mean = fix
+library(balnet)
+set.seed(1)
+n <- 800; p <- 10                       # changed: held-out fold size 80, matches 5-fold reprex
+X <- matrix(rnorm(n * p), n, p)
+W <- rbinom(n, 1, plogis(X[, 1]))
+nfolds <- 10                            # changed
+foldid <- sample(rep(seq_len(nfolds), length.out = n))
+cvfit <- cv.balnet(X, W, nfolds = nfolds, foldid = foldid, max.imbalance = 1e-2)
+lam <- cvfit$`_lambda`
+v <- unlist(lapply(seq_len(nfolds), \(k) {
+  tr <- foldid != k
+  f  <- balnet(X[tr, ], W[tr], standardize = ".inplace", max.imbalance = 1e-2)
+  balnet:::get_balance_loss(f, X[!tr, , drop = FALSE], W[!tr],
+                            rep(1, sum(!tr)), lam)$treated
+}))
+L   <- length(lam$treated)
+bug <- colMeans(matrix(v, nfolds, L))   # cv.balnet.R lines 79/84
+fix <- rowMeans(matrix(v, L, nfolds))   # fold mean at each lambda
+isTRUE(all.equal(cvfit$`_cv.info`$cv.mean$treated, bug))
+cvfit$lambda.min$treated                # selected
+lam$treated[which.min(fix)]             # correct
+## Visual: stored vector vs corrected criterion
+num  <- function(z) as.numeric(unlist(z, use.names = FALSE))
+cv   <- num(cvfit$`_cv.info`$cv.mean$treated)
+lamT <- num(lam$treated)
+blk  <- L / nfolds                      # changed: boundaries from L, not hardcoded
+par(mfrow = c(1, 2))
+plot(cv, log = "y", type = "l", xlab = "path index", ylab = "held-out CB loss",
+     main = "stored cv.mean")
+abline(v = seq_len(nfolds - 1) * blk + 0.5, lty = 3)
+plot(lamT, fix, log = "xy", type = "l", xlab = "lambda", ylab = "",
+     main = "fold mean (fix)")
+abline(v = c(num(cvfit$lambda.min$treated), lamT[which.min(fix)]), lty = c(3, 1))
+par(mfrow = c(1, 1))
+```

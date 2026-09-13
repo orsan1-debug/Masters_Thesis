@@ -1,13 +1,10 @@
-## R/estimators.R -----------------------------------------------------------
-### LEGACY MAP
-#  est_recode <- c(glmnetcv = "glmnetcv_ht", glmcv_normal = "glmnetcv_hajek", oracle = "oracle_ht", normalised_oracle = "oracle_hajek")
+## R/estimators_ipw.R -------------------------------------------------------
+## References (Author Year, p. N) cite the PDF page of the project copy;
+## [PKG] = balnet 0.0.4 package reference; [GK] = general knowledge.
 
 ## --- ATE estimators -------------------------------------------------------
 
-#' Horvitz-Thompson ATE estimate
-#'
-#' Inverse-propensity weighted difference in means without normalisation, one
-#' estimate per outcome column.
+#' Horvitz-Thompson ATE (Ding 2023 s.11.2.2, p. 186)
 #'
 #' @param Y Numeric matrix of outcomes, n x k.
 #' @param W Binary treatment vector of length n.
@@ -17,172 +14,182 @@
 ate_ht <- function(Y, W, e1, e0)
   colMeans(Y * (W / e1 - (1 - W) / e0))
 
-#' Hajek (normalised) ATE estimate
+#' Hajek ATE, weights normalised within arm (Ding 2023 s.11.2.2, p. 186)
 #'
-#' Inverse-propensity weighted difference in means with the weights normalised
-#' to sum to one within each arm, one estimate per outcome column.
-#'
-#' @param Y Numeric matrix of outcomes, n x k.
-#' @param W Binary treatment vector of length n.
-#' @param e1 P(W = 1 | X), length n.
-#' @param e0 P(W = 0 | X), length n.
+#' @inheritParams ate_ht
 #' @return Numeric vector of length k.
-ate_hajek <- function(Y, W, e1, e0) {           # Hajek (Chattopadhyay et al. 2020)
+ate_hajek <- function(Y, W, e1, e0) {
   a1 <- W / e1
   a0 <- (1 - W) / e0
   colSums(Y * a1) / sum(a1) - colSums(Y * a0) / sum(a0)
 }
 
-#' ATE from balancing weights
-#'
-#' Mean of Y times (treated weight minus control weight), one estimate per
-#' outcome column.
+# ATE from balnet weights, W/e on-arm and 0 off-arm; each arm sums to n, so
+# HT = Hajek ([PKG] balweights; Tan 2020 RCAL eq. 10, p. 8).
+#   Y: numeric matrix of outcomes, n x k
+#   w: balweights() object with elements treated and control
+ate_bal <- function(Y, w)
+  colMeans(Y * drop(w$treated - w$control))
+
+# Lasso outcome model per arm and outcome, predicted for all units (Ding 2023
+# Def. 12.1, p. 197).
+#   data:     a draw from dgp2()
+#   nfolds:   CV folds for cv.glmnet
+#   use_true: fit on X_true, the PS-wrong / OR-correct cell, estimator-side
+#             as in Kang & Schafer 2007, p. 528
+# Returns m1, m0 (n x k fitted means) and nnz1, nnz0 (non-zero coefficients
+# per outcome, intercept excluded).
+fit_or <- function(data, nfolds = 5, use_true = FALSE) {
+  X <- if (use_true) data$X_true else data$X
+  Y <- as.matrix(data$Y)
+  fit_arm <- function(a) {
+    idx <- data$W == a
+    lapply(seq_len(ncol(Y)), function(j)
+      cv.glmnet(X[idx, ], Y[idx, j], family = "gaussian", nfolds = nfolds))
+  }
+  pred <- function(fits)
+    vapply(fits, function(f) predict(f, newx = X, s = "lambda.min")[, 1],
+           numeric(nrow(X)))
+  or1 <- fit_arm(1)
+  or0 <- fit_arm(0)                    # arm 1 then 0: RNG order
+  list(m1 = pred(or1), m0 = pred(or0),
+       nnz1 = vapply(or1, nnz_lasso, numeric(1)),
+       nnz0 = vapply(or0, nnz_lasso, numeric(1)))
+}
+
+#' AIPW ATE, plug-in mean of m1 - m0 plus Hajek-weighted residuals per arm
+#' (Ding 2023 Problem 12.2, p. 204)
 #'
 #' @param Y Numeric matrix of outcomes, n x k.
-#' @param w A balweights() object with elements treated and control.
+#' @param w1,w0 Per-unit weights for each arm, zero off-arm.
+#' @param m1,m0 Fitted outcome means, n x k.
 #' @return Numeric vector of length k.
-ate_bal <- function(Y, w)                       # w = balweights() object
-  colMeans(Y * drop(w$treated - w$control))
+ate_aug <- function(Y, w1, w0, m1, m0) {
+  w1 <- drop(w1)
+  w0 <- drop(w0)
+  colMeans(m1 - m0) +
+    colSums((Y - m1) * w1) / sum(w1) - colSums((Y - m0) * w0) / sum(w0)
+}
 
 ## --- diagnostics ----------------------------------------------------------
 
-## max SMD of the weighted mean against the full-sample mean.
-#' Maximum standardised mean difference of one weighted arm
-#'
-#' Largest absolute difference between the weighted column means and the
-#' full-sample means, divided by the full-sample standard deviations.
-#'
-#' @param w Weight vector (or n x 1 matrix) for one arm.
-#' @param X Covariate matrix, n x p.
-#' @param xbar Full-sample column means of X.
-#' @param sdx Full-sample column standard deviations of X.
-#' @return A single number.
-max_smd <- function(w, X, xbar, sdx)
-  max(abs(colSums(drop(w) * X) / sum(w) - xbar) / sdx)
-
-## CV loss at the selected lambda and at the end of the path.
-#' Cross-validated balance loss at the selected and at the end-of-path lambda
-#'
-#' @param fit A cv.balnet fit; its `_cv.info` element is read.
-#' @param arm "treated" or "control".
-#' @return Numeric vector of length 2: the CV loss at lambda.min and at the
-#'   smallest lambda on the path.
-cv_loss <- function(fit, arm) {
-  cvi <- fit$`_cv.info`
-  c(cvi$cv.mean[[arm]][cvi$idx.min[[arm]]],
-    cvi$cv.mean[[arm]][which.min(fit$lambda[[arm]])])
+# One arm's weights, zero off-arm: max |SMD| against the full-sample mean
+# (Sverdrup & Hastie 2026 eq. 10, p. 6), Kish ESS [GK], and the max weight
+# with the arm scaled to sum n (Austin & Stuart 2015, p. 3663).
+#   w:         weight vector or n x 1 matrix
+#   X:         covariate matrix, n x p
+#   xbar, sdx: full-sample column means and standard deviations of X
+# Returns a named vector: smd, ess, wmax.
+weight_diags <- function(w, X, xbar, sdx) {
+  w <- drop(w)
+  c(smd  = max(abs(colSums(w * X) / sum(w) - xbar) / sdx),
+    ess  = sum(w)^2 / sum(w^2),
+    wmax = max(w) * length(w) / sum(w))
 }
+
+#' Non-zero coefficients of a cv.glmnet fit at lambda.min, intercept
+#' excluded [GK]
+#'
+#' @param fit A cv.glmnet object.
+#' @return A single number.
+nnz_lasso <- function(fit) sum(coef(fit, s = "lambda.min")[-1, ] != 0)
 
 ## --- per-replication estimation -------------------------------------------
 
-#' One replication of every ipw estimator with its diagnostics
+#' One replication of every estimator and diagnostic on one draw; rows are
+#' documented where they are built below
 #'
-#' Fits cv.balnet once and takes weights at the CV-selected lambda, at the
-#' fixed lambdas and at sqrt(log(p) / n) (Wager 2024, s.7.2); fits cv.glmnet
-#' for the propensity-score arms; adds the true-propensity oracle. The
-#' estimates are stacked with scalar diagnostics (selected lambdas, path
-#' endpoints, active-set sizes, attained max SMD, true-propensity overlap
-#' summaries and the two CV losses), one column per outcome.
-#'
-#' @param data A draw from dgp1() or dgp2(): list with Y, W, X, e and,
-#'   optionally, e0.
-#' @param lambdas Named numeric vector of fixed lambdas; the names become the
-#'   "balnet<name>" row labels.
-#' @param nfolds Number of CV folds for cv.balnet and cv.glmnet.
-#' @param max_imbalance Path floor passed to cv.balnet as max.imbalance.
-#' @param cv_curve Logical; if TRUE the full CV loss curve is attached as the
-#'   "cv_curve" attribute.
-#' @param lambda_grid Optional lambda grid; if given, the ATE along the grid is
-#'   attached as the "tau_path" attribute.
-#' @return A numeric matrix (estimator and diagnostic rows x outcome columns)
-#'   with optional attributes cv_curve and tau_path.
-estimate_all <- function(data,
-                         lambdas       = c("0" = 0, "05" = 0.05, "10" = 0.10),
-                         nfolds        = 5,
-                         max_imbalance = 1e-4,   # path floor.
-                         cv_curve      = FALSE,
-                         lambda_grid   = NULL) {   #check CV against optimal lambda.
-  
+#' @param data A draw from dgp2().
+#' @param nfolds CV folds for cv.glmnet; 5 as Tan 2020 RCAL s.4, p. 20.
+#' @param max_imbalance balnet path floor (max.imbalance); 1e-4 targets exact
+#'   balance, the path truncating earlier where that is unattainable ([PKG]
+#'   balnet(), role of lambda).
+#' @return Numeric matrix, estimator and diagnostic rows x outcome columns.
+estimate_all <- function(data, nfolds = 5, max_imbalance = 1e-4) {
   Y  <- as.matrix(data$Y)                        # outcomes share (X, W) draws
   W  <- data$W
   X  <- data$X
-  n  <- nrow(X); p <- ncol(X); k <- ncol(Y)
   e1 <- data$e
-  e0 <- if (is.null(data$e0)) 1 - e1 else data$e0  # only dgp2 supplies e0
+  e0 <- data$e0
   
-  ## balancing: one CV fit. lambda floor is max_imbalance, never 0.
-  fit_bal <- cv.balnet(X, W, nfolds = nfolds, max.imbalance = max_imbalance)
-  w_cv    <- balweights(fit_bal)
-  w_fix   <- lapply(lambdas, function(l) balweights(fit_bal, lambda = l))
-  w_rate  <- balweights(fit_bal, lambda = sqrt(log(p) / n))  # Wager (2024) s.7.2
+  time_bal <- system.time(
+    fit_bal <- balnet(X, W, max.imbalance = max_imbalance)
+  )[["elapsed"]]
+  w_bal <- balweights(fit_bal, lambda = 0)       # lambda = 0 selects the path end
   
-  ## check CV against optimal lambda: tau on a shared lambda grid, both arms.
-  if (!is.null(lambda_grid)) {
-    w_grid   <- lapply(lambda_grid, function(l) balweights(fit_bal, lambda = l))
-    tau_path <- do.call(rbind, lapply(w_grid, ate_bal, Y = Y))   # grid x outcomes
-  }
+  time_ps <- system.time(
+    fit_glm <- cv.glmnet(X, W, family = "binomial", nfolds = nfolds)
+  )[["elapsed"]]
+  e_hat <- predict(fit_glm, newx = X, s = "lambda.min", type = "response")[, 1]
   
-  ## MLE
-  fit_glm <- cv.glmnet(X, W, family = "binomial", nfolds = nfolds)
-  e_hat   <- predict(fit_glm, newx = X, s = "lambda.min", type = "response")[, 1]
+  time_or <- system.time(or <- fit_or(data, nfolds))[["elapsed"]]
   
-  ## fixed-lambda ATE rows (balnet0, balnet05, balnet10)
-  ate_fix <- do.call(rbind, lapply(w_fix, ate_bal, Y = Y))
-  rownames(ate_fix) <- paste0("balnet", names(lambdas))
-  
-  
-  
-  ## scalar diagnostics (identical across outcome columns)
+  # per-arm weights, zero off-arm so length(w) = n; the true-weight SMD is the
+  # benchmark (Ben-Michael et al. 2021, p. 18)
+  w_arm <- list(
+    bal1  = w_bal$treated, bal0  = w_bal$control,        # [PKG] balweights
+    glm1  = W / e_hat,     glm0  = (1 - W) / (1 - e_hat),
+    true1 = W / e1,        true0 = (1 - W) / e0
+  )
   xbar <- colMeans(X)
-  sdx  <- apply(X, 2, sd) * sqrt((n - 1) / n)   # balnet's standardisation scale
-  cv1  <- cv_loss(fit_bal, "treated")
-  cv0  <- cv_loss(fit_bal, "control")
+  # population sd: balnet's SMD scale ([PKG] role of lambda)
+  sdx  <- apply(X, 2, sd) * sqrt((nrow(X) - 1) / nrow(X))
+  wd   <- vapply(w_arm, function(w) weight_diags(w, X, xbar, sdx), numeric(3))
+  b_bal <- coef(fit_bal, lambda = 0)
   
-  smd_fix <- numeric(0)
-  for (nm in names(lambdas)) {
-    smd_fix[paste0("smd1_", nm)] <- max_smd(w_fix[[nm]]$treated, X, xbar, sdx)
-    smd_fix[paste0("smd0_", nm)] <- max_smd(w_fix[[nm]]$control, X, xbar, sdx)
-  }
+  # Diagnostics and what they are for (Q1-Q8: research questions in
+  # project_state)
+  # smd/ess/wmax: balance and weight spread per weight set, the mechanism
+  #   behind a win (Q3, Q6, Q8; Sverdrup & Hastie 2026 eq. 10, p. 6; Austin &
+  #   Stuart 2015, p. 3663)
+  # lam_end: where the path stopped; above max_imbalance balance was not
+  #   reached and the OR has bias to remove (Q4, Q5; [PKG] role of lambda)
+  # nnz_bal, nnz_ps: what each PS fit kept (Q5; [PKG] print.balnet; [GK])
+  # time: two arm fits against one, cost only (Sverdrup & Hastie 2026
+  #   Remark 1, p. 5)
   
   diags <- c(
-    lam_balcv1 = fit_bal$lambda.min$treated,
-    lam_balcv0 = fit_bal$lambda.min$control,
-    lam_end1   = min(fit_bal$lambda$treated),
-    lam_end0   = min(fit_bal$lambda$control),
-    lam_glmcv  = fit_glm$lambda.min,
-    trunc05    = as.numeric(min(fit_bal$lambda$treated) > 0.05 |
-                              min(fit_bal$lambda$control) > 0.05),  # bal05 infeasible
-    nnz_balcv1 = sum(coef(fit_bal)$treated[-1, ] != 0),
-    nnz_balcv0 = sum(coef(fit_bal)$control[-1, ] != 0),
-    nnz_glm    = sum(coef(fit_glm, s = "lambda.min")[-1] != 0),
-    smd1_cv    = max_smd(w_cv$treated, X, xbar, sdx),
-    smd0_cv    = max_smd(w_cv$control, X, xbar, sdx),
-    smd_fix,
-    prev       = mean(W),                          # true-e overlap diagnostics
-    emin       = min(e1),
-    emax       = max(e1),
-    nout05     = sum(e1 < 0.05 | e1 > 0.95),
-    nout01     = sum(e1 < 0.01 | e1 > 0.99),
-    cvloss_cv1  = cv1[1], cvloss_cv0  = cv0[1],
-    cvloss_end1 = cv1[2], cvloss_end0 = cv0[2]
+    setNames(c(wd), sub("_bal", "", paste(
+      rownames(wd), rep(colnames(wd), each = nrow(wd)), sep = "_"))),
+    lam_end1 = min(fit_bal$lambda$treated),
+    lam_end0 = min(fit_bal$lambda$control),
+    nnz_bal1 = sum(b_bal$treated[-1, ] != 0),
+    nnz_bal0 = sum(b_bal$control[-1, ] != 0),
+    nnz_ps   = nnz_lasso(fit_glm),
+    time_bal = time_bal,
+    time_ps  = time_ps,
+    time_or  = time_or
   )
-  ## estimator rows + diagnostics, one matrix per replication
+  
+  # Estimators and what they are for (Q1-Q8: research questions in
+  # project_state)
+  # balnet0: exact-balance weights, the method on trial (Q1, Q4, Q6; [PKG]
+  #   balweights)
+  # glmnetcv_hajek: the MLE it is judged against, ratio form (Q1-3, Q6;
+  #   Tan 2020 RCAL p. 20)
+  # glmnetcv_ht: the same weights unnormalised, so the gap to _hajek is the
+  #   normalisation share (Q7; Imai & Ratkovic 2014 Table 1, p. 11)
+  # aipw_glmnetcv: MLE weights + lasso OR, can augmentation rescue MLE
+  #   (Q1, Q8; Ding 2023 Def. 12.1, p. 197)
+  # abw_balnet0: balnet weights + the same OR, the arm Q5 expects to win in
+  #   high dimension (Q1, Q5, Q8; Bruns-Smith 2025 eq. 7, p. 7)
+  # oracle_hajek: true e, the floor every row is measured from [GK]
+  # oracle_ht: true e unnormalised, normalisation cost alone (Q7; Ding 2023
+  #   p. 186)
+  # nnz_or: OR sparsity per arm and outcome (Q5; Bruns-Smith 2025 pp. 12-13)
+  
   out <- rbind(
-    balnetcv       = ate_bal(Y, w_cv),
-    ate_fix,                                      # balnet0, balnet05, balnet10
-    balnetrate     = ate_bal(Y, w_rate),
-    glmnetcv_ht    = ate_ht(Y, W, e_hat, 1 - e_hat),     # screen only
+    balnet0        = ate_bal(Y, w_bal),
+    glmnetcv_ht    = ate_ht(Y, W, e_hat, 1 - e_hat),
     glmnetcv_hajek = ate_hajek(Y, W, e_hat, 1 - e_hat),
+    aipw_glmnetcv  = ate_aug(Y, W / e_hat, (1 - W) / (1 - e_hat), or$m1, or$m0),
+    abw_balnet0    = ate_aug(Y, w_bal$treated, w_bal$control, or$m1, or$m0),
     oracle_ht      = ate_ht(Y, W, e1, e0),
     oracle_hajek   = ate_hajek(Y, W, e1, e0),
-    matrix(diags, length(diags), k, dimnames = list(names(diags), NULL))
+    nnz_or1        = or$nnz1,
+    nnz_or0        = or$nnz0,
+    matrix(diags, length(diags), ncol(Y), dimnames = list(names(diags), NULL))
   )
   colnames(out) <- colnames(Y)
-  
-  if (cv_curve)                                   # full CV curve, subset reps only
-    attr(out, "cv_curve") <- list(lambda  = fit_bal$lambda,
-                                  cv.mean = fit_bal$`_cv.info`$cv.mean)
-  if (!is.null(lambda_grid))
-    attr(out, "tau_path") <- list(lambda = lambda_grid, tau = tau_path)
   out
 }

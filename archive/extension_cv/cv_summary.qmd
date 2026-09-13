@@ -1,0 +1,250 @@
+---
+title: "CV exploration: is the path floor RMSE-optimal, and can a selector beat it?"
+format:
+  pdf:
+    pdf-engine: xelatex
+    mainfont: "Times New Roman"
+    number-sections: true
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r setup}
+library(readr)
+library(dplyr)
+library(ggplot2)
+# rendered from the project root (Extension_CV), where this file lives
+res_dir <- "results/runs"
+sum_dir <- "results/summary"
+fig_dir <- "figures"
+ov_lev <- c("good", "moderate", "bad", "awful")
+sel_lab <- c(cv.bloss = "CV bal.loss", cv.smd = "CV mean SMD",
+             cv.inf = "CV max SMD", boot.smd = "boot mean SMD",
+             boot.inf = "boot max SMD")
+tab <- read_csv(file.path(sum_dir, "cv_summary.csv")) |>
+  mutate(overlap = factor(overlap, ov_lev),
+         r2_lab = factor(sprintf("%.2f", r2)),
+         best_lab = sel_lab[best])
+counts <- read_csv(file.path(sum_dir, "cv_family_counts.csv"))
+vs_lasso <- read_csv(file.path(sum_dir, "cv_vs_lasso_floor.csv")) |>
+  mutate(overlap = factor(overlap, ov_lev),
+         r2_lab = factor(sprintf("%.2f", 2.23 / (2.23 + sigma_y^2))))
+```
+
+# Investigation
+
+2 aims:
+
+**A:** Is the optimal (minimizes RMSE) $\lambda$ interior, i.e. not the path floor $\lambda_{\min}$?\
+**B:** If so, does any selector beat the path floor?
+
+**Target criterion**
+
+All selectors use `X` and `W` only and return `lambda.min`, the path value minimising their criterion on held-out units (treated arm):
+
+- `bloss`: balance loss $\frac{1}{n}\sum_i [W_i e^{-\eta_i} +
+  (1 - W_i)\eta_i]$, the balnet objective (Tan, 2020).
+- `smd`: mean $|\mathrm{SMD}_j|$, IPW-weighted treated mean against the full-sample mean, in full-sample SDs.
+- `inf`: max $|\mathrm{SMD}_j|$.
+
+**CV vs bootstrap**
+
+- CV (`cv.balnet`, 10 folds): refit on the training folds, criterion on the held-out fold, averaged over folds.
+- Bootstrap (`cv.boot.balnet`, 500 half-samples): no refitting; the full-sample weights are scored on random half-samples against the full-sample means and SDs (Wang and Zubizarreta, 2020).
+
+**notes:**
+
+- *Path floor* $\lambda_{\min}$ *is balnet default,* $\lambda_{\max}/100$*, stated if changed.*
+- *Sampling noise: 500 reps, relative MCSE 3% (Morris et al, 2019).*
+- *Default penalty* $\alpha = 1$*, lasso regularisation (stated if changed).*
+
+# Outcome Noise, Density, and Overlap
+
+## Sparse outcome
+
+- 5 active confounders (`s_y = 5`).
+- `sigma_y` increases outcome noise (reduces $R^2$, lowers SNR).
+- `c_prop` $\in \{0.7, 1.5, 2.5\}$ for `overlap` good $>$ moderate $>$ bad: degrades overlap.
+
+![](figures/fig_density_sy5.png){width="100%"}
+
+**A:** with `sigma_y = 5`, interior solutions exist at all 3 overlap levels.
+
+**B:** With large outcome noise, selectors outperform the path floor $\lambda_{\min}$ at good and moderate overlap; at bad overlap the best selector only ties it.
+
+- good overlap: `boot.smd` $\approx$ `boot.inf` \> `cv.bloss` \> path floor $\lambda_{\min}$
+
+- moderate overlap: `boot.inf` \> `cv.bloss` \> path floor $\lambda_{\min}$
+
+- bad overlap: `cv.bloss` $\approx$ path floor $\lambda_{\min}$
+
+**Increasing outcome noise causes both interior optimums and selector wins.**
+
+**Criterion selection:** Degrading overlap increases the relative performance of the path floor $\lambda_{\min}$. It also changes the ranking between selection criteria (`boot.smd` collapses beyond good overlap, `boot.inf` holds, `cv.bloss` improves relative to both SMD criteria).
+
+**Bootstrapping vs cross-validation:** for both criteria where the two are available (`smd`, `inf`), bootstrapping outperforms CV at every overlap level. `cv.bloss` is the only competitive criterion under bad overlap, and has no bootstrapped equivalent.
+
+*Note: sampling error affects ranking (Appendix 2). Same DGP, same reps: at bad overlap, `sigma_y = 5`, `cv.bloss` now edges the path floor and `boot.inf` ties it.*
+
+## Dense outcome: fixed confounding
+
+DGP isolates the effect of outcome density by holding confounder signal fixed:
+
+- 50 active outcome covariates:
+  - 5 confounders at `1/sqrt(5)`
+  - 45 outcome-only predictors at `1/sqrt(45)`
+
+Appendix 1 shows a diluted case where `beta_y[1:s_y] <- 1/sqrt(s_y)` makes increasing density also decrease confounder signal (in effect, increasing `sigma_y`).
+
+![](figures/fig_density_fixed_sigma5.png){width="100%"}
+
+Under both high and low noise settings *(Appendix 3)* outcome density does not appear to drive selection performance, or interior minimums. Results for density show only minor changes to relative performance, with any ranking differences likely sampling noise.
+
+## Investigating noise X overlap.
+
+![](figures/fig_snr_lasso.png){width="23.2in"}
+
+*cell (5,3 - sigma 10 bad overlap at 1000 reps to confirm pattern change.*
+
+**A:** interior minimums appear at lower noise under strong overlap; as overlap degrades, more noise is needed.
+
+- good overlap: interior at $\sigma_y = 3$ (possibly 2, a draw by eye)
+- moderate overlap: interior from $\sigma_y = 3$ (faint at 3, clear at 5)
+- bad overlap: interior at $\sigma_y = 5$
+
+**B:** Selectors beat the path floor $\lambda_{\min}$ once the interior is clear. Best selector changes with noise and overlap.
+
+- good overlap:
+  - $\sigma_y = 2$: path floor $\lambda_{\min}$ $\approx$ `boot.inf` $\approx$ `boot.smd` *(draw)*
+  - $\sigma_y = 3$: `boot.inf` $\approx$ `boot.smd` \> path floor $\lambda_{\min}$
+  - $\sigma_y = 5$: `boot.inf` $\approx$ `boot.smd` \> `cv.bloss` $\approx$ path floor $\lambda_{\min}$
+  - $\sigma_y = 10$: `cv.bloss` \> `boot.inf` $\approx$ `boot.smd` \> `cv.inf` $\approx$ path floor $\lambda_{\min}$
+- moderate overlap:
+  - $\sigma_y = 5$: `boot.inf` \> `cv.bloss` $\approx$ path floor $\lambda_{\min}$
+  - $\sigma_y = 10$: `cv.bloss` \> `boot.inf` \> `boot.smd` $\approx$ `cv.inf` \> path floor $\lambda_{\min}$
+- bad overlap:
+  - $\sigma_y = 5$: `cv.bloss` $\approx$ path floor $\lambda_{\min}$ (draw)
+  - $\sigma_y = 10$: `boot.inf` \> `cv.bloss` $\approx$ `cv.inf` \> `boot.smd` \> path floor $\lambda_{\min}$
+
+**Interior minimums:** Interior minimums depend on both noise and overlap. $\lambda_{\min}$ is more robust to degredation in overlap, while the CV/BS selectors that are competitive, are generally more robust to increased outcome noise.
+
+**Criterion selection:** `cv.bloss` and `boot.inf` are the most effective criteria. `cv.bloss` is more robust to overlap degradation, outperforming `boot.inf` under "bad" overlap for $\sigma_y \le 5$ and underperforming for "good" and "moderate" overlap.
+
+This pattern inverses between $\sigma_y = 7$ and $\sigma_y = 10$, where the order flips with `cv.bloss` \> `boot.inf` for good and moderate overlap, and `cv.bloss` \< `boot.inf` for bad overlap. **Why?**
+
+- *Possibly:* nas either selector observed outcome, each pick is fixed while noise pushes the optimal $\lambda$ up. The deeper pick wins at low $\sigma_y$, the earlier at high $\sigma_y$, and overlap sets which selector stops first: `boot.inf` stops deeper under good and moderate overlap, earlier under bad.
+
+*Holds at 1000 reps, explored below.*
+
+## Independent: noise and overlap
+
+![](figures/fig_axes_noise_overlap.png){#fig-axes fig-pos="p" width="15in"}
+
+**Figure:** LHS: increasing noise, (sigma_y=1 to 18). RHS: degrading overlap(0.7 to 16), sigma_y=1.
+
+**Overlap and Noise, Seperatly:**
+
+- **overlap axis** ($\sigma_y = 1$): there is no interior solution, the path is still falling, indicating $\lambda_{\min}$ is best at every level and its apparent losses in the figure (`c_prop` 6 to 16) are likely artifacts . The order of `cv.bloss` and `boot.inf` flips between `c_prop` 2 and 2.5.
+
+  - `c_prop` = 0.7 to 1.5: `boot.inf` \> `cv.bloss`
+  - `c_prop` = 2: `cv.bloss` $\approx$ `boot.inf`
+  - `c_prop` = 2.5 to 16: `cv.bloss` \> `boot.inf`
+
+- **noise axis** (good overlap): $\lambda_{\min}$ is best only at $\sigma_y$ = 1; `boot.inf` ties it at 2 and beats it from 3, `cv.bloss` ties it at 5 and beats it from 7; the order of `cv.bloss` and `boot.inf` flips between $\sigma_y$ 7 and 10.
+
+  - $\sigma_y$ = 1: $\lambda_{\min}$ \> `boot.inf` \> `cv.bloss`
+
+  - $\sigma_y$ = 2: `boot.inf` $\approx$ $\lambda_{\min}$ \> `cv.bloss`
+
+  - $\sigma_y$ = 3 to 4: `boot.inf` \> $\lambda_{\min}$ \> `cv.bloss`
+
+  - $\sigma_y$ = 5: `boot.inf` \> `cv.bloss` $\approx$ $\lambda_{\min}$
+
+  - $\sigma_y$ = 7: `cv.bloss` $\approx$ `boot.inf` \> $\lambda_{\min}$
+
+  - $\sigma_y$ = 10 to 18: `cv.bloss` \> `boot.inf` \> $\lambda_{\min}$
+
+**New evidence for bootstrapping vs cross-validation:** earlier finding (bootstrap \> CV for `smd`, `inf` at every overlap level) holds on the overlap axis, breaks on the noise axis.
+
+- overlap axis: bootstrap \> CV at every `c_prop`
+- noise axis: bootstrapping's relative advantage fades when noise is high enough.
+  - `cv.inf` \> `boot.inf` from $\sigma_y$ = 12
+  - `cv.smd` \> `boot.smd` by 18
+
+```{r}
+#| label: picks-data
+#| echo: false
+c_of <- c(good = 0.7, moderate = 1.5, bad = 2.5, awful = 4)
+files <- list.files(res_dir, "^(tune4|snr_good|ov_s1|ov_1k)_\\d+_r\\d+\\.rds$",
+                    full.names = TRUE)
+pick_cell <- function(f) {
+  x <- readRDS(f)
+  cell <- x$cell
+  if (is.null(cell$c_prop)) cell$c_prop <- c_of[[cell$overlap]]
+  res <- x$res[vapply(x$res, \(r) is.null(r$err), logical(1))]
+  keep <- if (is.null(res[[1]]$lam_end)) rep(TRUE, length(x$lam)) else
+    colMeans(outer(vapply(res, `[[`, numeric(1), "lam_end"), x$lam,
+                   "<=")) >= 0.95
+  ep <- do.call(rbind, lapply(res, `[[`, "est_path"))[, keep, drop = FALSE]
+  ls <- do.call(rbind, lapply(res, `[[`, "lam_sel"))
+  data.frame(c_prop = cell$c_prop, sigma_y = cell$sigma_y, n_ok = length(res),
+             lam_opt = x$lam[keep][which.min(colMeans(ep^2))],
+             lam_bloss = median(ls[, "cv.bloss"]),
+             lam_bootinf = median(ls[, "boot.inf"]))
+}
+cells <- do.call(rbind, lapply(files, pick_cell))
+noise <- filter(cells, c_prop == 0.7, sigma_y <= 18) |>
+  arrange(sigma_y) |> select(sigma_y, lam_opt, lam_bloss, lam_bootinf)
+overlap <- filter(cells, sigma_y == 1) |>
+  group_by(c_prop) |> slice_max(n_ok, n = 1, with_ties = FALSE) |>
+  ungroup() |> arrange(c_prop) |>
+  select(c_prop, lam_opt, lam_bloss, lam_bootinf)
+write.csv(noise, file.path(sum_dir, "cv_picks_noise.csv"), row.names = FALSE)
+write.csv(overlap, file.path(sum_dir, "cv_picks_overlap.csv"), row.names = FALSE)
+
+#| label: tbl-picks
+#| tbl-cap: "Median selected lambda against the RMSE-optimal lambda"
+#| tbl-subcap:
+  #|   - "Noise axis, good overlap"
+  #|   - "Overlap axis, sigma_y = 1; at c_prop 6 to 16 lambda_opt is the last
+#|     fitted lambda (path still falling)"
+#| layout-ncol: 2
+#| echo: false
+fmt <- \(d) mutate(d, across(-1, \(v) sprintf("%.3f", v)))
+knitr::kable(fmt(noise), booktabs = TRUE, align = "rrrr",
+             col.names = c("sigma_y", "lambda_opt", "cv.bloss", "boot.inf"))
+knitr::kable(fmt(overlap), booktabs = TRUE, align = "rrrr",
+             col.names = c("c_prop", "lambda_opt", "cv.bloss", "boot.inf"))
+```
+
+# Selector ranking
+
+# Against the lasso floor
+
+# Caveats
+
+# Appendix
+
+## Appendix 1: Dense outcome, diluted confounding
+
+- 100 active outcome covariates (`s_y = 100`), 5 confounders.
+- **Confounder signal is diluted:** `beta_y[1:s_y] <- 1/sqrt(s_y)` shrinks every outcome coefficient as `s_y` grows, including the 5 confounders.
+  - Increasing density decreases confounder signal, in effect lowering the confounders' share of outcome variance, which `sigma_y` already does.
+
+![](figures/fig_density_sy100.png){width="100%"}
+
+## Appendix 2: Sparse outcome replicate
+
+Same DGP and reps as the sparse figure in Section 2, independent draws.
+
+![](figures/fig_density_fixed_sparse.png){width="100%"}
+
+## Appendix 3: Sparse vs dense, sigma_y = 1
+
+![](figures/fig_density_fixed_sigma1.png){width="100%"}
+
+## Appendix 4: Noise by overlap, including awful
+
+![](figures/fig_snr_lasso_all.png){width="100%"}

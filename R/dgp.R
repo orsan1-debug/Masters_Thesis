@@ -71,71 +71,55 @@ dgp1 <- function(n, p, outcome = "linear", misspec = FALSE,
 
 
 #{ --- DGP 2 --- 
-#additional features 
-#   s:                 =>4 . sparsity parameter, number of active covariates in propensity score (and outcome, when outcome_set = "track_s") [Zhao 2019]
-#   signs:             sign pattern for propensity coefficients [pos/neg/mixed/ks]
-#   decay_ps:          coeff decay exponent for propensity score; 1 = default. Higher = concentrated signal, lower = denser signal
-#   decay_out:         coeff decay exponent for outcome; 1 = default, benchmark. 
-#   treat_prop:       target treated proportion of population P(W=1)
-#   outcome_set:      [fixed4/track_s] fixed4 = Tan outcomes on X_1..X_4 (default, reproduces DGP1).
-#                     track_s = outcome loadings j^(-decay) on X_1..X_s, normalised + centered, all s covariates confounders
-#                     strength = 1, signal to noise ration, increasing increases SNR (signal to noise ration on outcome). 
-
-#   idx_ps/idx_out:   which covariates affect treatment / outcome; allows instruments and
-#                     propensity-only covariates (Shortreed & Ertefaie 2017)  #### !!!!! - TEST - !!!!! IMPLEMENTATION !!!!!
-
-# p/n ratio tested in grid.
-# weak instruments added by increasing s>4, and setting outcome to fixed4.
-
-#   eta sd-normalized to Var(eta) = 1/overlap^2.Isolates overlap changes to overlap knob.
-
-#' DGP 2: sparse logistic propensity with a normalised index and a tunable outcome
+#' DGP 2: sparse logistic propensity, normalised index, tunable outcome
 #'
-#' Current generator. The propensity index uses the first s covariates (or the
-#' columns in idx_ps) with coefficients j^(-decay_ps) under a sign pattern,
-#' scaled so that Var(eta) = 1 / overlap^2 given the covariate covariance; an
-#' intercept is solved numerically so that E[e] = treat_prop. Outcomes load on
-#' the first four propensity covariates with weights (1, .5, .5, .5) ("fixed4")
-#' or on all s with normalised j^(-decay_out) weights ("track_s"). All outcome
-#' columns share the same error draw.
+#' Current generator. Propensity index on the first s covariates (or idx_ps)
+#' with coefficients sign * j^(-decay_ps), scaled so Var(eta) = 1 / overlap^2
+#' under the covariate covariance (overlap is the only knob moving overlap);
+#' intercept solved so E[e] = treat_prop. Y = mu0 + tau * W + strength *
+#' f(X_true) + eps, one column per outcome type, all sharing eps (no effect
+#' on estimates, saves compute).
 #'
-#' @param n Sample size.
-#' @param p Number of covariates.
-#' @param s Number of active propensity covariates (ignored when idx_ps is given).
-#' @param outcome Outcome types among "linear", "quad1", "exp"; one Y column each.
-#' @param misspec Logical; apply the Kang-Schafer transforms to the first four
-#'   propensity covariates of the observed X (requires s = 4).
-#' @param covcor "iid" or "ar1" (rho = 0.5, generated recursively).
-#' @param overlap Overlap knob: sd(eta) = 1 / overlap.
-#' @param signs Sign pattern of the propensity coefficients: "pos", "neg",
-#'   "mixed" (alternating) or "ks" (1, -1, 1, 1 recycled).
-#' @param decay_ps Decay exponent of the propensity coefficients, j^(-decay_ps).
-#' @param decay_out Decay exponent of the outcome loadings under "track_s".
-#' @param outcome_set "fixed4" or "track_s" (see Description).
-#' @param idx_ps Optional integer vector of propensity-active columns.
-#' @param idx_out Optional integer vector of outcome-active columns; defaults to
-#'   the first four ("fixed4") or all ("track_s") elements of idx_ps.
-#' @param treat_prop Target treated proportion, P(W = 1).
-#' @param tau Constant treatment effect added to every outcome.
+#' @param n,p Sample size, number of covariates.
+#' @param s Active propensity covariates, >= 4 [Zhao 2019]; ignored when
+#'   idx_ps is given. s > 4 with "fixed4" adds weak instruments.
+#' @param outcome Any of "linear", "quad1", "exp" (Tan 2020 lin1/quad1/exp).
+#' @param misspec Observe the Kang-Schafer transforms of the first four
+#'   propensity covariates (requires s = 4); Y is always built from X_true.
+#' @param covcor "iid" or "ar1" (rho = 0.5).
+#' @param overlap sd(eta) = 1 / overlap.
+#' @param signs "pos", "neg", "mixed" (alternating) or "ks" (1, -1, 1, 1).
+#' @param decay_ps,decay_out Decay exponent, j^(-decay), of the propensity
+#'   coefficients / "track_s" loadings; larger = more concentrated signal.
+#' @param outcome_set "fixed4": loadings (1, .5, .5, .5) on X_1..X_4, as DGP1;
+#'   "track_s": normalised, centred j^(-decay_out) loadings on all s.
+#' @param idx_ps,idx_out Optional columns driving treatment / outcome; allows
+#'   instruments and outcome-only covariates (Shortreed & Ertefaie 2017).
+#'   #### !!!!! - TEST - !!!!! IMPLEMENTATION !!!!!
+#' @param treat_prop Target P(W = 1).
+#' @param tau Constant treatment effect; the ATE.
 #' @param strength Multiplier on the outcome signal (signal-to-noise knob).
-#' @return A list with Y, W, X (observed), X_true (untransformed), tau, e
-#'   (P(W = 1)), eta (index) and e0 (P(W = 0), computed separately so the
-#'   oracle stays finite under extreme overlap).
+#' @param mu0 Outcome level; shifts E[Y(0)], not the ATE. 210 = Kang &
+#'   Schafer / Imai & Ratkovic level (HT vs Hajek).
+#' @return list(Y, W, X, X_true, tau, e, eta, e0); e0 = P(W = 0) kept
+#'   separately so the oracle stays finite under extreme overlap.
+#'   
 dgp2 <- function(n, p, s = 4,
-                          outcome     = "linear",
-                          misspec     = FALSE,
-                          covcor      = c("iid", "ar1"),
-                          overlap     = 1,
-                          signs       = c("pos", "neg", "mixed", "ks"),  #ks similar but not the same at decay = 1, (1,-.5, 0.333, 0.25)
-                          decay_ps = 1, 
+                 outcome     = "linear",
+                 misspec     = FALSE,
+                 covcor      = c("iid", "ar1"),
+                 overlap     = 1,
+                 signs       = c("pos", "neg", "mixed", "ks"),  #ks similar but not the same at decay = 1, (1,-.5, 0.333, 0.25)
+                 decay_ps = 1, 
                  
-                          decay_out = 1,
-                          outcome_set = c("fixed4", "track_s"),
-                          idx_ps = NULL,
-                          idx_out = NULL,
-                          treat_prop  = 0.5,
-                          tau = 0,
-                          strength = 1){
+                 decay_out = 1,
+                 outcome_set = c("fixed4", "track_s"),
+                 idx_ps = NULL,
+                 idx_out = NULL,
+                 treat_prop  = 0.5,
+                 tau = 0,
+                 strength = 1,
+                 mu0 = 0){          # outcome level: 0 keeps existing draws identical
   outcome     <- match.arg(outcome, c("linear", "quad1", "exp"), several.ok = TRUE)   #shared error draws: no effect on estimates, reduces compute time
   covcor      <- match.arg(covcor)
   signs       <- match.arg(signs)
@@ -193,7 +177,7 @@ dgp2 <- function(n, p, s = 4,
   }
   
   eps <- rnorm(n)
-  Y <- vapply(outcome, function(o) tau * W + strength * f(o) + eps, numeric(n))
+  Y <- vapply(outcome, function(o) mu0 + tau * W + strength * f(o) + eps, numeric(n))
   
   if (misspec) {
     j <- idx_ps[1:4]

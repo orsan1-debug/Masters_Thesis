@@ -1,0 +1,141 @@
+---
+title: "MISPECCIFICATION (DGP2 locked, all-positive signs)"
+format: html
+embed-resources: true
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+library(purrr)
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+
+# DGP2, pos signs, iid, p=50, s=4, n=1000, overlap ∈ {.25, .5, 1, 2},
+# 10,000 reps. Seed-shared (202), so misspec − correct is matched.
+
+res <- here::here("results", "aipw_10k")
+
+df_e2 <- bind_rows(
+  load_sim(file.path(res, "aipw_correct_overlap_dgp2.csv.gz")),
+  load_sim(file.path(res, "aipw_misspec_overlap_dgp2.csv.gz")),
+  .id = "spec"
+) |> mutate(misspec = spec == "2", p = 50)
+
+summ_e2 <- summarise_sim(df_e2)
+lab_est <- c(lab_est, aipw_glmnetcv = "AIPW (GLM)",
+             abw_balnet0 = "ABW (BalNet, \u03bb=0)")
+pal_est <- c(pal_est, aipw_glmnetcv = "#CC79A7", abw_balnet0 = "#0072B2")
+est_main <- c("balnet0", "abw_balnet0", "glmnetcv_hajek", "aipw_glmnetcv")
+est_e2 <- c(est_main, "glmnetcv_ht", "oracle_hajek", "oracle_ht")
+scale_x_ov <- scale_x_log10(breaks = c(.25, .5, 1, 2), labels = drop0)
+
+# screen: full reps, no NAs, no errors
+stopifnot(all(summ_e2$m == 10000), sum(summ_e2$n_na) == 0,
+          all(df_e2$err == ""))
+```
+
+# Correct vs Misspeccified
+
+```{r}
+# RMSE | |Bias| vs overlap, correct vs misspecified, per outcome
+walk(names(oc_labs), \(oc) print(
+  panel(summ_e2, oc, x = overlap, ests = c(est_main, "oracle_hajek"),
+        extra = list(scale_x_ov,
+                     facet_wrap(~misspec, labeller = label_both)))))
+
+perf_table(summ_e2, ests = est_e2, cols = c("misspec", "overlap"),
+           group = "outcome", span_desc = FALSE,
+           span_lab = \(s) ifelse(s, "Misspecified", "Correct"),
+           title = "IPW vs augmented: correct vs misspecified (DGP2, n = 1000)")
+
+#RMSE DECOMP
+walk(c(FALSE, TRUE), \(ms)
+     print(decomp_plot(filter(summ_e2, misspec == .env$ms), ests = est_main,
+                       x = overlap, x_scale = scale_x_ov, xlab = "overlap",
+                       title = paste0("MSE decomposition (%) \u2014 ",
+                                      ifelse(ms, "misspecified", "correct")))))
+#extreme values for normalised under misspecc
+summ_e2 |> filter(misspec, n_extreme > 0, estimator == "glmnetcv_hajek") |>
+  select(outcome, overlap, n_extreme)
+```
+
+As expected, under misspecification balancing methods outperformed RMSE estimates against the MLE approach consistently. Unlike under correct specification, here balancing estimators stay bounded while RMSE for MLE methods increase with n. However, at larger $n$ MLE bias either matches or outperforms balancing estimators before exploding under nonlinear outcomes *(under a linear outcome function bias remains below balancing methods at n=50,000 )*. This reflects the RMSE decomposition, where balancing estimators are bias driven and MLE ones are variance driven with bias increasing with sample size.
+
+Under doubly robust estimators, it would be interesting to see how balancing methods inherent negative bias is accounted for, and if these results change.
+
+Within the balnet package, it seems like under misspeccification that setting $\lambda=0$ balnet reaches the best $\lambda$ estimate, producing the best RMSE results consistently. However, cv.balnet has improved comparitivly to when the model was correctly specified.
+
+#### Balancing vs MLE
+
+- **bal0 RMSE outperforms every feasible estimator in all cells, with no ties:**
+
+- balancing loss function advantage holds under misspecification.
+
+- *in E1 bal0 wins on efficiency (beats the oracle); undermisspecification it wins on robustness (bounded while MLE diverges, but the misspec bias floor means it no longer consistently beats the oracle\*).*
+
+  - *bal0 beats the normalized oracle under quad1 only, for n ≤ 1000 (0.182 vs 0.212 at 1k; oracle takes it by 5000, 0.111 vs 0.091, and decisively at 50k, 0.082 vs 0.031).*
+
+- *bal10 no longer edges bal0 anywhere. In the most variance dominated cell, quad1 n=500, bal0 wins outright (0.261 vs 0.559). The all-positive sign pattern lifts the fixed-λ bias ceiling and removes the tie.*
+
+  - *bal0 still beats oracle when* $n \leq 1000$ *for quadratic outcomes*
+
+- **normalised MLE diverges significantly with n under misspecification (K&S amplification); balnet variants stay bounded.**
+
+  - Generally for MLE, RMSE divergence is primarily variance driven. For nonlinear outcomes, bias also grows with n, compounding the divergence.
+
+  - *Divergence form is outcome dependent. Bias explodes for nonlinear outcomes (+0.51 at n=50000 for quad1, +0.09 exp). For linear, divergence is variance driven, bias is still approaching zero at n=50000 (−0.026) and remains below balancing approaches.*
+
+  - *In the exponential case, MLE bias falls below bal0 from n=5000 and stays there through n=50000, while for quadratic MLE bias exceeds balnet at every n, dipping at n=5000 (0.111 vs 0.093) before exploding.*
+
+  - **for balancing estimators mispeccification introduced its own bias, seperate from regularization attenuation:** *bal0 bias doesn't vanish under misspec (Linear worsens, -0.18 → −0.21, quad1 improves −0.15 → −0.08, exp stable at −0.14), where for correctly specified* *bal0 → 0.*
+
+- **MLE RMSE is primarily variance driven while balancing estimator RMSE is bias driven** *(at n=50000, bias² is 93–100% of MSE for balnet variants against 1–10% for MLE).*
+
+- glmnet extreme values rise with n, appearing for quadratic outcomes and once for exponential at n=50000. no extreme values for balnet.
+
+#### Within Balancing
+
+- **For balancing estimators, larger λ means larger rmse: bal0 wins in every cell**
+
+  - varience reduction from increasing $\lambda$ is small, effect on RMSE is outweighed by increase in bias.
+
+    - *the quadratic n=500 exception is gone: bal05 and bal10 bias are now clearly separated (−0.336 vs −0.530), so the stronger regularisation no longer buys a variance discount large enough to compete.*
+
+- **CV.balnet targeting held-out balancing loss is generally the second best performer, but suffers at low** $n$.
+
+  - across outcomes, is driven almost entirely by bias.
+
+    - increased under linear outcomes: balnet.cv performs worse than normalized MLE until $n > 10,000$. By $n=50,000$ it outperforms the normalized MLE, and RMSE/bias are close to eachother.
+
+    - under quadratic: outperforms bal05 between n=1000, n=5000.
+
+    - exponential: imbetween the two.
+
+# 4. Effect of Misspec (Delta)
+
+```{r}
+
+delta_ms(summ_e2, ests = est_e2) |>
+  transmute(Group = factor(oc_labs[outcome], oc_labs),
+            Estimator = factor(lab_est[estimator], lab_est[est_e2]), n,
+            cell = sprintf("%.2f<br><small>(%.2f)</small>", d_rmse, d_bias)) |>
+  pivot_wider(names_from = n, values_from = cell) |>
+  arrange(Group, Estimator) |>
+  gt(groupname_col = "Group") |>
+  tab_header(title = "Cost of misspecification: \u0394RMSE (\u0394|Bias|)") |>
+  fmt_markdown(-Estimator) |> cols_align("center", -Estimator) |>
+  cols_label_with(everything(), n_relabel)
+```
+
+#### Balancing Vs MLE
+
+- as $n$ increases, MLE estimators are effected by magnitudes of upto 8.61 for RMSE and 1.13 for Bias. The effect of misspeccification is increased as outcome complexity increases, quadratic\>exponential\>linear. Estimating with Hajek normalisation offsets this significantly, but Hajek is still more effected than balancing estimators.
+
+#### Within Balancing
+
+- Balnet (pathfloor), is more effected than bal05 and bal.CV by misspeccification, as it is likely converging towards the $\lambda$ associated with minimum attainable covartiate imbalance. Bal 10 appears the most stable, and bal05 is also stable, confirming the attainable $\lambda \leq .05$ (median $\lambda_{end}$ = 1e-4, no truncation in any cell).
+- 

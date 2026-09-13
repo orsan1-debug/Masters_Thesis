@@ -1,0 +1,71 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+# DGP2, correct spec, iid, p = 50, s_instr × decay grid, overlap = 1, 1000 reps
+# instruments = PS-only covariates 5..s; s_instr = 0 = negative control
+df_iv <- load_sim(here::here("results", "ipw", "instrumentsDGP2.csv.gz"))
+summ_iv <- summarise_sim(df_iv) |>
+  mutate(s_instr = s - 4,
+         sif = factor(s_instr, sort(unique(s_instr))))
+```
+
+# INCREASE ACTIVE COVARIATES + DECAY
+
+```{r}
+dfm <- filter(summ_iv, decay == 1)   # weak arm; flip to decay == 0.5 for strong tab
+iv_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s_instr"))
+# RMSE | |Bias| vs s_instr, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sif, extra = iv_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sif, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = iv_extra))
+#- table -#
+perf_table(dfm, cols = c("s_instr", "n"),
+           span_lab = \(x) paste0("s_instr = ", x), span_desc = FALSE,
+           group = "outcome", title = "Instruments, iid, decay = 1 (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s_instr, cols = n, xlab = "s_instr",
+              x_scale = scale_x_continuous(breaks = c(0, 4, 16)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s_instr, xlab = "s_instr", x_desc = FALSE)
+```
+
+```{r}
+dfm <- filter(summ_iv, decay == 0.5)   # weak arm; flip to decay == 0.5 for strong tab
+iv_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "s_instr"))
+# RMSE | |Bias| vs s_instr, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = sif, extra = iv_extra))
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = sif, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = iv_extra))
+#- table -#
+perf_table(dfm, cols = c("s_instr", "n"),
+           span_lab = \(x) paste0("s_instr = ", x), span_desc = FALSE,
+           group = "outcome", title = "Instruments, iid, decay = 0.5 (c = 1)")
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = s_instr, cols = n, xlab = "s_instr",
+              x_scale = scale_x_continuous(breaks = c(0, 4, 16)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = s_instr, xlab = "s_instr", x_desc = FALSE)
+```

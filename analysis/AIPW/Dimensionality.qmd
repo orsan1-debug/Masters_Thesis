@@ -1,0 +1,187 @@
+---
+title: "Overlap (DGP2)"
+format:
+  html:
+    mainfont: "Times New Roman"
+editor_options:
+  chunk_output_type: inline
+---
+
+# Setup
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+df_ov <- bind_rows(
+  mutate(load_sim(here::here("results", "ipw", "dimensionDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "dimensionmisspecDGP2.csv.gz")), misspec = TRUE))
+summ_dim <- summarise_sim(df_ov) |>
+  mutate(pn = p / n, pnf = factor(pn, sort(unique(pn))))
+```
+
+# Dimensionality: correct spec
+
+```{r}
+dfm <- filter(summ_dim, !misspec)     # flip to misspec for the misspec tab
+dim_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "p/n"))
+
+# RMSE | |Bias| vs p/n, faceted by n
+for (oc in outcome_cols) print(panel(dfm, oc, x = pnf, extra = dim_extra))
+
+# bal0 vs oracle
+for (oc in outcome_cols) print(
+  panel(dfm, oc, x = pnf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = dim_extra))
+
+#- table -#
+perf_table(dfm, cols = c("pn", "n"),
+           span_lab = \(x) paste0("p/n = ", x), span_desc = FALSE,
+           group = "outcome", title = "Dimensionality (c = 1)")
+
+#- MSE decomp -#
+for (oc in outcome_cols) print(
+  decomp_plot(filter(dfm, outcome == oc), x = pn, cols = n, xlab = "p/n",
+              x_scale = scale_x_log10(breaks = c(0.1, 0.5, 1, 2)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = pn, xlab = "p/n", x_desc = FALSE)
+```
+
+As expected, balancing estimators are more robust to high-dimensionality thn MLE estimation and Bal0 is still the best performing estimator, converging with bal05's path endpoint as $p/n$ increases. The only exception is for balnet.cv, which eventually underperforms MLE as dimensionality increases.
+
+Under high dimensionality, Bal05 performs similarly to Bal0, especially in low sample sizes. Increases in sample size increase the edge bal0 has over bal05 and other balancing estimators.
+
+The stability of bal10, and that bal0 and bal05 converge toward it, suggest that the feasible $\lambda_{endpoint}$ converges to \$ .05 \< \\lambda \\leq 0.1\$ as $p/n$ increases. Balnet.cv's performance suggest it consistently selects $\lambda > \lambda_{endpoint}$, and performs similarly or worse than MLE for $p/n ≥ 0.5$.
+
+These results support that the balnet.cv cross validation criterion *(out-of-sample covariate balancing loss)* is suboptimal.
+
+**new quick notes:**
+
+- bal0 still best performer, relative performance increases with n.
+
+- bal0\>bal05 ahve the highest share of variance in their MSE decomposition.
+
+**old notes:**
+
+**1: Bal0 is still the strongest estimator\***,
+
+- loses its edge in lower samples, where $n=500$ bal0 converges with bal05 by $p/n =.5$ , and $p/n = 1$ when $n=1000$.
+
+  - these are the two estimators the with the least bias dominated RMSE.
+
+    - *bal05 consistently beats glm.*
+
+    - **for all estimators,** RMSE becomes more bias driven as $p/n$ increases, except for bal10 who's bias share is flat. glmnet/bal10 are the most bias dominated estimators, and start off almost completely bias dominated in linear specifications.
+
+  - as $p/n$ increases bal0 loses its consistency against the normalized oracle as regularisation binds bal0's allowed balance level, $\lambda$, higher.
+
+    - consistency result survives for quadratic specifications n=500, but for n=1000 only survive upto $p/n \approx 1$. Against non-normalized oracle, consistency results survive both nonlinear outcomes.
+
+    - *now loses to the normalized oracle under linear specifications when* $p/n \ge 1$*. it also loses to the normalized oracle under exponential specifications at* $n=1000$ $p/n \ge 1$.
+
+**2: bal10 has stable variance and bias across all** $p/n$ **levels.**
+
+- bal10's bias is stable across $p/n$ as KKT conditions bound the maximum covariate imbalance to $\lambda=.1$ (Sverdrup and Hastie 2026, eq. 10).
+
+- bal10's flatness and that bal0 and bal05 converge towards it as $p/n$ increases, indicating the feasible $\lambda_{endpoint}$ converges with $p/n$ increases to somewhere close (but below) $\lambda = .1$ *(can log regularisation path in future to determine where).*
+
+  - for most $p/n ≥ 1$ the $\lambda_{endpoint}$ exceeds 0.05, so bal05 and bal0 produce near identical results *(small bal0 wins at some* $p/n = 1$*, could be sampling noise).\**
+
+**3: at** $p/n \ge 0.5$ **Balnet.cv and MLE and are consistently the worst performers.** their comparitve performance depends on outcome complexity.
+
+- balcv degrades *faster* than glmnet as $p/n$ grows and crosses below glm_hj . The loss function survives dimensionality, but the CV rule doesn't. **strong evidence against balnet.cv.**
+
+  - at $p/n$ = 0.1, balcv generally outperforms bal10 and glm.
+
+    - *CV still adapts at p/n = 0.1 but detaches by p/n = 0.5. **FUTURE:** logging λ_cv across the path will map the transition.*
+
+- Under high dimensionality, once $p/n = 1$ MLE outperforms balnet.cv decicivly for linear and moderately for quadratic outcomes, approximatley tied under exponential outcomes.
+
+- increases in $n$ reduce their variance, causing them to converge towards bal10.
+
+**4: larger samples reduces\* RMSE for all estimators across all** $p/n$
+
+- \*for bal10, variance reduces with $n$ while bias slightly increases. RMSE is also flat across the linear specification where RMSE is constantly $\approx$ 0.25 .
+
+**5: outcome complexity effects relative bias/RMSE differently.**
+
+- **exponential:** reduces bias/RMSE for all estimators *(the one exception is bal0 at* $p/n =$ *.1)* , ranking remains the same.
+
+- **quadratic:** increases RMSE at low $p/n$, but **reduces it for the most biased estimators (balcv, glm) at high** $\mathbf{p}/\mathbf{n}$, where the bias reduction outweighs the higher outcome variance.
+
+  - *at* $n=1000$ *bal.cv equivelent to glm.cv but loses to bal10 at* $p/n = .5$
+
+```{r}
+# Extended grid: merge p/n ∈ {4, 8} (linear + quad1 only) with correct-spec results
+df_pm <- bind_rows(
+  filter(df_ov, !misspec, outcome != "exp"),
+  mutate(load_sim(here::here("results", "ipw", "PoverMDGP2.csv.gz")), misspec = FALSE))
+summ_pm <- summarise_sim(df_pm) |>
+  mutate(pn = p / n, pnf = factor(pn, sort(unique(pn))))
+
+dfm <- summ_pm
+dim_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "p/n"))
+
+# RMSE | |Bias| vs p/n, faceted by n
+for (oc in c("linear", "quad1")) print(panel(dfm, oc, x = pnf, extra = dim_extra))
+
+# bal0 vs oracle
+for (oc in c("linear", "quad1")) print(
+  panel(dfm, oc, x = pnf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = dim_extra))
+
+#- table -#
+perf_table(dfm, cols = c("pn", "n"),
+           span_lab = \(x) paste0("p/n = ", x), span_desc = FALSE,
+           group = "outcome", title = "Dimensionality, extended p/n (c = 1)")
+
+#- MSE decomp -#
+for (oc in c("linear", "quad1")) print(
+  decomp_plot(filter(dfm, outcome == oc), x = pn, cols = n, xlab = "p/n",
+              x_scale = scale_x_log10(breaks = c(0.1, 0.5, 1, 2, 4, 8)),
+              title = paste("MSE Decomposition (%) \u2014", oc_labs[oc])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = pn, xlab = "p/n", x_desc = FALSE)
+```
+
+# Misspecification + Dimensionality
+
+```{r}
+dfm <- filter(summ_dim, misspec)
+dim_extra <- list(facet_wrap(~n, nrow = 1, labeller = lab_n), labs(x = "p/n"))
+
+# RMSE | |Bias| vs p/n, faceted by n
+for (oc in outcome_cols) print(
+  panel(dfm, oc, x = pnf, extra = dim_extra,
+        title = paste(oc_labs[oc], "\u2014 misspecified")))
+
+# bal0 vs oracle
+for (oc in outcome_cols) print(
+  panel(dfm, oc, x = pnf, ests = c("balnet0", "oracle_hajek", "oracle_ht"),
+        extra = dim_extra, title = paste(oc_labs[oc], "\u2014 misspecified")))
+
+#- table -#
+perf_table(dfm, cols = c("pn", "n"),
+           span_lab = \(x) paste0("p/n = ", x), span_desc = FALSE,
+           group = "outcome", title = "Dimensionality, misspecified (c = 1)")
+
+#- MSE decomp -#
+for (oc in outcome_cols) print(
+  decomp_plot(filter(dfm, outcome == oc), x = pn, cols = n, xlab = "p/n",
+              x_scale = scale_x_log10(breaks = c(0.1, 0.5, 1, 2)),
+              title = paste("MSE Decomposition (%), misspecified \u2014", oc_labs[oc])))
+
+#- extreme estimates -#
+extreme_heat(dfm, "glmnetcv_hajek", x = pn, xlab = "p/n", x_desc = FALSE,
+             title = sprintf("GLM (Hajek), misspecified: extreme estimates (|\u03c4\u0302| > 10)"))
+```
+
+```{r}
+
+```

@@ -1,0 +1,207 @@
+---
+title: "Cross Validation Analysis."
+format: html
+embed-resources: true
+---
+
+```{r}
+#| message: false
+#| warning: false
+# Setup ------------------------------------------------------------
+source(here::here("R", "packages.R"))
+source(here::here("R", "summarise.R"))
+source(here::here("R", "plots.R"))
+# tag spec on load: not stored in the results files, and delta_ms / spec_grid pair on it
+df_ov <- bind_rows(
+  mutate(load_sim(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_sim(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE)) |>
+  mutate(p = 50)
+
+cur_ov <- bind_rows(
+  mutate(load_cv_curves(here::here("results", "ipw", "overlapDGP2.csv.gz")),        misspec = FALSE),
+  mutate(load_cv_curves(here::here("results", "ipw", "overlapmisspecDGP2.csv.gz")), misspec = TRUE)) |>
+  group_by(across(any_of(c(design_cols, "arm", "rep")))) |> filter(min(cv) > 0) |> ungroup()
+
+mis <- load_sim(here::here("results", "ipw", "misspecDGP2.csv.gz")) |> mutate(p = 50)
+cur <- load_cv_curves(here::here("results", "ipw", "misspecDGP2.csv.gz")) |>
+  group_by(across(any_of(c(design_cols, "arm", "rep")))) |> filter(min(cv) > 0) |> ungroup()
+
+
+```
+
+```{r}
+#| warning: false
+## E8 (overlap): CV vs fixed λ ------------------------------------------------
+ov_show <- c(1, 0.5, 0.25)                 # excludes c = 2 and c = 0.75
+cv_ov   <- filter(df_ov, !misspec, overlap %in% ov_show)
+cur_c   <- filter(cur_ov, !misspec, overlap %in% ov_show)
+lab_cn  <- labeller(overlap = \(x) paste0("c = ", drop0(x)), n = lab_n)
+
+## 1. First look -- does CV lose, and which λ does it pick?
+risk_curve(cv_ov, "linear", labeller = lab_cn) +
+  facet_grid(overlap ~ n, scales = "free", labeller = lab_cn) +
+  scale_x_log10(breaks = 10^(-4:-1), labels = \(x) sub("e-0", "e-", format(x, scientific = TRUE))) +
+  scale_y_continuous(n.breaks = 4)
+
+## 2. Small-n check -- the λ ≈ 0 loss blows up, so avoiding it there is correct
+loss_gap(filter(cv_ov, outcome == "linear"), by = c("overlap", "n")) |>
+  mutate(overlap = as_c(overlap), n = n_relabel(as.character(n))) |>
+  select(-m) |>
+  gt(groupname_col = "overlap") |>
+  fmt_number(c(med_lr, q90_lr), decimals = 1) |>
+  fmt_number(c(pct_10x, pct_1e3x), decimals = 0) |>
+  cols_label(n = "", n_na = "NA", med_lr = "median", q90_lr = "q90",
+             pct_10x = "> 10\u00d7", pct_1e3x = "> 10\u00b3\u00d7") |>
+  tab_spanner("log\u2081\u2080 endpoint / selected loss", c(med_lr, q90_lr)) |>
+  tab_spanner("% reps", c(pct_10x, pct_1e3x)) |>
+  cols_align("center", -overlap) |>
+  tab_source_note(md(paste0(
+    "_Worse arm per rep; logged two-point loss, all reps. ",
+    "NA = overflowed endpoint fits, excluded._")))
+
+## 3. Bias -- how picking a larger λ turns into bias
+cv_bias_bins(cv_ov, "linear", labeller = lab_cn) +
+  facet_grid(overlap ~ n, scales = "free", labeller = lab_cn) +
+  scale_x_continuous(n.breaks = 3) + scale_y_continuous(n.breaks = 3) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
+
+## 4. Variance -- how the spread in picked λ across reps turns into variance
+bind_rows(lapply(names(oc_labs), \(oc)
+                 rep_cv(cv_ov, oc, c("balnetcv", "balnet05")) |> mutate(outcome = oc))) |>
+  filter(!is.na(lam_cv), !is.na(balnetcv)) |>
+  group_by(outcome, overlap, n) |>
+  summarise(cor   = cor(lam_cv, balnetcv),
+            share = 100 * cor^2,
+            sdr   = sd(balnetcv) / sd(balnet05), .groups = "drop") |>
+  mutate(outcome = factor(oc_labs[outcome], oc_labs), overlap = as_c(overlap)) |>
+  arrange(outcome, overlap, n) |>
+  gt(groupname_col = "outcome") |>
+  fmt_number(c(cor, sdr), decimals = 2) |>
+  fmt_number(share, decimals = 0) |>
+  cols_label(n = "", overlap = "", cor = "cor(\u03bb_cv, \u03c4\u0302)",
+             share = "Var share (%)", sdr = "SD ratio (CV / \u03bb=.05)") |>
+  cols_align("center", -outcome) |>
+  tab_source_note(md(paste0(
+    "_Var share = cor\u00b2, a lower bound on Var(E[\u03c4\u0302 | \u03bb_cv]) ",
+    "/ Var(\u03c4\u0302). SD ratio pairs the same replications._")))
+
+## 5. Bottom line -- can any rule using this loss find the best λ?
+star <- summarise_sim(cv_ov) |>
+  filter(outcome == "linear", estimator %in% est_bal[1:3]) |>
+  group_by(overlap, n) |> slice_min(rmse, n = 1, with_ties = FALSE) |>
+  transmute(overlap, n, star = c(balnet0 = "end", balnet05 = ".05",
+                                 balnet10 = ".10")[estimator])
+flatness_table(curve_stats(cur_c)) |>
+  left_join(star, by = c("overlap", "n")) |>
+  arrange(arm, overlap, n) |>
+  mutate(overlap = as_c(overlap), n = n_relabel(as.character(n))) |>
+  select(arm, overlap, n, star, m_stored, med_span, med_r_05, med_r_10,
+         starts_with("pct")) |>
+  gt(groupname_col = "arm") |>
+  fmt_number(c(med_span, med_r_05, med_r_10), decimals = 2) |>
+  fmt_number(starts_with("pct"), decimals = 0) |>
+  cols_label(n = "", overlap = "", star = "\u03bb*", m_stored = "reps",
+             med_span = "decades", med_r_05 = ".05", med_r_10 = ".10",
+             pct_end = "end", pct_05 = ".05", pct_10 = ".10") |>
+  tab_spanner("median r(\u03bb)", c(med_r_05, med_r_10)) |>
+  tab_spanner("% reps r < .05", starts_with("pct")) |>
+  cols_align("center", -arm) |>
+  tab_source_note(md(paste0(
+    "_r(\u03bb) = cv(\u03bb)/min(cv) \u2212 1; flat span in decades of \u03bb. ",
+    "\u03bb* = RMSE-best rung (coarse until \u03c4(\u03bb) is logged). ",
+    "Stored reps only; degenerate curves dropped as noted._")))
+```
+
+# 5. Diagnostics
+
+```{r}
+## E8: CV vs fixed λ ----------------------------------------------------------
+## 1. First look -- does CV lose in this grid, and which λ does it pick?
+risk_curve(mis, "linear")
+
+## RMSE-best rung per n: label for the table, lambda for the curve plots
+star <- summarise_sim(mis) |>
+  filter(outcome == "linear", estimator %in% est_bal[1:3]) |>
+  group_by(n) |> slice_min(rmse, n = 1, with_ties = FALSE) |>
+  transmute(n, star = c(balnet0 = "end", balnet05 = ".05", balnet10 = ".10")[estimator],
+            lam  = c(balnet0 = NA, balnet05 = .05, balnet10 = .10)[estimator]) |>
+  left_join(rep_cv(mis, "linear", "balnetcv") |>
+              group_by(n) |> summarise(end_med = median(lam_end, na.rm = TRUE)), by = "n") |>
+  mutate(lam = coalesce(lam, end_med))
+
+## 1b. What the criterion sees -- per-rep CV loss curves (treated arm)
+cur_t  <- filter(cur, arm == "treated")
+c500   <- filter(cur_t, n == 500)
+cbig   <- filter(cur_t, n > 500)
+star_v <- function(d) geom_vline(data = filter(star, n %in% d$n), aes(xintercept = lam),
+                                 inherit.aes = FALSE, colour = pal_est[["balnet0"]],
+                                 linewidth = 0.6)
+
+# n = 500: the criterion genuinely diverges toward lambda = 0
+print(cv_curve_plot(c500) + star_v(c500) + scale_y_log10() + facet_wrap(~n, labeller = lab_n))
+
+# n >= 1000: flat near the minimum, so no rule on this loss can find the best rung
+print(cv_curve_plot(cbig) + star_v(cbig) + scale_y_log10() + facet_wrap(~n, labeller = lab_n) +
+        labs(caption = paste("green = RMSE-best rung; dotted = \u03bb .05/.10;",
+                             "black = each rep's selected \u03bb")))
+
+## 2. Small-n check -- the λ ≈ 0 loss blows up, so avoiding it there is correct
+loss_gap(filter(mis, outcome == "linear"), by = "n") |>
+  mutate(n = n_relabel(as.character(n))) |>
+  select(-m) |>
+  gt() |>
+  fmt_number(c(med_lr, q90_lr), decimals = 1) |>
+  fmt_number(c(pct_10x, pct_1e3x), decimals = 0) |>
+  cols_label(n = "", n_na = "NA", med_lr = "median", q90_lr = "q90",
+             pct_10x = "> 10\u00d7", pct_1e3x = "> 10\u00b3\u00d7") |>
+  tab_spanner("log\u2081\u2080 endpoint / selected loss", c(med_lr, q90_lr)) |>
+  tab_spanner("% reps", c(pct_10x, pct_1e3x)) |>
+  cols_align("center", -n) |>
+  tab_source_note(md(paste0(
+    "_Worse arm per rep; logged two-point loss, all reps. ",
+    "NA = overflowed endpoint fits, excluded._")))
+
+## 3. Bias -- how picking a larger λ turns into bias
+cv_bias_bins(mis, "linear")
+
+## 4. Variance -- how the spread in picked λ across reps turns into variance
+bind_rows(lapply(names(oc_labs), \(oc)
+                 rep_cv(mis, oc, c("balnetcv", "balnet05")) |> mutate(outcome = oc))) |>
+  filter(!is.na(lam_cv), !is.na(balnetcv)) |>
+  group_by(outcome, n) |>
+  summarise(cor   = cor(lam_cv, balnetcv),
+            share = 100 * cor^2,
+            sdr   = sd(balnetcv) / sd(balnet05), .groups = "drop") |>
+  mutate(outcome = factor(oc_labs[outcome], oc_labs)) |>
+  arrange(outcome, n) |>
+  gt(groupname_col = "outcome") |>
+  fmt_number(c(cor, sdr), decimals = 2) |>
+  fmt_number(share, decimals = 0) |>
+  cols_label(n = "", cor = "cor(\u03bb_cv, \u03c4\u0302)",
+             share = "Var share (%)", sdr = "SD ratio (CV / \u03bb=.05)") |>
+  cols_align("center", -outcome) |>
+  tab_source_note(md(paste0(
+    "_Var share = cor\u00b2, a lower bound on Var(E[\u03c4\u0302 | \u03bb_cv]) ",
+    "/ Var(\u03c4\u0302). SD ratio pairs the same replications._")))
+
+## 5. Bottom line -- can any rule using this loss find the best λ?
+flatness_table(curve_stats(cur)) |>
+  left_join(star, by = "n") |>
+  arrange(arm, n) |>
+  mutate(n = n_relabel(as.character(n))) |>
+  select(arm, n, star, m_stored, med_span, med_r_05, med_r_10,
+         starts_with("pct")) |>
+  gt(groupname_col = "arm") |>
+  fmt_number(c(med_span, med_r_05, med_r_10), decimals = 2) |>
+  fmt_number(starts_with("pct"), decimals = 0) |>
+  cols_label(n = "", star = "\u03bb*", m_stored = "reps", med_span = "decades",
+             med_r_05 = ".05", med_r_10 = ".10",
+             pct_end = "end", pct_05 = ".05", pct_10 = ".10") |>
+  tab_spanner("median r(\u03bb)", c(med_r_05, med_r_10)) |>
+  tab_spanner("% reps r < .05", starts_with("pct")) |>
+  cols_align("center", -arm) |>
+  tab_source_note(md(paste0(
+    "_r(\u03bb) = cv(\u03bb)/min(cv) \u2212 1; flat span in decades of \u03bb. ",
+    "\u03bb* = RMSE-best rung (coarse until \u03c4(\u03bb) is logged). ",
+    "Stored reps only; degenerate curves dropped as noted._")))
+```
