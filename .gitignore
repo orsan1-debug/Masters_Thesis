@@ -6,7 +6,7 @@
 .posit/assistant
 .DS_Store
 /*.png
-/results/
+/results/**/*_cells/
 /output/
 /readings/
 archive/.RData

@@ -124,6 +124,19 @@ estimate_all <- function(data, nfolds = 5, max_imbalance = 1e-4) {
   
   time_or <- system.time(or <- fit_or(data, nfolds))[["elapsed"]]
   
+  # PS-wrong / OR-correct cell: the OR refitted on X_true, misspec draws only
+  # (X == X_true otherwise), after every other RNG use so the rows above keep
+  # their draws (Kang & Schafer 2007, p. 528, estimator-side). Not timed.
+  rows_true <- if (identical(X, data$X_true)) NULL else {
+    ot <- fit_or(data, nfolds, use_true = TRUE)
+    rbind(
+      aipw_glmnetcv_ortrue = ate_aug(Y, W / e_hat, (1 - W) / (1 - e_hat),
+                                     ot$m1, ot$m0),
+      abw_balnet0_ortrue   = ate_aug(Y, w_bal$treated, w_bal$control,
+                                     ot$m1, ot$m0)
+    )
+  }
+  
   # per-arm weights, zero off-arm so length(w) = n; the true-weight SMD is the
   # benchmark (Ben-Michael et al. 2021, p. 18)
   w_arm <- list(
@@ -165,6 +178,9 @@ estimate_all <- function(data, nfolds = 5, max_imbalance = 1e-4) {
   # project_state)
   # balnet0: exact-balance weights, the method on trial (Q1, Q4, Q6; [PKG]
   #   balweights)
+  # *_ortrue: the two augmented rows with the OR on X_true, the fourth
+  #   double-robustness cell, misspec draws only (Q1; Kang & Schafer 2007,
+  #   p. 528)
   # glmnetcv_hajek: the MLE it is judged against, ratio form (Q1-3, Q6;
   #   Tan 2020 RCAL p. 20)
   # glmnetcv_ht: the same weights unnormalised, so the gap to _hajek is the
@@ -186,6 +202,7 @@ estimate_all <- function(data, nfolds = 5, max_imbalance = 1e-4) {
     abw_balnet0    = ate_aug(Y, w_bal$treated, w_bal$control, or$m1, or$m0),
     oracle_ht      = ate_ht(Y, W, e1, e0),
     oracle_hajek   = ate_hajek(Y, W, e1, e0),
+    rows_true,
     nnz_or1        = or$nnz1,
     nnz_or0        = or$nnz0,
     matrix(diags, length(diags), ncol(Y), dimnames = list(names(diags), NULL))
