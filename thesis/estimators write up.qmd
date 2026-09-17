@@ -1,0 +1,64 @@
+---
+title: "Methods — estimators: dot-point source notes [2026-09-16]"
+format:
+  pdf:
+    number-sections: false
+    geometry:
+      - margin=2.5cm
+    pdf-engine: xelatex
+    mainfont: "Times New Roman"
+---
+
+## Estimators
+
+**IPW Estimators:** Modelling aims for covariate balance by predicting the propensity score; the intuition is that a correctly estimated propensity score will balance confounders through IPW estimation.
+
+1.  The Horvitz–Thompson (HT) IPW estimator for the ATE,
+
+    $$\hat\tau_{\mathrm{HT}} = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{W_iY_i}{\hat e(X_i)} - \frac{(1-W_i)Y_i}{1-\hat e(X_i)}\right],$$
+
+    weights each unit by the inverse of its estimated propensity score $\hat e(X_i)$, following the survey sampling estimator from @horvitz1952. Under the oracle propensity score it is unbiased for $\tau$ [@wager2025, ch. 2].
+
+2.  The normalised Hájek (H) estimator, $$\hat\tau_{\mathrm{H}} = \frac{\sum_{i=1}^{n} W_iY_i/\hat e(X_i)}{\sum_{i=1}^{n} W_i/\hat e(X_i)} - \frac{\sum_{i=1}^{n} (1-W_i)Y_i/\{1-\hat e(X_i)\}}{\sum_{i=1}^{n} (1-W_i)/\{1-\hat e(X_i)\}},$$ normalises the HT estimator by dividing both groups by the sum of their weights, bounding the estimate by the observed outcomes to avoid minor errors in $\hat e(X_i)$ causing large errors in $\hat\tau$ through inversion [@hajek1971; @ding2023, ch. 11; @chattopadhyay2020].
+
+For the balancing loss approach, there is no distinction between HT and H, as when minimising balancing loss weights in each arm sum to $n$ by construction [@tan2020rcal; @sverdrup2026].
+
+**Doubly Robust IPW Estimators:** To mitigate the effects of model misspecification, both doubly robust estimators estimate an outcome model alongside the propensity score, with the intuition being only one is required to be correctly specified for estimation.
+
+1.  The augmented IPW (AIPW) estimator (Robins et al. 1994; Ding 2023),
+
+    $$\hat\tau_{\mathrm{AIPW}} = \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr]
+    + \frac{\sum_{i}\hat w_i^{(1)}\{Y_i - \hat m_1(X_i)\}}{\sum_{i}\hat w_i^{(1)}}
+    - \frac{\sum_{i}\hat w_i^{(0)}\{Y_i - \hat m_0(X_i)\}}{\sum_{i}\hat w_i^{(0)}},$$
+
+    adds a penalised outcome model to the HT and Hájek weights.[^1] The outcome model $\hat m_w(x) = \hat\beta_{w,0} + x^\top\hat\beta_w$ estimates $m_w(x) = E[Y_i(w) \mid X_i = x]$, and is fit within arm $w$ and predicted for all $n$ units.[^2] Residual terms are normalised as in the Hájek estimator (Ding 2023).The population bias for $\mu_1 = E[Y_i(1)]$ is the product of the two models errors,
+
+    $$\operatorname{Bias}(\hat\mu_1^{\mathrm{AIPW}}) = E\!\left[\frac{e(X) - \hat e(X)}{\hat e(X)}\,\{m_1(X) - \hat m_1(X)\}\right],$$
+
+    so one correct model is enough. In finite samples estimation error is bounded by the product of both fits errors, with both models misspecified neither errors are small (Wager 2024; Kang and Schafer 2007).
+
+[^1]: $\hat w_i^{(1)} = W_i/\hat e(X_i)$ and $\hat w_i^{(0)} = (1-W_i)/\{1-\hat e(X_i)\}$, HT and Hajek weights.
+
+[^2]: Lasso penalisation ($\ell_1$, $\alpha = 1$) is our baseline penalty.
+
+\*fn 1: $\hat w_i^{(1)} = W_i/\hat e(X_i)$ and $\hat w_i^{(0)} = (1-W_i)/\{1-\hat e(X_i)\}$, HT and Hajek weights.
+
+fn 2: Lasso penalisation ($\ell_1$, $\alpha = 1$) is our baseline penalty.
+
+2.  @brunssmith2025's augmented balancing-weights (ABW) estimator for the ATE, $$ \hat\tau_{\mathrm{ABW}} = \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr] + \frac{\sum_{i}\hat\gamma_i^{(1)}\{Y_i - \hat m_1(X_i)\}}{\sum_{i}\hat\gamma_i^{(1)}} - \frac{\sum_{i}\hat\gamma_i^{(0)}\{Y_i - \hat m_0(X_i)\}}{\sum_{i}\hat\gamma_i^{(0)}}, $$ where $\hat\gamma_i^{(1)}, \hat\gamma_i^{(0)}$ are the `balnet` weights at the path floor $\lambda_{min}$ and $\hat m_w(x) = \hat\beta_{w,0} + x^\top\hat\beta_w$ is a lasso outcome model fit within arm $w$ through the cross-validated penalty parameter $\delta_w$, predicted for all $n$ units.
+
+    @brunssmith2025 show that under ridge ($\ell_2$, $\alpha = 0$) penalisation, with weights and outcome model linear in confounders, the ABW estimator collapses to OLS at exact balance, $$ \hat\tau_{\mathrm{ABW}} = \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr], \qquad \delta_1 = \delta_0 = 0. $$
+
+    Under lasso ($\ell_\infty$, $\alpha = 1$) the collapse is the same. Here, the weights correct balance only for covariates whose raw imbalance exceeds $\lambda$, with $\hat m_w$ handling the rest. This closed form solution is only possible if covariates are uncorrelated [@brunssmith2025, Prop. 5.1–5.2; supp. App. E.3].
+
+    While `balnet` can adjust its penalisation from lasso ($\alpha = 1$) to ridge ($\alpha = 0$), its balancing weights are built on a logistic propensity score. @brunssmith2025's findings imply that at exact balance $\hat\tau_{\mathrm{ABW}}$ will contain an approximation error relative to OLS [@brunssmith2025, Remark 5; supp. Prop. D.1].
+
+***\*inconsistent with findings.***
+
+- For AIMS/RESULTS: at exact balance, this is tiny.
+
+*\*notes: add all citations to bibliography, clean that up - some papers referenced not downloaded/read - skim read (referencing from textbook for AIPW)*
+
+## Regularisation
+
+The penalty parameter $\alpha$

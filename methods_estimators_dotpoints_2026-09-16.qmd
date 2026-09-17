@@ -1,0 +1,131 @@
+---
+title: "Methods — estimators: dot-point source notes [2026-09-16]"
+format:
+  pdf:
+    number-sections: false
+    geometry:
+      - margin=2.5cm
+    pdf-engine: xelatex
+    mainfont: "Times New Roman"
+---
+
+<!-- Dot-point source notes for the user to write up. Not prose. Notation as in thesis/Final draft.qmd
+($W_i$, $Y_i$, $Y_i(1)$, $e(x)$, $\hat e(X_i)$, $\eta_i$, $\beta_0/\beta$, $\lambda$, $\tau$); papers' own symbols
+($Z_i$, $T_i$, $\pi$) translated. Page markers: Ding = printed p. (PDF p. = printed + 26); Tan RCAL =
+arXiv v1 PDF p.; W&Z and Wager = printed p.; S&H = PDF p.; Chattopadhyay = printed p. (PDF p. =
+printed − 3226); Kang & Schafer = printed p. (PDF = printed − 522); Imai & Ratkovic = printed p.
+(PDF = printed − 242); Rosenbaum & Rubin = printed p. (PDF = printed − 40). [UNSOURCED] = paper not in
+the project; the attribution is taken from the project paper cited beside it. "dv:" =
+notes/dropped_variants.md line; other file:line = repo. -->
+
+## 0. Propensity score (the object all four estimators plug in)
+
+- Definition: $e(x) = \Pr(W_i = 1 \mid X_i = x)$; "The function $e(x)$ is called the propensity score" [Rosenbaum & Rubin 1983 §1·2, eq. (1·2), p. 42; naming p. 43].
+- Introduced by Rosenbaum & Rubin 1983 (in project): Theorem 1, $X \perp W \mid e(X)$ — the propensity score is a balancing score, the coarsest one [§2·2, Theorems 1–2, p. 44]; strong ignorability $(Y(1), Y(0)) \perp W \mid X$, $0 < e(x) < 1$ [eq. (1·3), p. 43]; estimand $E(r_1) - E(r_0)$ = our $\tau$ [eq. (1·1), p. 42].
+- Corroborating attributions: "first emphasized by Rosenbaum and Rubin [1983]" [Wager 2025 ch. 2 bibliographic notes, p. 28]; propensity-score IPW "central role" [Tan 2020 RCAL §1, PDF p. 2].
+- Thesis model: logistic $e(x) = 1/(1+\exp(-(\beta_0 + x^\top\beta)))$, $\eta_i = \beta_0 + X_i^\top\beta$ [Final draft.qmd:47, 53; S&H 2026 §2, PDF p. 3].
+
+## 1. Horvitz–Thompson (HT) IPW estimator
+
+- Definition (ATE, thesis notation):
+
+  $$
+  \hat\tau_{\mathrm{HT}} = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{W_iY_i}{\hat e(X_i)} - \frac{(1-W_i)Y_i}{1-\hat e(X_i)}\right]
+  $$
+
+  = the sample analogue of the proposal's identification formula [Final draft.qmd:43]; same form in [Ding 2023 §11.2.2, p. 160, $\hat\tau^{\mathrm{ht}}$], [Wager 2025 eq. (2.11), p. 22; oracle version eq. (2.12)], [Chattopadhyay 2020 §2.4 (i), p. 3231, $T^{\mathrm{ATE}}_{\mathrm{HT}}$], per arm [Tan 2020 RCAL §2, PDF p. 6, $\hat\mu^1_{\mathrm{IPW}}$].
+- Introduced by: Horvitz & Thompson 1952 [UNSOURCED], for survey sampling — "Horvitz and Thompson (1952) proposed it in survey sampling and Rosenbaum (1987a) used in causal inference with observational studies" [Ding 2023 §11.2.2, p. 160]; "Weighting observed values by inverse-probabilities of selection was proposed by Horvitz and Thompson (1952) in the context of survey inference for finite populations" [Kang & Schafer 2007 §2.1, p. 528]; "we call this the Horvitz-Thompson estimator for its structural similarity with the Horvitz-Thompson estimator of the population mean in the survey sampling literature" [Chattopadhyay 2020 §2.4, p. 3231]; labelled HT (Horvitz and Thompson, 1952) in the K&S replication [Imai & Ratkovic 2014 §3.1, p. 251].
+- Rosenbaum 1987 (model-based direct adjustment) [UNSOURCED] = the causal-inference use per Ding p. 160.
+- Unbiased with the true $e$: $E[\hat\tau^*_{\mathrm{IPW}}] = \tau$ [Wager 2025 Theorem 2.2, p. 23]; Ding Theorem 11.2, p. 158.
+- Known defects (why we also report Hájek): not invariant to $Y_i \mapsto Y_i + c$ [Ding 2023 Prop. 11.1, p. 160]; "the weighting estimators blow up to infinity" when $\hat e$ near 0/1 [Ding p. 161]; oracle IPW has strictly larger asymptotic variance than the stratified estimator [Wager 2025 eq. (2.16), p. 25]; under a misspecified logistic model "the bias and RMSE actually get worse as the sample size grows!" [Kang & Schafer 2007 §2.1, p. 529, Table 1]; HT with GLM propensity, both models wrong, $n = 1000$: RMSE 2371.18 vs Hájek 12.71 [Imai & Ratkovic 2014 Table 1, p. 253 = PDF p. 11; paper_facts.md].
+- As run: `glmnetcv_ht` (one `cv.glmnet` lasso-logistic $\hat e$ at `lambda.min`, 5 folds) and `oracle_ht` (true $e$ of the draw) [dv:119–122, 131–132, 146; R/estimators_ipw.R:14–15]. Code comment cites Ding for the form [CHECK: Ding 2023 is in the project as `AIPW-IPTW-Covariate-Balancing-LLM.md`; the [READ] doc's "not in project" [CHECK] can be closed — cite Ding 2023 §11.2.2, p. 160].
+
+## 2. Hájek (ratio / normalised) IPW estimator
+
+- Definition (ATE, thesis notation):
+
+  $$
+  \hat\tau_{\mathrm{H}} = \frac{\sum_{i=1}^{n} W_iY_i/\hat e(X_i)}{\sum_{i=1}^{n} W_i/\hat e(X_i)} - \frac{\sum_{i=1}^{n} (1-W_i)Y_i/\{1-\hat e(X_i)\}}{\sum_{i=1}^{n} (1-W_i)/\{1-\hat e(X_i)\}}
+  $$
+
+  [Ding 2023 §11.2.2, p. 160, $\hat\tau^{\mathrm{hajek}}$]; = "linear weighted difference estimator or Hajek estimator" $T_{\mathrm{lin}}$ for any weights $w_i$ [Chattopadhyay 2020 §2.4 (ii), p. 3231]; per arm = ratio form $\hat\mu^1_{\mathrm{rIPW}} = \hat\mu^1_{\mathrm{IPW}}/\tilde E\{T/\hat\pi\}$ [Tan 2020 RCAL §2, PDF p. 6]; = K&S "IPW-POP" eq. (3) [Kang & Schafer 2007 §2.1, p. 528].
+- Introduced by: Hájek 1971 [UNSOURCED] — "This is the Hajek estimator due to Hájek (1971) in the context of survey sampling with varying probabilities" [Ding 2023 §11.2.2, p. 160; bibliography entry p. 448: Hájek, J. (1971), comment on Basu's "An essay on the logical foundations of survey sampling, part one", *The Foundations of Survey Sampling*, 236].
+- Name varies by field — say so once: "inverse propensity score weighting estimator IPW (Hirano et al., 2003)" [Imai & Ratkovic 2014 §3.1, p. 251]; "Hájek estimator (also called stabilized weights)" citing Hirano, Imbens & Ridder 2003 [Shang 2025 §3.1, eq. (7), PDF p. 5]; "ratio IPW" [Tan 2020 RCAL p. 6]; "IPW-POP" [Kang & Schafer 2007 p. 528]. Hirano, Imbens & Ridder 2003 [UNSOURCED].
+- Why normalise: "Precision is often enhanced if we use a denominator of $\sum_i t_i\hat\pi_i^{-1}$ rather than $n$, so that the estimate becomes a weighted average" [Kang & Schafer 2007 §2.1, p. 528]; invariant to location shift of $Y$; "many numerical studies have found that $\hat\tau^{\mathrm{hajek}}$ is much more stable than $\hat\tau^{\mathrm{ht}}$ in finite samples" [Ding 2023 p. 160]; equals the coefficient of $W_i$ in WLS of $Y_i$ on $(1, W_i)$ with IPW weights — result attributed to Imbens (2004) [Ding 2023 Prop. 14.1, p. 197; Imbens 2004 UNSOURCED]; sample-bounded when weights are nonnegative [Chattopadhyay 2020 §3.3, p. 3235]; $\mathrm{Var}[T_{\mathrm{lin}} \mid X, W] = \sigma_1^2\sum_i W_iw_i^2 + \sigma_0^2\sum_i(1-W_i)w_i^2$ under homoscedasticity, so weight dispersion / ESS $= (\sum w)^2/\sum w^2$ is the variance diagnostic [Chattopadhyay 2020 eq. (8) and Kish ESS, p. 3234].
+- ATT version (Hájek on controls, odds weights $\hat o(X_i) = \hat e(X_i)/\{1-\hat e(X_i)\}$): $\hat\tau^{\mathrm{hajek}}_{\mathrm T} = \bar Y_1 - \sum_i \hat o(X_i)(1-W_i)Y_i / \sum_i \hat o(X_i)(1-W_i)$ [Ding 2023 §13.2, p. 184]; same as $\hat\nu^0_{\mathrm{rIPW}}$ [Tan 2020 RCAL §6, PDF pp. 31–32]; control weights $d_i = \hat p/(1-\hat p)$ [Hainmueller 2012 §2.1, PDF p. [CHECK]].
+- As run: `glmnetcv_hajek`, `oracle_hajek` [dv:146; R/estimators_ipw.R:21–25]; analysis uses the Hájek form for IPW-glmnet because HT "explodes" under misspecification [analysis/ipw/correctspec.qmd:117–119; thesis_state decided].
+- Precedent for reporting both HT and Hájek for the MLE approach: [Imai & Ratkovic 2014 Table 1, p. 253]; Chattopadhyay report HT and Hájek rows [Tables 2–3, pp. 3244, 3246].
+
+## 3. AIPW (augmented IPW / doubly robust) — and the ABW variant
+
+- Definition (Wager's form, HT-type residual term):
+
+  $$
+  \hat\tau_{\mathrm{AIPW}} = \frac{1}{n}\sum_{i=1}^{n}\left(\hat\mu_{(1)}(X_i) - \hat\mu_{(0)}(X_i) + W_i\frac{Y_i - \hat\mu_{(1)}(X_i)}{\hat e(X_i)} - (1-W_i)\frac{Y_i - \hat\mu_{(0)}(X_i)}{1-\hat e(X_i)}\right)
+  $$
+
+  [Wager 2025 §3, eq. (3.4), p. 30]; same in [Ding 2023 Definition 12.1, p. 171; population version eqs. (12.3)–(12.6), p. 170]; = "DR Horvitz-Thompson" [Chattopadhyay 2020 §2.4 (iii), p. 3231]; = Kang & Schafer's BC-OLS eq. (8) with OLS outcome model [Kang & Schafer 2007 §3.1, p. 532].
+- Definition as run (Hájek-normalised residual terms):
+
+  $$
+  \hat\tau_{\mathrm{aug}} = \frac{1}{n}\sum_{i=1}^{n}\{\hat m_1(X_i)-\hat m_0(X_i)\} + \frac{\sum_i \hat w^{(1)}_i\{Y_i-\hat m_1(X_i)\}}{\sum_i \hat w^{(1)}_i} - \frac{\sum_i \hat w^{(0)}_i\{Y_i-\hat m_0(X_i)\}}{\sum_i \hat w^{(0)}_i}
+  $$
+
+  [R/estimators_ipw.R:67–72]; this is the "DR Hajek estimator" $T_{\mathrm{DR\,lin}}$ [Chattopadhyay 2020 §2.4 (iv), p. 3232]; = Ding's alternative form $\tilde\mu^{\mathrm{dr2}}$, "This form of doubly robust estimator appeared in Robins et al. (2007)" [Ding 2023 Problem 12.2, p. 178]; K&S: "we can normalize the weights in the correction term" [p. 532] but "Modifications like these would take the estimator outside of the AIPW class" [Kang & Schafer 2007 §3.1, p. 533]. Robins, Sued, Lei-Gomez & Rotnitzky 2007 [UNSOURCED].
+- Introduced by: Robins, Rotnitzky & Zhao 1994 [UNSOURCED] — "the augmented IPW (AIPW) estimator of Robins, Rotnitzky, and Zhao [1994]" [Wager 2025 §3, p. 30]; "pioneered by Robins, Rotnitzky, and Zhao [1994], and developed in ... Robins and Rotnitzky [1995] and Scharfstein, Rotnitzky, and Robins [1999]. The form of the AIPW estimator is also present in early work by Cassel, Särndal, and Wretman [1976] in survey sampling" [Wager 2025 ch. 3 bibliographic notes, p. 42]; "A more general version of (8) was independently proposed by Robins, Rotnitzky and Zhao (1994)" — the AIPW estimating equations; Cassel, Särndal & Wretman (1976) generalized regression / model-assisted estimator came first [Kang & Schafer 2007 §3.1, pp. 532–533]; "the doubly robust estimator, championed by James Robins (Scharfstein et al., 1999; Bang and Robins, 2005)" [Ding 2023 ch. 12, p. 169]; "also called the augmented inverse propensity score weighting (AIPW) estimator" [Ding p. 170]; DR property "(Scharfstein, Rotnitzky and Robins, 1999)" [Kang & Schafer p. 533]. Also cited as AIPW (Robins et al. 1994) in [Tan 2020 RCAL §6, PDF p. 33], [S&H 2026 fn. 2, PDF p. 4], [Keele 2025 PDF p. 12].
+- Double robustness: consistent if either $\hat\mu_{(w)}$ or $\hat e$ is consistent — "weak" DR [Wager 2025 §3, pp. 30–31; fn. 17: usually just called double robustness, Bang & Robins 2005]; Theorem 12.1 product-of-errors form $E[\{e - e(\cdot,\alpha)\}/e(\cdot,\alpha)\,\{\mu_1 - \mu_1(\cdot,\beta_1)\}]$ [Ding 2023 pp. 170–171, 177]; "strong"/rate DR: $\sqrt n$-normal with efficient variance if RMSE rates satisfy $\alpha_\mu + \alpha_e \ge 1/2$ [Wager 2025 eq. (3.5), p. 32; Theorem 3.2 with cross-fitting, p. 34; efficient variance $V^*$ eq. (3.20), Theorem 3.4, pp. 39–40].
+- Caveats: "doubly fragile" when both models are wrong [Ding 2023 §12.3.2 and §12.4, pp. 176–177]; K&S BC-OLS both wrong, $n=1000$: RMSE 157.21 [Kang & Schafer 2007 Table 5, p. 533; paper_facts.md]; DR-HT and DR-Hájek "almost identical" and with a linear outcome model the regression term "overshadow[s] the weighted adjustment" [Chattopadhyay 2020 fn. **, p. 3243; §5.2.2, p. 3245].
+- Augmented balancing weights (ABW) = the same form with balancing weights: $\hat\tau_{\mathrm{AB}}$ with lasso $\hat\beta_{(w)}$ and approximate-balance weights $\hat\gamma^{(w)}$ [Wager 2025 §7.2, eq. (7.16), p. 92, adapted from Athey, Imbens & Wager 2018 (UNSOURCED)]; with approximate balance "plain IPW-type estimator ... may [be] dominated by bias", augmentation fixes it [Wager p. 91; Remark 7.2, p. 95]; under exact balance "the augmented estimator is numerically equal to a non-augmented one [Robins et al., 2007]" [Wager Remark 7.3, p. 96]; same collapse for linear weights [Bruns-Smith 2025 §3.2, p. 9]; "augment the balancing weights (e.g., Athey et al., 2018; Hirshberg & Wager, 2021) ... along the same lines as ... AIPW (Robins et al., 1994; Scharfstein et al., 1999)" [Keele 2025 PDF p. 12]; Tan pairs RCAL with a weighted-likelihood outcome model [Tan 2020 AoS Table 1, p. 834 [CHECK: also marked p. 24]]; Tan RCAL: use $\hat\pi_{\mathrm{RCAL}}$ "as inputs to existing doubly robust estimators, for example, the augmented IPW estimator (Robins et al. 1994)" [Tan 2020 RCAL §6, PDF pp. 32–33].
+- As run: `aipw_glmnetcv` = $\hat e$ from `cv.glmnet` (5 folds, `lambda.min`) + per-arm `cv.glmnet` Gaussian lasso outcome model (5 folds, `lambda.min`, unweighted, fit on that arm, predicted for all units) [R/estimators_ipw.R:42–58, 201]; `abw_balnet0` = same outcome model + `balnet` path-end weights [:202]; `_ortrue` rows refit the outcome model on the untransformed covariates on misspecified draws [:127–138]; shared unweighted lasso OR is the design choice that isolates the weights [thesis_state decided]. Departures to state: no cross-fitting (Wager fits $\hat\mu$, $\hat e$ on held-out folds, eqs. (3.10), (3.16), pp. 34, 37) [CHECK: confirm in R/estimators_ipw.R:42–58 that the OR is fit and predicted in-sample]; Hájek not HT residual term (see above); code cites Ding Def. 12.1 / Problem 12.2 [R/estimators_ipw.R:35, 61, 194 — CHECK closed: Ding is in the project; Problem 12.2 = p. 178].
+
+## 4. IPW-balnet (covariate-balancing-loss IPW)
+
+- Definition (two fits, one per arm; weights $\hat w^{(1)}_i = W_i/\hat e^{(1)}(X_i)$, $\hat w^{(0)}_i = (1-W_i)/\{1-\hat e^{(0)}(X_i)\}$):
+
+  $$
+  \hat\tau_{\mathrm{bal}} = \frac{1}{n}\sum_{i=1}^{n}\left(\hat w^{(1)}_i - \hat w^{(0)}_i\right)Y_i
+  $$
+
+  — identical to Wager's $\hat\tau_{\mathrm{CBPS}}$, $\frac1n\sum_i(1+e^{-X_i\hat\theta_{(1)}})W_iY_i - \frac1n\sum_i(1+e^{X_i\hat\theta_{(0)}})(1-W_i)Y_i$ [Wager 2025 §7.1, eq. (7.11), p. 87]; HT $\equiv$ Hájek because $\sum_{W_i=1} 1/\hat e^{(1)}(X_i) = n$ at every $\lambda$: "The inverse probability weights ... still sum to the sample size $n$ by (10)" [Tan 2020 RCAL §3.1, eq. (10), PDF p. 8]; unpenalised: "The two IPW estimators are identical because $\tilde E\{T/\hat\pi_{\mathrm{CAL}}(X)\} = 1$ by (6) with a constant included in $f(X)$" [Tan RCAL §3.1, PDF p. 7]; control arm by symmetry [Tan eq. (7), PDF p. 7; S&H 2026 Remark 2, PDF p. 5]; corroborated [Sun & Tan 2020 eq. 28; paper_facts.md].
+- The loss (treated arm):
+
+  $$
+  \ell_1(\eta) = \frac{1}{n}\sum_{i=1}^{n}\left[W_i\exp(-\eta_i) + (1-W_i)\eta_i\right], \qquad \nabla\ell_1 = 0 \iff \frac{1}{n}\sum_i\left(\frac{W_i}{\hat e(X_i)} - 1\right)X_{ij} = 0
+  $$
+
+  [S&H 2026 eqs. (3)–(5), PDF p. 4; Final draft.qmd:67–71]; = $\ell_{\mathrm{CAL}}(\gamma) = \tilde E\{Te^{-\gamma^\top f(X)} + (1-T)\gamma^\top f(X)\}$ [Tan 2020 RCAL eq. (8), PDF p. 7]; = Wager's $\ell^{(1)}_\theta = W_ie^{-X_i\theta} + (1-W_i)X_i\theta$ [Wager 2025 eq. (7.9), p. 87]; control loss $\ell_0$ [S&H eq. (7), PDF p. 4; Wager eq. (7.10), p. 87; Tan $\ell^0_{\mathrm{CAL}}$, PDF p. 30].
+- Lineage (who introduced what):
+  - Calibration equations $\tilde E\{(T/\pi - 1)f(X)\} = 0$: "can be traced to Folsom (1991) in the survey literature" [UNSOURCED]; rederived in Tan 2010 (eq. 17), Graham, Pinto & Egel 2012, Kim & Haziza 2014, Vermeulen & Vansteelandt 2015, Chan et al. 2016 [all UNSOURCED] [Tan 2020 RCAL §1, PDF pp. 2–3; §3.1, PDF p. 7]; control-arm equations (7) give the same estimator as entropy balancing (Hainmueller 2012, in project) [Tan RCAL §1, PDF p. 3; §6, PDF p. 32].
+  - The loss $\ell_{\mathrm{CAL}}$ as the *definition* of the estimator (rather than "a computational device (Tan 2010, Section 4.4; Graham et al. 2012; Vermeulen & Vansteelandt 2015)"): Tan 2020 RCAL [§3.1, PDF p. 7]; its Bregman/relative-error theory: Prop. 2 (17)–(18), PDF p. 10; MSRE and Prop. 3, PDF p. 11; Prop. 4, PDF p. 12.
+  - "Covariate balancing propensity score" (CBPS) — term coined by Imai & Ratkovic 2014 [Wager 2025 ch. 7 notes, p. 97]; CBPS moment condition $E\{T\tilde X/\pi - (1-T)\tilde X/(1-\pi)\} = 0$ via GMM [Imai & Ratkovic 2014 §2.1, eq. (8), p. 246]; differs from calibration: one $\hat\gamma_{\mathrm{BAL}}$ making (6) and (7) *equal*, vs. two fits satisfying each separately [Tan 2020 RCAL §6, eq. (37), PDF p. 31].
+  - Unification as "tailored"/covariate-balancing loss functions: Zhao 2019 (= Zhao 2017 arXiv, in project): first-order conditions read as balancing constraints, eqs. (8)–(9) [Zhao 2017 §3.1, PDF p. 6]; "a unifying perspective on these methods via covariate-balancing loss functions is provided by Zhao [2019]" [Wager 2025 p. 96]; S&H build on Zhao 2019 [S&H 2026 §1, PDF p. 2].
+  - Lasso-penalised calibration loss = RCAL: $\ell_{\mathrm{RCAL}} = \ell_{\mathrm{CAL}} + \lambda\|\gamma_{1:p}\|_1$, KKT box constraints (10)–(11) [Tan 2020 RCAL §3.1, eqs. (9)–(11), PDF p. 8]; software `RCAL` (Tan & Sun 2020) "the closest existing software" [S&H 2026 §1, PDF p. 2].
+  - `balnet` = pathwise elastic-net solver (adelie, Yang & Hastie 2024) for the same loss; $\lambda$ = maximum allowable absolute imbalance / SMD under default standardisation; path from $\lambda^{\max}_1 = \max_j|\frac1n\sum_i W_iX_{ij} - \frac1n\sum_i X_{ij}|$ to `max.imbalance` [S&H 2026 §2, eqs. (8), (10), PDF pp. 5–6; §3, PDF pp. 6–7]; textbook statement of the same estimator and its theory [Wager 2025 §7.1, eqs. (7.9)–(7.11), Theorem 7.1, pp. 87–88].
+- Properties to cite: $\sqrt n$-consistent with the efficient variance when linear outcome and logistic propensity are both well specified [Wager 2025 Theorem 7.1, p. 88; quoted in S&H 2026 PDF p. 4]; the "if we believe in a linear-logistic specification ... covariate-balancing loss" recommendation [Wager p. 90; quoted S&H PDF p. 2]; calibrated $\hat\mu^1(\hat\pi_{\mathrm{CAL}})$ is doubly robust w.r.t. a linear outcome model (Graham et al. 2012) [Tan 2020 RCAL §6, PDF p. 31]; RCAL vs RML: relative-error control, eq. (19)–(20) [Tan PDF p. 11], Corollary 3 [PDF p. 18]; simulation: RCAL RMSE $\le$ RML for all $(n,p)$ and $h(X)$, "substantial" under misspecification [Tan §4, PDF p. 21]; regularised calibration = special case of minimal weights [Chattopadhyay 2020 §4.3, eq. (14), pp. 3239–3240]; existence condition stricter than logistic separation [S&H Prop. 1 = Tan Prop. S1, PDF p. 5].
+- As run (IPW component): two-arm `balnet` fit, `max.imbalance = 1e-4`; rules `balnetcv` (`cv.balnet`, 5 folds, held-out $\ell_1$, `lambda.min` per arm — Tan's rule [RCAL §4, PDF p. 20; Supp. III, PDF p. 43]), `balnet0` (path end), `balnet05`, `balnet10` (fixed SMD, path end if unreached, flag `trunc05`), `balnetrate` ($\lambda = \sqrt{\log p/n}$, constant 1 [CHECK] — rate only in [Tan RCAL §3.3.2, PDF p. 16; Wager 2025 Remark 7.2 / eq. (7.21), p. 95]) [dv:112, 123–126, 133–134, 144, 146; PKG-SRC utils.R:137–138, 264]; estimator body `ate_bal` [R/estimators_ipw.R:31–32].
+
+## 5. Papers cited above that are NOT in the project ([UNSOURCED] register)
+
+- Horvitz & Thompson 1952, JASA 47:663–685 — HT estimator (survey sampling). Attributed via Ding p. 160; K&S p. 528; Chattopadhyay p. 3231; Imai & Ratkovic p. 251.
+- Hájek 1971, comment on Basu, *Foundations of Survey Sampling*, p. 236 — Hájek estimator. Via Ding p. 160, bibliography p. 448.
+- Rosenbaum 1987, JASA 82:387–394 — HT/IPW in observational studies. Via Ding p. 160.
+- Hirano, Imbens & Ridder 2003, Econometrica 71:1161–1189 — efficiency of IPW with estimated $e$; name "IPW"/"stabilized weights" for the ratio form. Via Imai & Ratkovic p. 251; Shang PDF p. 5; Wager p. 28.
+- Imbens 2004, Rev. Econ. Statist. 86:4–29 — Hájek = WLS coefficient. Via Ding p. 197.
+- Robins, Rotnitzky & Zhao 1994, JASA 89:846–866 — AIPW. Via Wager pp. 30, 42; K&S p. 533; Ding p. 169 (via Scharfstein 1999).
+- Cassel, Särndal & Wretman 1976, Biometrika 63:615–620 — generalized regression (bias-corrected) estimator, AIPW form in survey sampling. Via K&S p. 532; Wager p. 42.
+- Robins & Rotnitzky 1995; Scharfstein, Rotnitzky & Robins 1999; Bang & Robins 2005; Robins, Sued, Lei-Gomez & Rotnitzky 2007 — DR theory, Hájek-form DR. Via Wager pp. 30, 42; K&S p. 533; Ding pp. 169, 178.
+- Athey, Imbens & Wager 2018, JRSS-B 80:597–623 — approximate residual balancing / augmented balancing (7.16). Via Wager pp. 92, 97; Keele PDF p. 12; S&H fn. 4, PDF p. 6.
+- Folsom 1991; Tan 2010; Graham, Pinto & Egel 2012; Kim & Haziza 2014; Vermeulen & Vansteelandt 2015; Chan, Yam & Zhang 2016 — calibration-equation lineage. Via Tan 2020 RCAL PDF pp. 2–3, 7.
+- Zubizarreta 2015 (SBW) and Hirshberg & Wager 2021 — cited only where the ABW/minimal-weights connection is drawn. Via W&Z p. 96; Wager pp. 93, 97.
+- In the project but under other names: Ding 2023 = `AIPW-IPTW-Covariate-Balancing-LLM.md` (ch. 11–14 excerpts, arXiv 2305.18793v2); Zhao 2019 AoS = `Zhao_2017_...` (arXiv); Tan 2020 Biometrika = arXiv v1 (page markers arXiv).
+
+## 6. [CHECK] list
+
+1. Ding 2023 **is** in the project (`AIPW-IPTW-Covariate-Balancing-LLM.md`, printed = PDF − 26) — close the earlier "Ding not in project" [CHECK]s in thesis_state.md and paper_facts.md ("Unknown (AIPW-IPTW-Covariate-Balancing)"); add Ding entries to paper_facts.md.
+2. Hainmueller 2012 §2.1 page marker for the ATT odds weights $d_i$ and the HT survey analogy — not read this session.
+3. Tan 2020 AoS Table 1 — p. 834 vs p. 24 in paper_facts.md.
+4. Cross-fitting: confirm R/estimators_ipw.R:42–58 fits the outcome model in-sample (no folds held out for prediction) — a departure from Wager eqs. (3.10)/(3.16).
+5. `balnetrate` constant = 1 — Tan RCAL PDF p. 16 and Wager p. 95 give a rate only.
+6. Tan RCAL citation — Biometrika 2020 vs arXiv v1 2017; page markers are arXiv PDF pages.
+7. Wager edition — proposal key `@wager2024` vs project file 2025 (printed pages).
+8. Imai & Ratkovic Table 1 marker — paper_facts.md says "p. 11" (PDF); printed p. 253.

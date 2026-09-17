@@ -1,0 +1,146 @@
+---
+title: "Methods — estimators [DRAFT 2026-09-16]"
+format:
+  pdf:
+    number-sections: false
+    geometry:
+      - margin=2.5cm
+    pdf-engine: xelatex
+    mainfont: "Times New Roman"
+bibliography: references.bib
+---
+
+<!-- Standalone render: @eq-exactbalance resolves only when this file is included in
+thesis/Final draft.qmd ({{< include methods_estimators_draft_2026-09-16.qmd >}}) or the
+proposal's equation is in scope; on its own it prints as an unresolved cross-reference.
+The R chunk is eval: false; no packages are needed to render. -->
+
+## Methods {#sec-methods}
+
+<!-- [DRAFT] 2026-09-16 — ADEMP: Methods (estimators). Audit trail in square brackets, to be
+stripped before submission. Paper markers are paper_facts.md entries (Tan RCAL = arXiv v1 PDF
+pages; W&Z and Wager = printed pages; S&H = PDF pages; Chattopadhyay = printed pages;
+PKG-SRC = pkg/balnet_0.0.4.tar.gz file:line). "dv:" = notes/dropped_variants.md line (the
+deparsed estimate_all() that produced results/ipw); tune4.R =
+runs/cv/basic_dgp/run_noise_x_overlap_lasso__tune4.R; run_wc_*.R = runs/cv/wz_replication/;
+other file:line = repo paths. @eq-exactbalance is the proposal's label (Final draft.qmd:63). -->
+
+This section describes the estimators as they were run, following the Methods element of the ADEMP structure [Morris 2019; [CHECK] no page-marked entry for the ADEMP list in paper_facts.md]. We refer to the two approaches of the proposal by the packages that implement them, IPW-glmnet for the penalized MLE approach and IPW-balnet for the penalized covariate balancing approach, and we take the three components of the study separately where they differ: the IPW component, the selector study (`cv/basic_dgp`) and the replication of Wang and Zubizarreta (`cv/wz_replication`). Where our settings depart from the papers we draw on, we say so at the point of departure.
+
+**Propensity score model and the two losses.** Both approaches fit the logistic propensity score model $e(x) = 1/(1+\exp(-(\beta_0 + x^\top\beta)))$ with linear predictor $\eta_i = \beta_0 + X_i^\top\beta$, and differ only in the loss they minimize [Final draft.qmd:47, 53]. The MLE approach minimizes the negative Bernoulli log-likelihood,
+
+$$\ell_{\mathrm{ML}}(\beta) = -\frac{1}{n}\sum_{i=1}^{n}\left[W_i\eta_i - \log\{1+\exp(\eta_i)\}\right],$$
+
+whose first-order conditions balance predicted and observed treatment rather than the covariates themselves [Final draft.qmd:49–57]. The covariate balancing approach minimizes, for the treated arm, the covariate balancing loss
+
+$$\ell_1(\eta) = \frac{1}{n}\sum_{i=1}^{n}\left[W_i\exp(-\eta_i) + (1-W_i)\eta_i\right],$$
+
+the calibration loss of Tan and of Sverdrup and Hastie, whose gradient is the balance residual, so that an unpenalized minimum satisfies the balance condition (@eq-exactbalance) in which the inverse-propensity-weighted treated mean of every covariate equals its full-sample mean [S&H 2026 eq. 5, p. 4; Final draft.qmd:61–71]. The control arm minimizes the same loss with $W_i$ replaced by $1-W_i$, which is the symmetry the proposal refers to and yields Tan's control-arm calibration equations [S&H 2026 Remark 2, p. 5; Tan 2020 RCAL eqs. 6–7, p. 7; Final draft.qmd:65, 73]. One consequence we return to below is that the ATE requires two balancing fits, one per arm, where the MLE approach requires a single fit [S&H 2026 Remark 1, p. 5].
+
+**Regularization and the role of $\lambda$.** Both approaches place a lasso penalty on the slope coefficients $\beta_1, \ldots, \beta_p$ and leave the intercept $\beta_0$ unpenalized [S&H 2026 eq. 8, p. 5; Tan 2020 RCAL eqs. 10–11, p. 8]. For IPW-glmnet the regularization path is computed by `glmnet`, with $\lambda$ acting as a coefficient budget [Final draft.qmd:59; Friedman 2010 — [CHECK] no page-marked entry in paper_facts.md]. For IPW-balnet the same penalty carries a second reading. The Karush–Kuhn–Tucker conditions of the penalized objective $\ell_1(\eta) + \lambda\sum_{j=1}^{p}|\beta_j|$ relax the balance condition to the box constraint
+
+$$\left|\frac{1}{n}\sum_{i=1}^{n}\frac{W_iX_{ij}}{\hat e(X_i)} - \frac{1}{n}\sum_{i=1}^{n}X_{ij}\right| \le \lambda, \qquad j = 1, \ldots, p,$$
+
+so that with covariates standardized, as `balnet` does by default, $\lambda$ is the maximum allowable imbalance in units of the standardized mean difference (SMD) [Final draft.qmd:75–83; S&H 2026 eq. 10, pp. 5–6; Tan 2020 RCAL eq. 11, p. 8]. Because the intercept is unpenalized, the treated weights $W_i/\hat e(X_i)$ sum to $n$ at every $\lambda$, and by symmetry so do the control weights [Tan 2020 RCAL eq. 10, p. 8; PKG-SRC balnet.fit.R:128]. `balnet` computes its path from $\lambda_{\max}$, the intercept-only solution, over 100 log-spaced values down to $\lambda_{\min}$, which is $0.01\,\lambda_{\max}$ by default or the value passed as `max.imbalance`; the path stops earlier when further reductions in imbalance are not achievable, so the balance tolerance reached at the path end depends on the data and on the arm [PKG-SRC vignettes/balnet.Rmd:59, 65–81; S&H 2026 §3, p. 7; PKG-SRC utils.R:88–118]. A requested $\lambda$ below the path end is clamped to it, so $\lambda = 0$ returns the tightest balance the path reached rather than exact balance, which the package documentation advises against requesting [PKG-SRC utils.R:264; vignettes/balnet.Rmd:81, 95]. The `glmnet` path is likewise a log-spaced sequence from $\lambda_{\max}$ down to a fixed fraction of it [[CHECK] `glmnet` defaults `nlambda`, `lambda.min.ratio`, `standardize` — glmnet documentation not in the project].
+
+**Tuning rules as run.** Several rules pick a point on each path, and they differ across the three components, so we state them as they were run rather than as planned. In the IPW component IPW-glmnet selects $\lambda$ by 5-fold cross-validation of the binomial deviance with `cv.glmnet`, taking `lambda.min`, and the resulting single fit $\hat e(X_i)$ serves both arms [dv:131–132; Final draft.qmd:99]. This is Tan's rule for the lasso MLE, which cross-validates $\ell_{\mathrm{ML}}$ over five folds, except that the candidate grid is `glmnet`'s path rather than the eleven values $\lambda_0/2^j$, $j = 0, \ldots, 10$, used there [Tan 2020 RCAL §4, pp. 19–20; [CHECK] `cv.glmnet` defaults, `type.measure = "deviance"` and the grid, not in a project file]. IPW-balnet is fit twice, once per arm, with `max.imbalance = 1e-4`, and $\lambda$ is chosen in five ways. The cross-validated rule (`balnetcv`) applies `cv.balnet` with five folds and the held-out covariate balancing loss as criterion, each fold's refit being scored at the full-data $\lambda$ sequence, and takes `lambda.min` separately for each arm; this reproduces Tan's criterion and his per-arm selection, again on the package path rather than on halvings [dv:123–124; PKG-SRC cv.balnet.R:79–121, 332–350; Tan 2020 RCAL §4, p. 20; Tan 2020 RCAL Supplement III, p. 43]. Three fixed rules read the weights off the fitted path at $\lambda = 0$, which the clamping described above turns into the path end (`balnet0`), and at $\lambda = 0.05$ and $\lambda = 0.10$ (`balnet05`, `balnet10`), the conventional SMD thresholds named in the proposal; where a path stops above the requested value the path-end weights are used and the replicate is flagged (`trunc05`) [dv:112, 125, 133–134, 144; PKG-SRC utils.R:264; Final draft.qmd:99]. The fifth rule (`balnetrate`) sets $\lambda = \sqrt{\log p / n}$ in both arms. This is the rate at which the theory for the lasso-calibrated propensity sets the penalty and at which the bias of an unaugmented balancing estimator is bounded; both sources give the rate with an unspecified constant, and fixing the constant at one is our choice [dv:126, 146; PKG-SRC utils.R:137–138; Tan 2020 RCAL §3.3.2, p. 16; Wager 2025 Remark 7.2 and eq. 7.21, p. 95; [CHECK] constant not prescribed by either paper; [CHECK] Wager edition — proposal key `@wager2024`, exploration_log.md:40 "Wager 2024", project file Wager 2025 with printed pages].
+
+In the selector study a single balancing fit targets the treated mean (`target = "treated"`), with `maxit = 1e4`, `tol = 1e-5`, elastic-net mixing $\alpha \in \{1, 0.75, 0.5, 0.25, 0\}$ across run families, and no `max.imbalance`, so the path runs to $0.01\,\lambda_{\max}$; the ridge and elastic-net runs of the `spread` and `tunea4` families set `lambda.min.ratio = 1e-4` instead, because the package allows `max.imbalance` only for $\alpha = 1$ [tune4.R:37–38, 44; spread.R:38; tunea4.R:24; PKG-SRC balnet.R:95–96, 183–203; PKG-SRC utils.R:88–118]. The estimate along the whole path is recorded on a common grid of 100 $\lambda$ values fixed from a reference draw (`set.seed(1000 + i)`), each replicate's path being interpolated onto it [tune4.R:44, 55; PKG-SRC utils.R:264; PKG-SRC balnet.fit.R:261–267], and five selectors then pick one $\lambda$ from the replicate's own path. `cv.bloss` is `cv.balnet` with the held-out covariate balancing loss; `cv.smd` and `cv.inf` are `cv.balnet` with the mean and the maximum absolute SMD of the held-out inverse-propensity-weighted covariate means against the full-sample means and standard deviations, with held-out propensities floored at 0.001; all three ran with the package default of 10 folds, since none of the run scripts passes `nfolds` [tune4.R:39–41; PKG-SRC cv.balnet.R:52, 60–66, 332–389]. `boot.smd` and `boot.inf` are `cv.boot.balnet`, which evaluates the full-sample weights on $B = 500$ half-samples drawn without replacement, takes the mean or the maximum absolute SMD against the full-sample means, and chooses the $\lambda$ that minimizes the average over subsamples [tune4.R:42–43; PKG-SRC cv.boot.balnet.R:45–46, 55, 62–77]. The cross-validated loss has Tan's precedent [Tan 2020 RCAL §4, p. 20]; the two `cv.*` imbalance criteria are package options with no paper analogue that we know of; and the two `boot.*` criteria are the package's adaptation of Algorithm 1 of Wang and Zubizarreta, described next.
+
+In the replication component a single balancing fit targets the control arm (`target = "control"`) on the basis $B(X) = (X, X^2)$ with $K = 20$ functions, with `max.imbalance = 1e-4` and the same iteration settings [run_wc_overlap.R:42–50; PKG-SRC balnet.R:92, 154–158]. The same five selectors run with `nfolds = 5` and $B = 500$ [run_wc_overlap.R:52–55]. A sixth selector (`alg1`) applies Algorithm 1 of Wang and Zubizarreta to the balancing path: for each $\delta$ in a grid from 0.001 to 0.2 (to 0.5 in the overlap-by-$n$ runs) the weights at $\lambda = \delta$ are taken from the path; $B = 10$ subsamples of size $\mathrm{round}(0.1\,n_0)$ are drawn with replacement within the control arm; on each, the absolute difference between the weighted control mean and the treated mean of $B_k(X)$, standardized by the full-sample standard deviation, is averaged over $k$; and the $\delta$ with the smallest average over subsamples is chosen [run_wc_overlap.R:20, 57–63; run_wc_overlap_n.R:21; R/estimators_cv.R:33–45]. Wang and Zubizarreta solve the weighting problem at each $\delta$, draw bootstrap samples of the full data, sum the standardized imbalances over $k$, and recommend $\delta < K^{-1/2}$ [W&Z 2020 §4.2, Algorithm 1, p. 101]. Our implementation departs in four ways. First, $\delta$ is read as `balnet`'s $\lambda$, a bound on the maximum SMD, rather than a constraint solved exactly. Second, the mean over $k$ replaces the sum, which leaves the argmin unchanged. Third, the ATT version measures the weighted control mean against the treated mean, the variant of Chattopadhyay et al. [Chattopadhyay 2020 Algorithm 1, p. 3241]. Fourth, the number and size of the subsamples are not given in the main text, so the setting of $B = 10$ and $0.1\,n_0$ rests on a supplement we have not verified [[CHECK] W&Z Supplement ("Wong & Chan settings"), cited at R/estimators_cv.R:4–5, not in the project]. The grid top of 0.5 in the overlap-by-$n$ runs also exceeds $K^{-1/2} \approx 0.224$ [[CHECK] run_wc_overlap_n.R:21, flagged in paper_facts.md]. The `boot.*` selectors depart in the same spirit: half-samples without replacement instead of bootstrap samples; `balnet`'s lasso-logistic weights instead of minimal-dispersion weights; and, in the replication component, selection on the balance of the control weights to the full sample while the ATT estimator rescales those weights to the treated, as described below [PKG-SRC cv.boot.balnet.R:55, 62–77; S&H 2026 Remark 2, p. 5].
+
+```{r}
+#| label: methods-tuning-calls
+#| eval: false
+#| echo: true
+# Schematic of the tuning calls as run; argument names as in balnet 0.0.4
+# (pkg/balnet_0.0.4.tar.gz) and glmnet. Producing code: dv:112-157 (ipw),
+# R/estimators_ipw.R:115-123 (aipw), runs/cv/basic_dgp/*.R, runs/cv/wz_replication/*.R.
+# [CHECK] argument passing (target to cv.balnet / cv.boot.balnet; maxit, tol) against the run scripts.
+
+## ipw / aipw -- two-arm fit, ATE
+fit_bal <- balnet(X, W, target = "ATE", max.imbalance = 1e-4)   # path to lambda_min = 1e-4 or early stop
+cv_bal  <- cv.balnet(X, W, target = "ATE", nfolds = 5)          # type.measure "balance.loss"; $lambda.min per arm
+fit_ml  <- cv.glmnet(X, W, family = "binomial", nfolds = 5)     # $lambda.min; deviance [CHECK glmnet defaults]
+# fixed and rate rules: weights from fit_bal at lambda = 0 (-> path end), 0.05, 0.10, sqrt(log(p) / n)
+
+## cv/basic_dgp -- one-arm fit, treated mean
+fit_1 <- balnet(X, W, target = "treated", alpha = alpha, maxit = 1e4, tol = 1e-5)   # no max.imbalance
+cv.balnet(X, W, target = "treated", type.measure = "balance.loss")      # cv.bloss; nfolds default 10
+cv.balnet(X, W, target = "treated", type.measure = "imbalance.mean")    # cv.smd  ("imbalance.inf" -> cv.inf)
+cv.boot.balnet(X, W, target = "treated", type.measure = "imbalance.mean", B = 500)   # boot.smd (".inf" -> boot.inf)
+
+## cv/wz_replication -- one-arm control fit on (X, X^2), ATT
+fit_0 <- balnet(B, W, target = "control", max.imbalance = 1e-4, maxit = 1e4, tol = 1e-5)
+# five selectors as above with nfolds = 5, B = 500; alg1 = cstat() over the delta grid on fit_0's path
+```
+
+**From weights to estimators.** Following Tan, we present the estimators as one form into which different propensity estimates are substituted [Tan 2020 RCAL §4, p. 20]. With arm-specific propensities $\hat e^{(1)}(X_i)$ and $\hat e^{(0)}(X_i)$ the weights are $\hat w^{(1)}_i = W_i/\hat e^{(1)}(X_i)$ and $\hat w^{(0)}_i = (1-W_i)/\{1-\hat e^{(0)}(X_i)\}$, and the Hájek (ratio) estimator of $\tau$ is
+
+$$\hat\tau_{\mathrm{H}} = \frac{\sum_{i=1}^{n}\hat w^{(1)}_iY_i}{\sum_{i=1}^{n}\hat w^{(1)}_i} - \frac{\sum_{i=1}^{n}\hat w^{(0)}_iY_i}{\sum_{i=1}^{n}\hat w^{(0)}_i},$$
+
+while the Horvitz–Thompson (HT) estimator $\hat\tau_{\mathrm{HT}}$ replaces both denominators by $n$ and is the sample analogue of the identifying expression for $\tau$ in the proposal [Tan 2020 RCAL §2, p. 6; Final draft.qmd:43]. The substitutions in the IPW component are:
+
+1. the true propensity score stored with each simulated draw, $\hat e^{(1)} = \hat e^{(0)} = e$ (`oracle_ht`, `oracle_hajek`) [Tan 2020 RCAL §4, p. 20, estimate (1); dv:119–122];
+2. the single penalized MLE fit, $\hat e^{(1)} = \hat e^{(0)} = \hat e$ from `cv.glmnet` at `lambda.min` (`glmnetcv_ht`, `glmnetcv_hajek`), reported in both forms because the two can differ by orders of magnitude when the model is wrong [Tan 2020 RCAL §4, p. 20, estimate (4); Imai & Ratkovic 2014 Table 1, p. 11; dv:131–132, 146; R/estimators_ipw.R:14–25];
+3. the two covariate balancing fits at each of the five rules above (`balnetcv`, `balnet0`, `balnet05`, `balnet10`, `balnetrate`) [Tan 2020 RCAL §4, p. 20, estimate (6); dv:123–126, 146; R/estimators_ipw.R:31–32].
+
+For the balancing fits each arm's weights sum to $n$ at every $\lambda$, so the HT and Hájek forms coincide and we report a single estimate, $\hat\tau_{\mathrm{bal}} = n^{-1}\sum_{i=1}^{n}(\hat w^{(1)}_i - \hat w^{(0)}_i)Y_i$; the HT–Hájek distinction therefore applies to IPW-glmnet and the oracle only [Tan 2020 RCAL eq. 10, p. 8; S&H 2026 eq. 8, p. 5; R/estimators_ipw.R:31–32]. The code cites Ding for the HT and Hájek forms [[CHECK] Ding 2023, R/estimators_ipw.R:7, 17, not in the project; Tan 2020 RCAL p. 6 substituted here]. The selector study estimates the treated mean $\mu_1 = \mathbb{E}[Y_i(1)]$ from the single treated-targeting fit as $\hat\mu_1 = n^{-1}\sum_{i=1}^{n}\hat w^{(1)}_iY_i$, which is again both HT and Hájek since $\sum_i \hat w^{(1)}_i = n$ [S&H 2026 eq. 5, p. 4; Tan 2020 RCAL eq. 10, p. 8; PKG-SRC balnet.R:673–685; tune4.R:44]. The replication component estimates the ATT on the control arm. From the control-targeting fit, the weights $1/\{1-\hat e^{(0)}(X_i)\}$ balance the controls to the full sample, and the rescaled weights $\hat\gamma_i = \hat e^{(0)}(X_i)/\{1-\hat e^{(0)}(X_i)\}$ balance them to the treated, since the two losses differ only by a scaling [S&H 2026 Remark 2, p. 5; S&H 2026 §3, p. 7]; the same fit therefore serves both estimands [Tan 2020 RCAL §6, pp. 31–32]. The estimator is Hájek on the controls,
+
+$$\hat\tau_{\mathrm{ATT}} = \bar Y_1 - \frac{\sum_{i=1}^{n}(1-W_i)\hat\gamma_iY_i}{\sum_{i=1}^{n}(1-W_i)\hat\gamma_i},$$
+
+[Tan 2020 RCAL §6, pp. 31–32, $\hat\nu^0_{\mathrm{rIPW}}$; run_wc_overlap.R:72–75], evaluated in the same form with the `glmnet` and `glm` propensities, $\hat e$ being clipped at $1 - 10^{-6}$ in the overlap-by-$n$ runs only [run_wc_overlap.R:66–68, 76; run_wc_overlap_n.R:68, 76], and compared with the sample ATT of each draw [run_wc_overlap.R:72–79]. Two stable balancing weights arms (`sbw`) solve Wang and Zubizarreta's minimal weights problem with the variance dispersion $f(w) = (w - 1/r)^2$: over the units of the weighted arm, minimize $\sum_i f(w_i)$ subject to $|\sum_i w_iB_k(X_i) - n^{-1}\sum_{i=1}^{n}B_k(X_i)| \le \delta$ for $k = 1, \ldots, K$, $\sum_i w_i = 1$ and $w_i \ge 0$ [W&Z 2020 §2, problem (1)–(2), p. 96]. The exact arm sets $\delta = 10^{-4}$ rather than the paper's $\delta = 0$ because the quadratic-programming solver rejects zero; the approximate arm selects $\delta$ by Algorithm 1 with the same subsampling as `alg1`, for the ATE (both arms against the full-sample means) and the ATT (controls against the treated means) [W&Z 2020 §4.3, p. 102; R/estimators_cv.R:10–13, 21–28, 50–52, 59–68, 70–81]. Since these weights sum to one within each arm, the estimate is $\sum_i w_iW_iY_i - \sum_i w_i(1-W_i)Y_i$ [R/estimators_cv.R:80; summarise_wc_sbw.R:18–20]. This arm calls `sbw::sbw` with `bal_std = "target"` and the `quadprog` solver rather than `sbw`'s default, and a hand-written loop over $\delta$ replaces `sbw`'s `bal_alg` [R/estimators_cv.R:6–13, 52].
+
+**Augmentation.** Two augmented estimators pair each weight set with an outcome model. For each arm and each outcome we fit an unweighted lasso regression of $Y_i$ on $X_i$ with `cv.glmnet` (Gaussian family, five folds, `lambda.min`) on the units of that arm and predict $\hat m_1(X_i)$ and $\hat m_0(X_i)$ for all units [R/estimators_ipw.R:42–58]. The augmented estimate is
+
+$$\hat\tau_{\mathrm{aug}} = \frac{1}{n}\sum_{i=1}^{n}\{\hat m_1(X_i) - \hat m_0(X_i)\} + \frac{\sum_{i=1}^{n}\hat w^{(1)}_i\{Y_i - \hat m_1(X_i)\}}{\sum_{i=1}^{n}\hat w^{(1)}_i} - \frac{\sum_{i=1}^{n}\hat w^{(0)}_i\{Y_i - \hat m_0(X_i)\}}{\sum_{i=1}^{n}\hat w^{(0)}_i},$$
+
+with the residual terms Hájek-normalized [R/estimators_ipw.R:67–72]. AIPW-glmnet (`aipw_glmnetcv`) substitutes the `cv.glmnet` propensity of the IPW component, and ABW-balnet0 (`abw_balnet0`) substitutes the path-end balancing weights [R/estimators_ipw.R:115–123, 201–202]. The form is the augmented balancing estimator of Wager with lasso outcome coefficients [Wager 2025 eq. 7.16, p. 92], and the Hájek residual form follows the doubly robust Hájek estimator of Chattopadhyay et al., who found the HT and Hájek versions close in their study [Chattopadhyay 2020 §5.2.2–5.2.3, pp. 3245–3246]. The design differs from Tan's, whose RCAL column pairs the calibrated propensity with a weighted-likelihood outcome model, so that the two losses are not isolated there [Tan 2020 AoS Table 1, p. 834; [CHECK] the same table is marked p. 24 elsewhere in paper_facts.md]; here one unweighted outcome fit is shared by both weight sets, so that the weights are the only difference between AIPW-glmnet and ABW-balnet0. We note that under exact balance the augmented estimator reduces to the unaugmented one, so the outcome model can only matter where balance is approximate [Wager 2025 Remark 7.3, p. 96; Bruns-Smith 2025 §3.2, p. 9, a result for linear weights]. On misspecified draws two further rows refit the outcome model on the untransformed covariates (`aipw_glmnetcv_ortrue`, `abw_balnet0_ortrue`) to isolate the propensity side, in the spirit of the Kang–Schafer cells that hold one model correct [R/estimators_ipw.R:127–138; [CHECK] Kang & Schafer 2007 "p. 528" in the code comment is a journal page; paper_facts.md marks PDF pp. 7, 11]. The code cites Ding for the outcome-model and AIPW forms [[CHECK] Ding 2023 Def. 12.1 / Problem 12.2, R/estimators_ipw.R:35, 61, 194, not in the project].
+
+**Benchmarks.** Two benchmarks anchor the comparisons. The oracle rows use the true propensity score of each draw in the HT and Hájek forms, Tan's first substitution, and show what estimating the propensity score costs on its own [Tan 2020 RCAL §4, p. 20, estimate (1); dv:119–122; R/estimators_ipw.R:203–204]. The replication component adds the naive difference in means $\bar Y_1 - \bar Y_0$ (`naive`), which is the estimate an intercept-only propensity would give, Tan's second substitution [Tan 2020 RCAL §4, p. 20, estimate (2); run_wc_overlap.R:77], and an unpenalized logistic regression `glm(W ~ X)` in the ATT form above, Tan's third [Tan 2020 RCAL §4, p. 20, estimate (3); run_wc_overlap.R:68, 76].
+
+**Software.** All estimators were run in R. The estimator code that produced the IPW results survives only as a deparsed copy of the function that ran [dv:112–157; [CHECK] exact producing version in git only — its diagnostics are named `cvloss_*`, the results say `logcvloss_*`]. The IPW batches with session files were run in August 2026 under R 4.5.2 with `glmnet` 4.1.10; the misspecified batch used `balnet` 0.0.1 with a runtime patch to the fold averaging in `cv.balnet` [runs/ipw/cvfix.R:10–67, 87–98; results/ipw/misspecDGP2cvfix_session.txt], and the correctly specified batch `balnet` 0.0.3 [results/ipw/correctspecDGP2_session.txt; [CHECK] whether 0.0.3 carries the fold-averaging fix is not recorded]. Cross-validated balancing results produced before that fix are excluded, since the earlier code averaged over the wrong margin [analysis/ipw/cvfix.qmd:66, 201]. The augmented component was run in September 2026 under R 4.5.2, `balnet` 0.0.4 and `glmnet` 5.0, except the four-level overlap pair on `glmnet` 4.1.10 [results/aipw sidecars; [CHECK] `glmnet` 4.1.10 vs 5.0 across batches]. The replication component used R 4.5.2, `balnet` 0.0.4, `glmnet` 4.1.10 and `sbw` 1.2 [wz rds sidecars; wc_sbw_v2_meta.rds]; the selector study's result files record no package version [[CHECK] basic_dgp rds]. The `balnet` source we cite is `pkg/balnet_0.0.4.tar.gz`, whose solver is the bundled adelie C++ library and whose `cv.balnet` averages over the correct margin; it was packaged on 13 September 2026, after every run, and the result files record only the version string, so whether the installed 0.0.4 was this build is open [PKG-SRC DESCRIPTION; PKG-SRC cv.balnet.R:106–117; [CHECK]]. Tan's paper is cited from the arXiv preprint, so its page markers refer to that PDF [[CHECK] cite Tan (2020, Biometrika) or arXiv v1 (2017)].
+
+| Component | Row (results name) | Propensity fit | $\lambda$ / $\delta$ rule | Form | Estimand |
+|---|---|---|---|---|---|
+| IPW | `oracle_ht`, `oracle_hajek` | true $e$ from the draw | — | HT; Hájek | ATE |
+| IPW | `glmnetcv_ht`, `glmnetcv_hajek` | `cv.glmnet`, binomial lasso, one $\hat e$ | 5-fold CV deviance, `lambda.min` | HT; Hájek | ATE |
+| IPW | `balnetcv` | `balnet`, two arms, `max.imbalance = 1e-4` | `cv.balnet`, 5 folds, balancing loss, `lambda.min` per arm | $\hat\tau_{\mathrm{bal}}$ (HT ≡ Hájek) | ATE |
+| IPW | `balnet0` | same fit | path end ($\lambda = 0$ clamped) | $\hat\tau_{\mathrm{bal}}$ | ATE |
+| IPW | `balnet05`, `balnet10` | same fit | $\lambda = 0.05, 0.10$; path end if unreached (`trunc05`) | $\hat\tau_{\mathrm{bal}}$ | ATE |
+| IPW | `balnetrate` | same fit | $\lambda = \sqrt{\log p / n}$, both arms | $\hat\tau_{\mathrm{bal}}$ | ATE |
+| AIPW | `balnet0`, `glmnetcv_ht`, `glmnetcv_hajek`, `oracle_ht`, `oracle_hajek` | as above | as above | as above | ATE |
+| AIPW | `aipw_glmnetcv` | `cv.glmnet` $\hat e$ + per-arm `cv.glmnet` lasso OR (5 folds, `lambda.min`) | `lambda.min` | $\hat\tau_{\mathrm{aug}}$ | ATE |
+| AIPW | `abw_balnet0` | `balnet` path end + the same OR | path end | $\hat\tau_{\mathrm{aug}}$ | ATE |
+| AIPW | `aipw_glmnetcv_ortrue`, `abw_balnet0_ortrue` (misspecified draws) | as above, OR on untransformed $X$ | as above | $\hat\tau_{\mathrm{aug}}$ | ATE |
+| Selector study | `est_path` | `balnet`, `target = "treated"`, $\alpha \in \{1, 0.75, 0.5, 0.25, 0\}$ | 100-point common grid | $\hat\mu_1$ (HT ≡ Hájek) | $\mu_1$ |
+| Selector study | `cv.bloss`, `cv.smd`, `cv.inf` | same path | `cv.balnet`, 10 folds | $\hat\mu_1$ | $\mu_1$ |
+| Selector study | `boot.smd`, `boot.inf` | same path | `cv.boot.balnet`, $B = 500$ half-samples | $\hat\mu_1$ | $\mu_1$ |
+| Replication | `cv.bloss`, `cv.smd`, `cv.inf`, `boot.smd`, `boot.inf` | `balnet`, `target = "control"`, $(X, X^2)$, `max.imbalance = 1e-4` | `nfolds = 5`; $B = 500$ | $\hat\tau_{\mathrm{ATT}}$ | ATT |
+| Replication | `alg1` | same path | W&Z Algorithm 1, $\delta$ grid, `cstat` $B = 10$ | $\hat\tau_{\mathrm{ATT}}$ | ATT |
+| Replication | `glmnet` | `cv.glmnet`, binomial lasso | 5-fold, `lambda.min` | $\hat\tau_{\mathrm{ATT}}$ | ATT |
+| Replication | `glm` | `glm(W ~ X)` | — | $\hat\tau_{\mathrm{ATT}}$ | ATT |
+| Replication | `naive` | — | — | $\bar Y_1 - \bar Y_0$ | ATT |
+| Replication | `sbw` exact; `sbw` Algorithm 1 | `sbw::sbw`, variance dispersion | $\delta = 10^{-4}$; Algorithm 1 grid | $\sum_i w_iW_iY_i - \sum_i w_i(1-W_i)Y_i$ | ATE, ATT |
+
+: Estimators by component, as run. Sources per row in the text; results names as in `results/`. {#tbl-estimators}
+
+<!-- [CHECK] list for this draft:
+1. Morris 2019 — ADEMP structure: no page-marked entry in paper_facts.md.
+2. Friedman 2010 — no page-marked entry in paper_facts.md (regularization path).
+3. glmnet defaults (nlambda, lambda.min.ratio, standardize, type.measure = "deviance", alpha = 1) — documentation not in the project [GK].
+4. balnetrate constant fixed at 1 — Tan 2020 RCAL §3.3.2 p. 16 and Wager 2025 Remark 7.2 p. 95 give a rate only.
+5. Wager edition — proposal key @wager2024, exploration_log.md:40 "Wager 2024", project file Wager 2025 (printed pages).
+6. W&Z Supplement — B = 10, subsamples of size 0.1·n0 ("Wong & Chan settings", R/estimators_cv.R:4–5) not in the project.
+7. alg1 grid top 0.5 > K^{-1/2} ≈ 0.224 in run_wc_overlap_n.R:21.
+8. Ding 2023 — cited at R/estimators_ipw.R:7, 17, 35, 61, 194 for HT, Hájek, OR, AIPW; not in the project; Tan 2020 RCAL p. 6 and Wager eq. 7.16 substituted.
+9. Tan 2020 AoS Table 1 — p. 834 vs p. 24 in paper_facts.md.
+10. Kang & Schafer 2007 "p. 528" (code comment for the _ortrue rows) is a journal page; paper_facts.md marks PDF pp. 7, 11.
+11. balnet 0.0.3 (results/ipw/correctspecDGP2_session.txt) — fold-averaging fix status not recorded.
+12. glmnet 4.1.10 vs 5.0 across results/aipw batches.
+13. cv/basic_dgp rds files record no package version.
+14. Installed balnet 0.0.4 for the September runs vs the tarball build packaged 2026-09-13 after every run.
+15. Tan RCAL citation — Biometrika 2020 vs arXiv v1 2017; page markers are arXiv PDF pages.
+16. R chunk is schematic — argument passing (target to cv.balnet / cv.boot.balnet; maxit, tol names) to verify against the run scripts.
+17. Exact estimate_all() that produced results/ipw survives only deparsed (dv:112–157); cvloss_* vs logcvloss_* naming — git history only.
+-->

@@ -1,0 +1,17 @@
+---
+title: "Graphs used in past papers"
+format: html
+editor: visual
+---
+
+## Chattopody
+
+![](images/clipboard-259146427.png)
+
+![](images/clipboard-1473327494.png)
+
+![](images/clipboard-2340669600.png)
+
+## Brun Smith
+
+![](images/clipboard-1930459376.png)

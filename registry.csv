@@ -1,1 +1,2 @@
 "batch_id","component","dgp","estimators","n_sim","seed","script","result_file","date","status","balnet_version","glmnet_version","balnet_source"
+"1","cv","dgp_wc","cv.bloss;cv.smd;cv.inf;boot.smd;boot.inf;alg1","2","20260903","runs/cv/wz_replication/run_wc_path.R","C:/Users/otisr/AppData/Local/Temp/RtmpcZ8HDV/wc_att_abw_v1.rds","2026-09-17 21:37","complete","0.0.4","5.0","RemoteType=local; RemoteUrl=C:\Users\otisr\Documents\balnet\r-package\balnet"

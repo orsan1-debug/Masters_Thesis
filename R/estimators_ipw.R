@@ -71,6 +71,22 @@ ate_aug <- function(Y, w1, w0, m1, m0) {
     colSums((Y - m1) * w1) / sum(w1) - colSums((Y - m0) * w0) / sum(w0)
 }
 
+#' Augmented ATT: treated mean minus the augmented control mean, evaluated
+#' at the treated units
+#'
+#' @param Y Numeric matrix of outcomes, n x k.
+#' @param W Binary treatment vector of length n.
+#' @param w0 Per-unit ATT weights for the controls, zero for treated units.
+#' @param m0 Fitted control outcome means for all n units, n x k.
+#' @return Numeric vector of length k.
+att_aug <- function(Y, W, w0, m0) {
+  w0 <- drop(w0)
+  treated <- W == 1
+  colMeans(Y[treated, , drop = FALSE]) -
+    (colMeans(m0[treated, , drop = FALSE]) +
+       colSums((Y - m0) * w0) / sum(w0))
+}
+
 ## --- diagnostics ----------------------------------------------------------
 
 # One arm's weights, zero off-arm: max |SMD| against the full-sample mean
