@@ -53,7 +53,8 @@ simulate_grid <- function(dgp_gen, grid, num_sim, base_seed, out_file,
                           workers = max(1L, future::availableCores(logical = FALSE) - 1L), ...) {
   stopifnot(!"outcome" %in% names(grid))
   Sys.setenv(OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1")  # no oversubscription
-  future::plan(future::multisession, workers = workers)
+  strategy <- getOption("sim.plan", future::multisession)   # sim.plan: e.g. future::multicore on macOS
+  future::plan(strategy, workers = workers)
   on.exit(future::plan(future::sequential), add = TRUE)
   
   seeds     <- make_seeds(base_seed, nrow(grid) * num_sim)

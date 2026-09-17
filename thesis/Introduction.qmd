@@ -1,0 +1,154 @@
+---
+title: "Background"
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+## 
+
+# Introduction 
+
+following Morris set up.
+
+|  |  |
+|----|----|
+| Introduction | problem, why balancing vs MLE propensity, the λ question; ends with the study's aims stated as questions |
+
+## Topic
+
+Inverse-propensity weighting (IPW) methods are a widely used approach for researchers studying the effects of programs, treatments, or interventions in observational settings. In IPW approaches, researchers isolate treatment effects by substituting the randomization in controlled trials with an assumption that once relevant pre-treatment characteristics are controlled for, treatment allocation is as good as random. Key to this approach is the propensity score, the probability of an individual receiving treatment given their pre-treatment covariates [@rosenbaum1983]. Recent methodological work has developed propensity score estimation methods that directly target the covariate balance IPW methods aim to achieve. Results of these covariate balancing approaches have been positive. However, there is currently no comprehensive simulation study demonstrating their benefits in realistic settings. This papers simulation aims to provide practical guidance on when covariate balancing methods offer advantages over traditional propensity score estimation.
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW.**
+
+**New Paragraph on Selectors/CV**
+
+### Background
+
+The application of IPW methods to address problems involving large and high dimensional data has increased significantly over the past decade [@chattopadhyay2020; @austin2015]. These methods use the propensity score to reweight outcomes, creating comparable treatment and control groups by accounting for systemic differences in treatment assignment [@rosenbaum1983]. Traditional approaches fit an MLE logistic regression predicting the propensity score and invert these estimated probabilities to achieve balance. This effectively optimizes for predictive accuracy of treatment assignment rather than balance between treatment groups. While under the oracle propensity score IPW perfectly balances covariate means, this property does not generally hold for MLE-estimated propensity scores, even in the absence of model misspecification [@wager2024]. Under misspecification or small sample sizes, minor estimation errors are amplified by inversion of the propensity score, producing severe imbalance and biased estimates [@benmichael2021]. This problem is compounded by weight instability, as observations with small propensity scores receive disproportionately large weights, inflating variance and leading researchers to ad hoc solutions that lack formal justification [@benmichael2021; @chattopadhyay2020]. When the treated fraction is small, MLE also concentrates propensity scores near zero, producing weights that fail to meaningfully differentiate control units, whereas covariate balancing approaches assign more variable weights that enable estimation of the ATT [@sverdrup2026]. The @austin2015 review on IPTW studies exacerbate these concerns, suggesting that estimated treatment effects in applied papers may be biased due to practitioners neglecting to assess whether weighting had achieved covariate balance.
+
+Covariate balancing propensity score (CBPS) methods, introduced by @imai2014, estimate propensity scores by selecting parameters that satisfy sample balance conditions. This approach is theoretically more appealing than MLE approaches for propensity modelling, as by minimizing covariate imbalance they target the balance that IPW requires [@benmichael2021; @wager2024, Chapter 7]. By optimizing for balance rather than predictive accuracy, these methods produce estimates that are more robust to model misspecification and more efficient than MLE estimators [@benmichael2021; @chattopadhyay2020]. Under a correctly specified linear-logistic model, balancing estimators are $\sqrt{n}$-consistent and have lower variance than even the oracle IPW [@wager2024].
+
+While the theoretical case for covariate balancing is well established, for applied work with large-scale or high-dimensional data, most existing balancing implementations suffer practical limitations. CBPS and entropy balancing approaches both enforce exact balance conditions, which become unworkable in large-scale data settings [@hainmueller2012; @fong2022; @sverdrup2026]. Alternative approaches that soften this exact balance condition have computational issues of their own. Stable balancing weights from @zubizarreta2015 require a maximum imbalance tolerance to be set before estimation and must be re-solved if this tolerance is unattainable or the bias-variance tradeoff is suboptimal [@sverdrup2026]. Work from @zhao2019 shows balancing estimators can generally be expressed as minimising a covariate balancing loss function, enabling the application of lasso regularization and other penalized regression approaches. RCAL implements lasso regularization for a covariate balancing loss function, however, as the package is written in R it struggles computationally with large data [@tan2020b].
+
+Of the currently available implementations, `balnet` from @sverdrup2026 provides the most scalable solution for large datasets and high dimensional settings. Like RCAL, `balnet` applies a lasso regularization for a covariate balancing loss function but is written in C++ and utilizes modern optimization techniques to address concerns around speed and scalability. Given that under lasso regularization the penalty parameter ($\lambda$) is equivalent to the maximum allowable covariate imbalance, the regularization path computed by balnet also provides a strong diagnostic tool for overlap. Results from @sverdrup2026 demonstrate this computational advantage, showing `balnet` is able to compute its regularization path with $n \approx 140000$ and $p=500$ in under a minute while alternative balancing packages failed to produce results within an hour.
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW:**
+
+**New Paragraph on Selectors/CV:**
+
+### **TOPIC:**
+
+**New Paragraph on AIPW:**
+
+weights can be combined with an outcome model: a core strategy for causal effects.
+
+**New Paragraph on APW.**
+
+the same can be done with balancing weights. the balnet paper suggests it when imbalance remains.
+
+**New Paragraph on Selectors/CV**
+
+- Contomporary literiture into criterion selection for balancing estimators is a special case, and nieve applications can be missleading when selecting $\lambda$.
+
+-  @brunssmith2025 caution against tuning the weights alone \[p. 2\].
+
+- we integrate a variety of selection criterions and additionally consider bootstrap selectors from the literature [@wang2020; @chattopadhyay2020].
+
+### **BACKGROUND:**
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW:**
+
+@braunsmith2025
+
+- exact balancing weights and linear regression collapse to OLS (Chattopadhyay & Zubizarreta 2023 also maybe older papers Kline 2011, J Robins).
+- consider a special case where both outcome models and the weights are linear in confounders (shared covariates).
+  - show that any linear weights equal OLS applied to the reweighted means, because OLS residuals are uncorrelated with their confounders.
+  - with an outcome model added, the estimator collapses to OLS at exact balance.
+- non-linear weights (RCAL, Tan etc) introduce an approximation error: `balnet` is this case.
+
+**New Paragraph on Selectors/CV:**
+
+@sverdrup2026 : new evidence CV and bootstrapping criterion have influenced us/erik to integrate a range of criterion to the package.
+
+@braunsmith2025
+
+- key takeaway: caution on tuning by cross-validating the weighting model only. With linear weights it can pick $\lambda = 0$, which recovers a standard OLS, where OLS is far from optimal.
+  - existing $\lambda$ tuning schemes can be misleading when applied naively.
+  - picks of $\lambda = 0$ were sensitive to the CV splits. they advise checking this.
+- each tuning rule ignores something (the outcome, or the target): no single rule did well across all DGPs.
+  - With APW, CV on the weights' imbalance and CV on the outcome penalty both did well. CV on the weights' own loss picked $\lambda = 0$ in over half of draws.
+
+### **AIMS:**
+
+**New Paragraph on Balancing vs MLE:**
+
+**New Paragraph on Selectors/CV:**
+
+@braunsmith2025
+
+**Test 1:** Is `balnet.cv` with $\lambda =0$ recovers a standard OLS, where OLS is far from optimal.
+
+1.  **results:** questionable, double check results.
+2.  open: unsure if checking it recovers standard OLS? is this relevent for us.
+
+**Test 2:** CV and bootstrap selectors with ABW, not just IPW. to do this we need should:
+
+1.  *Add ATT arm for ABW (currently only has ATE).*
+2.  *test: do the selectors rank the same for ABW as for IPW-balnet?*
+3.  *same seeds as the old runs if possible, save compute time.*
+4.  *start with cv/basic_dgp. cv/wz_replication is ATT*
+
+- how often does each `cv.balnet` criterion pick the path end, and *does the pick move with the folds?*
+
+**Test 3:** results imply that at exact balance non-linear weighting functions differ from OLS as they introduce approximation error (references RCAL tan etc)
+
+- lower lambda floor, compare against AIPW under correct spec etc, where our results imply balnet's loss function reaches RMSE = 0.
+
+  -  add a linear weighting package so ABW doesnt use lambda weights?
+
+    - add an OLS arm: fit a regression in each treatment group, predict for everyone, take the difference. compare to ABW on the same data.
+
+  - what happens when exact balancing cant be reached, under overlap degredation increased dimensionality etc?
+
+### **LIMITATIONS:**
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW.**
+
+**New Paragraph on Selectors/CV**
+
+@braunsmith2025
+
+- w.rt the approximation error introduced under nonlinear weighting functions, our simulation cannot provide a general result for non linear we eighting schemes.
+
+### **TOPIC:**
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW.**
+
+**New Paragraph on Selectors/CV**
+
+### **BACKGROUND:**
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW:**
+
+**New Paragraph on Selectors/CV:**
+
+### **AIMS:**
+
+**New Paragraph on AIPW:**
+
+**New Paragraph on APW.**
+
+**New Paragraph on Selectors/CV**

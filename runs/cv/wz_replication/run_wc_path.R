@@ -19,7 +19,7 @@ library(parallel)
 
 res_dir     <- Sys.getenv("OUT_DIR", here::here("results", "cv", "wz_replication"))   # OUT_DIR=<tmp> for smoke runs
 run_start   <- Sys.time()   # register_run() only if this run writes a cell
-batch_id    <- "wc_att_v1"
+batch_id    <- "wc_att_abw_v1"   # new id: keeps wc_att_v1.rds from being overwritten
 n           <- 5000
 n_rep       <- as.integer(Sys.getenv("N_SIM", "1000"))   # N_SIM=2 for a smoke run
 master_seed <- 20260903
@@ -78,10 +78,24 @@ one_rep <- function(i) {
                        target = colMeans(X[W == 1, ]), s), numeric(1))
     k  <- which.min(cs)
     
+    # control-arm lasso OR on the same basis X, after every other RNG use so
+    # the rows above keep their draws
+    ctrl <- W == 0
+    m0 <- vapply(seq_len(ncol(d$Y)), \(j) {
+      f <- cv.glmnet(X[ctrl, ], d$Y[ctrl, j], family = "gaussian", nfolds = 5)
+      predict(f, newx = X, s = "lambda.min")[, 1]
+    }, numeric(nrow(X)))
+    # ABW ATT for each column of control-arm weights w
+    abw <- \(w) drop(apply(as.matrix(w), 2, \(wk)
+                           att_aug(d$Y, W, (wk - 1) * (1 - W), m0)))
+    
     list(est_path = att(balweights(bl, lambda = lam)),
+         abw_path = abw(balweights(bl, lambda = lam)),
          lam_end  = min(bl$lambda),
          est_sel  = cbind(vapply(sel, \(m) att(balweights(m)), numeric(2)),
                           alg1 = att(wg[, k, drop = FALSE])),
+         abw_sel  = cbind(vapply(sel, \(m) abw(balweights(m)), numeric(2)),
+                          alg1 = abw(wg[, k, drop = FALSE])),
          lam_sel  = c(vapply(sel, `[[`, numeric(1), "lambda.min"),
                       alg1 = grid[k]),
          satt     = mean(d$tau_i[W == 1]))
@@ -96,7 +110,9 @@ clusterExport(cl, c("seeds", "n", "lam", "grid", "one_rep"))
 invisible(clusterEvalQ(cl, {
   RNGkind("L'Ecuyer-CMRG")
   source(here::here("R", "dgp.R")); source(here::here("R", "estimators_cv.R"))
+  source(here::here("R", "estimators_ipw.R"))   # att_aug()
   library(balnet)
+  library(glmnet)
 }))
 res <- parLapply(cl, seq_len(n_rep), one_rep)
 stopCluster(cl)

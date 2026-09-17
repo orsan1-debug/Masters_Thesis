@@ -1,0 +1,69 @@
+---
+title: "Diagnostics/Grids/Findings in other papers."
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+# Chattpody
+
+### Simulation Style
+
+- simulation from Hainmuller
+
+- Varies:
+
+  - overlap strong to weak.
+
+- Propsoes: bootstrapped based algorithmic tuning, notes it trades balance for weight dispersion.
+
+### Performance Metrics
+
+1.  Bias
+2.  RMSE
+3.  MSE
+
+### Diagnostics
+
+1.  **Moment-based measures of variability:** coefficient of variation of the weights, which is given by the standard deviation of the weights divided by the mean of the weights. Equivalently, one can also look at the standard deviation of the normalized weights.
+2.  **Effective sample size ESS:** the variance of the weights has a direct relationship with the effective sample size of a weighted sample. For a general weighted sample with weights $\{w_1, \dots, w_n\}$, Kish's approximate formula for the effective sample size is $$n_{\mathrm{eff}} = \frac{\left(\sum_{i=1}^{n} w_i\right)^2}
+    {\sum_{i=1}^{n} w_i^2}.$$ An unusually low value of the effective sample size would indicate the possible presence of a few influential observations (with extreme weights).
+3.  **Measures of extremity:** maximum of the weights, 95th and 99th percentile of weights.
+4.  **Graphical diagnostics:** box plot of the weights.
+5.  
+
+All of these stability measures can compare two or more weighting methods. The effective sample size also works as a standalone diagnostic, because $n_{\mathrm{eff}}/n$ gives the proportion of the total sample effectively used in the weighted sample.
+
+# Kang and Shaerfer
+
+Kang and Schafer (2007) showed that weights from a misspecified propensity score model can be highly variable and produce highly unstable weighted estimators.
+
+# Bruns Smith
+
+hightlited by erik:
+
+1.  We further caution against the naive application of hyper- parameter tuning based solely on cross-validating the weighting model, forms of which have been suggested previously. p2
+2.  Most relevant are a series of papers that show numerical equivalences between linear regression and (exact) balancing weights, especially (Chattopadhyay & Zubizarreta, 2023; Kline, 2011; J. Robins et al., 2007), p3
+3.  Let m(x, z) := E\[Y ∣ X = x, Z = z\] be the outcome model, e(x) := P\[Z = 1 ∣ X = x\] be the pro- pensity score, and α(x, z) = z/e(x) be the inverse propensity score weights (IPW). p4
+4.  
+
+claims:
+
+- **open problem:** practical hyperparmeter tuning.
+
+  - make asymptotic results for double kernal ridge estimators (singh, 2024) - prior results show optimal undersmoothing for a single kernal ridge outcome model, showing the latter is semiparmatericarrly efficinet. (
+
+  - **Gap.** A direct test needs ABW at each selector's λ and at the floor, same draws. Question it answers: *does augmentation move the RMSE-optimal λ off the floor?* Bruns-Smith predict yes.
+
+<!-- -->
+
+- wieghting marameter set to zero, entire procedure is equivalant to estimating unregularized OLS
+
+- augmenting an outcome regressionm estimator w balancing weights generally respond sto a form of undersmoothing,
+
+  - most noteably, ridge regression, colapses to a undersmoothed kernal ridge regression estimator
+
+  - augemnted balancing weight estimators that use ridge (kernel) regression for outcome and weighting, "double ridge" collapse to a single undersmoothed ridge regression
