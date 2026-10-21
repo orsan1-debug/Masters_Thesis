@@ -1,0 +1,3 @@
+# no line ending conversion so every file stays byte for byte
+# and the md5 sums in replication/manifest.csv hold after a clone
+* -text

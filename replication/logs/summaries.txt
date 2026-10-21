@@ -1,0 +1,703 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+R 4 6.1 aarch64-apple-darwin23 long double bytes 8 
+
+correct_n                      largest difference 1.6e-15
+misspec_n                      largest difference 1.1e-14
+misspec_npath                  largest difference 1.9e-13
+n_both                         largest difference 1.1e-14
+nc                             largest difference 2.0e-15
+overlap                        largest difference 1.2e-13
+p_axis                         largest difference 3.8e-15
+signal                         largest difference 1.9e-15
+sparsity                       largest difference 8.9e-16
+tol_n                          largest difference 2.2e-14
+treat_share                    largest difference 1.1e-14
+coverage_empse n correct       largest difference 8.9e-16
+coverage_empse n misspec       largest difference 1.9e-15
+coverage_empse overlap correct largest difference 1.9e-15
+coverage_empse overlap misspec largest difference 3.7e-15
+coverage_empse signal correct  largest difference 4.7e-16
+coverage_empse signal misspec  largest difference 1.9e-15
+
+Detail
+
+== correct_n 
+                            perf_rows_matched 
+                                     0.00e+00 
+                                         bias 
+                                     2.49e-17 
+                                        empse 
+                                     8.88e-16 
+                                         rmse 
+                                     2.78e-17 
+                                    mcse_rmse 
+                                     6.07e-18 
+      balnet0 vs glmnetcv_hajek cells_matched 
+                                     0.00e+00 
+                balnet0 vs glmnetcv_hajek R_c 
+                                     5.55e-17 
+           balnet0 vs glmnetcv_hajek R_c_mcse 
+                                     2.34e-17 
+              balnet0 vs glmnetcv_hajek R_bar 
+                                     0.00e+00 
+         balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                     5.55e-17 
+   abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                     0.00e+00 
+             abw_balnet0 vs aipw_glmnetcv R_c 
+                                     2.21e-16 
+        abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                     1.73e-17 
+           abw_balnet0 vs aipw_glmnetcv R_bar 
+                                     0.00e+00 
+      abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                     1.25e-16 
+aipw_glmnetcv vs glmnetcv_hajek cells_matched 
+                                     0.00e+00 
+          aipw_glmnetcv vs glmnetcv_hajek R_c 
+                                     5.55e-17 
+     aipw_glmnetcv vs glmnetcv_hajek R_c_mcse 
+                                     2.78e-17 
+        aipw_glmnetcv vs glmnetcv_hajek R_bar 
+                                     0.00e+00 
+   aipw_glmnetcv vs glmnetcv_hajek R_bar_mcse 
+                                     9.71e-17 
+        balnet0 vs oracle_hajek cells_matched 
+                                     0.00e+00 
+                  balnet0 vs oracle_hajek R_c 
+                                     1.11e-16 
+             balnet0 vs oracle_hajek R_c_mcse 
+                                     1.91e-17 
+                balnet0 vs oracle_hajek R_bar 
+                                     0.00e+00 
+           balnet0 vs oracle_hajek R_bar_mcse 
+                                     1.11e-16 
+                 balnet0 vs ols cells_matched 
+                                     0.00e+00 
+                           balnet0 vs ols R_c 
+                                     2.14e-16 
+                      balnet0 vs ols R_c_mcse 
+                                     2.69e-17 
+                         balnet0 vs ols R_bar 
+                                     1.60e-15 
+                    balnet0 vs ols R_bar_mcse 
+                                     8.33e-17 
+
+== misspec_n 
+                                       perf_rows_matched 
+                                                0.00e+00 
+                                                    bias 
+                                                1.55e-15 
+                                                   empse 
+                                                2.15e-15 
+                                                    rmse 
+                                                1.90e-15 
+                                               mcse_rmse 
+                                                2.49e-15 
+                 balnet0 vs glmnetcv_hajek cells_matched 
+                                                0.00e+00 
+                           balnet0 vs glmnetcv_hajek R_c 
+                                                1.11e-16 
+                      balnet0 vs glmnetcv_hajek R_c_mcse 
+                                                9.71e-17 
+                         balnet0 vs glmnetcv_hajek R_bar 
+                                                0.00e+00 
+                    balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                                5.55e-16 
+              abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                                0.00e+00 
+                        abw_balnet0 vs aipw_glmnetcv R_c 
+                                                1.11e-16 
+                   abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                                1.11e-16 
+                      abw_balnet0 vs aipw_glmnetcv R_bar 
+                                                0.00e+00 
+                 abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                                7.77e-16 
+           aipw_glmnetcv vs glmnetcv_hajek cells_matched 
+                                                0.00e+00 
+                     aipw_glmnetcv vs glmnetcv_hajek R_c 
+                                                3.33e-16 
+                aipw_glmnetcv vs glmnetcv_hajek R_c_mcse 
+                                                5.55e-17 
+                   aipw_glmnetcv vs glmnetcv_hajek R_bar 
+                                                1.33e-16 
+              aipw_glmnetcv vs glmnetcv_hajek R_bar_mcse 
+                                                1.11e-15 
+                   balnet0 vs oracle_hajek cells_matched 
+                                                0.00e+00 
+                             balnet0 vs oracle_hajek R_c 
+                                                2.36e-16 
+                        balnet0 vs oracle_hajek R_c_mcse 
+                                                3.64e-17 
+                           balnet0 vs oracle_hajek R_bar 
+                                                0.00e+00 
+                      balnet0 vs oracle_hajek R_bar_mcse 
+                                                8.52e-16 
+                            balnet0 vs ols cells_matched 
+                                                0.00e+00 
+                                      balnet0 vs ols R_c 
+                                                0.00e+00 
+                                 balnet0 vs ols R_c_mcse 
+                                                7.37e-18 
+                                    balnet0 vs ols R_bar 
+                                                0.00e+00 
+                               balnet0 vs ols R_bar_mcse 
+                                                1.11e-16 
+abw_balnet0_ortrue vs aipw_glmnetcv_ortrue cells_matched 
+                                                0.00e+00 
+          abw_balnet0_ortrue vs aipw_glmnetcv_ortrue R_c 
+                                                2.22e-16 
+     abw_balnet0_ortrue vs aipw_glmnetcv_ortrue R_c_mcse 
+                                                1.53e-16 
+        abw_balnet0_ortrue vs aipw_glmnetcv_ortrue R_bar 
+                                                0.00e+00 
+   abw_balnet0_ortrue vs aipw_glmnetcv_ortrue R_bar_mcse 
+                                                6.66e-16 
+                    abw_balnet0 vs balnet0 cells_matched 
+                                                0.00e+00 
+                              abw_balnet0 vs balnet0 R_c 
+                                                2.22e-16 
+                         abw_balnet0 vs balnet0 R_c_mcse 
+                                                1.63e-19 
+                            abw_balnet0 vs balnet0 R_bar 
+                                                1.11e-14 
+                       abw_balnet0 vs balnet0 R_bar_mcse 
+                                                3.90e-18 
+             abw_balnet0 vs glmnetcv_hajek cells_matched 
+                                                0.00e+00 
+                       abw_balnet0 vs glmnetcv_hajek R_c 
+                                                1.11e-16 
+                  abw_balnet0 vs glmnetcv_hajek R_c_mcse 
+                                                2.91e-16 
+                     abw_balnet0 vs glmnetcv_hajek R_bar 
+                                                2.23e-16 
+                abw_balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                                6.66e-16 
+                abw_balnet0 vs glmnetcv_ht cells_matched 
+                                                0.00e+00 
+                          abw_balnet0 vs glmnetcv_ht R_c 
+                                                5.55e-17 
+                     abw_balnet0 vs glmnetcv_ht R_c_mcse 
+                                                1.55e-15 
+                        abw_balnet0 vs glmnetcv_ht R_bar 
+                                                0.00e+00 
+                   abw_balnet0 vs glmnetcv_ht R_bar_mcse 
+                                                2.50e-16 
+
+== misspec_npath 
+perf_rows_matched              bias             empse              rmse 
+         0.00e+00          3.79e-15          6.51e-15          1.90e-15 
+        mcse_rmse 
+         1.91e-13 
+
+== n_both 
+                            perf_rows_matched 
+                                     0.00e+00 
+                                         bias 
+                                     1.55e-15 
+                                        empse 
+                                     2.15e-15 
+                                         rmse 
+                                     1.90e-15 
+                                    mcse_rmse 
+                                     2.49e-15 
+      balnet0 vs glmnetcv_hajek cells_matched 
+                                     0.00e+00 
+                balnet0 vs glmnetcv_hajek R_c 
+                                     1.11e-16 
+           balnet0 vs glmnetcv_hajek R_c_mcse 
+                                     9.71e-17 
+              balnet0 vs glmnetcv_hajek R_bar 
+                                     0.00e+00 
+         balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                     5.55e-16 
+   abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                     0.00e+00 
+             abw_balnet0 vs aipw_glmnetcv R_c 
+                                     2.21e-16 
+        abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                     1.11e-16 
+           abw_balnet0 vs aipw_glmnetcv R_bar 
+                                     8.38e-16 
+      abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                     9.99e-16 
+aipw_glmnetcv vs glmnetcv_hajek cells_matched 
+                                     0.00e+00 
+          aipw_glmnetcv vs glmnetcv_hajek R_c 
+                                     3.33e-16 
+     aipw_glmnetcv vs glmnetcv_hajek R_c_mcse 
+                                     5.55e-17 
+        aipw_glmnetcv vs glmnetcv_hajek R_bar 
+                                     2.40e-16 
+   aipw_glmnetcv vs glmnetcv_hajek R_bar_mcse 
+                                     1.11e-15 
+        balnet0 vs oracle_hajek cells_matched 
+                                     0.00e+00 
+                  balnet0 vs oracle_hajek R_c 
+                                     2.36e-16 
+             balnet0 vs oracle_hajek R_c_mcse 
+                                     3.64e-17 
+                balnet0 vs oracle_hajek R_bar 
+                                     1.48e-15 
+           balnet0 vs oracle_hajek R_bar_mcse 
+                                     8.52e-16 
+                 balnet0 vs ols cells_matched 
+                                     0.00e+00 
+                           balnet0 vs ols R_c 
+                                     2.14e-16 
+                      balnet0 vs ols R_c_mcse 
+                                     2.69e-17 
+                         balnet0 vs ols R_bar 
+                                     9.97e-15 
+                    balnet0 vs ols R_bar_mcse 
+                                     1.67e-16 
+         abw_balnet0 vs balnet0 cells_matched 
+                                     0.00e+00 
+                   abw_balnet0 vs balnet0 R_c 
+                                     2.22e-16 
+              abw_balnet0 vs balnet0 R_c_mcse 
+                                     8.13e-19 
+                 abw_balnet0 vs balnet0 R_bar 
+                                     1.11e-14 
+            abw_balnet0 vs balnet0 R_bar_mcse 
+                                     8.67e-18 
+  abw_balnet0 vs glmnetcv_hajek cells_matched 
+                                     0.00e+00 
+            abw_balnet0 vs glmnetcv_hajek R_c 
+                                     1.11e-16 
+       abw_balnet0 vs glmnetcv_hajek R_c_mcse 
+                                     2.91e-16 
+          abw_balnet0 vs glmnetcv_hajek R_bar 
+                                     2.23e-16 
+     abw_balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                     6.66e-16 
+       balnet0 vs aipw_glmnetcv cells_matched 
+                                     0.00e+00 
+                 balnet0 vs aipw_glmnetcv R_c 
+                                     3.33e-16 
+            balnet0 vs aipw_glmnetcv R_c_mcse 
+                                     2.50e-16 
+               balnet0 vs aipw_glmnetcv R_bar 
+                                     4.19e-15 
+          balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                     1.22e-15 
+
+== nc 
+perf_rows_matched              bias             empse              rmse 
+         0.00e+00          1.40e-15          1.96e-15          6.88e-16 
+        mcse_rmse 
+         1.78e-15 
+
+== overlap 
+                         perf_rows_matched 
+                                  0.00e+00 
+                                      bias 
+                                  3.41e-15 
+                                     empse 
+                                  3.75e-15 
+                                      rmse 
+                                  3.13e-15 
+                                 mcse_rmse 
+                                  1.17e-13 
+    balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+              balnet0 vs aipw_glmnetcv R_c 
+                                  3.13e-16 
+         balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  6.94e-17 
+            balnet0 vs aipw_glmnetcv R_bar 
+                                  3.36e-15 
+       balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  9.99e-16 
+   balnet0 vs glmnetcv_hajek cells_matched 
+                                  0.00e+00 
+             balnet0 vs glmnetcv_hajek R_c 
+                                  1.11e-16 
+        balnet0 vs glmnetcv_hajek R_c_mcse 
+                                  1.28e-16 
+           balnet0 vs glmnetcv_hajek R_bar 
+                                  0.00e+00 
+      balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                  1.67e-16 
+      balnet0 vs glmnetcv_ht cells_matched 
+                                  0.00e+00 
+                balnet0 vs glmnetcv_ht R_c 
+                                  4.44e-16 
+           balnet0 vs glmnetcv_ht R_c_mcse 
+                                  2.55e-15 
+              balnet0 vs glmnetcv_ht R_bar 
+                                  1.93e-16 
+         balnet0 vs glmnetcv_ht R_bar_mcse 
+                                  1.11e-15 
+      abw_balnet0 vs balnet0 cells_matched 
+                                  0.00e+00 
+                abw_balnet0 vs balnet0 R_c 
+                                  2.22e-16 
+           abw_balnet0 vs balnet0 R_c_mcse 
+                                  1.30e-17 
+              abw_balnet0 vs balnet0 R_bar 
+                                  5.60e-16 
+         abw_balnet0 vs balnet0 R_bar_mcse 
+                                  4.86e-17 
+abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+          abw_balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+     abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.04e-16 
+        abw_balnet0 vs aipw_glmnetcv R_bar 
+                                  0.00e+00 
+   abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  6.66e-16 
+
+== p_axis 
+                         perf_rows_matched 
+                                  0.00e+00 
+                                      bias 
+                                  2.22e-16 
+                                     empse 
+                                  3.79e-15 
+                                      rmse 
+                                  1.33e-15 
+                                 mcse_rmse 
+                                  2.89e-15 
+    balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+              balnet0 vs aipw_glmnetcv R_c 
+                                  2.37e-16 
+         balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  9.02e-17 
+            balnet0 vs aipw_glmnetcv R_bar 
+                                  8.08e-16 
+       balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  6.66e-16 
+   balnet0 vs glmnetcv_hajek cells_matched 
+                                  0.00e+00 
+             balnet0 vs glmnetcv_hajek R_c 
+                                  2.22e-16 
+        balnet0 vs glmnetcv_hajek R_c_mcse 
+                                  1.39e-16 
+           balnet0 vs glmnetcv_hajek R_bar 
+                                  2.92e-16 
+      balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                  3.05e-16 
+      balnet0 vs glmnetcv_ht cells_matched 
+                                  0.00e+00 
+                balnet0 vs glmnetcv_ht R_c 
+                                  2.22e-16 
+           balnet0 vs glmnetcv_ht R_c_mcse 
+                                  1.05e-15 
+              balnet0 vs glmnetcv_ht R_bar 
+                                  1.32e-16 
+         balnet0 vs glmnetcv_ht R_bar_mcse 
+                                  2.19e-15 
+      abw_balnet0 vs balnet0 cells_matched 
+                                  0.00e+00 
+                abw_balnet0 vs balnet0 R_c 
+                                  2.22e-16 
+           abw_balnet0 vs balnet0 R_c_mcse 
+                                  1.13e-17 
+              abw_balnet0 vs balnet0 R_bar 
+                                  0.00e+00 
+         abw_balnet0 vs balnet0 R_bar_mcse 
+                                  3.47e-17 
+abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+          abw_balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+     abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.94e-16 
+        abw_balnet0 vs aipw_glmnetcv R_bar 
+                                  0.00e+00 
+   abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  1.22e-15 
+
+== signal 
+                         perf_rows_matched 
+                                  0.00e+00 
+                                      bias 
+                                  4.99e-17 
+                                     empse 
+                                  1.89e-15 
+                                      rmse 
+                                  1.13e-15 
+                                 mcse_rmse 
+                                  1.78e-15 
+    balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+              balnet0 vs aipw_glmnetcv R_c 
+                                  1.11e-16 
+         balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  8.33e-17 
+            balnet0 vs aipw_glmnetcv R_bar 
+                                  1.04e-15 
+       balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  8.12e-16 
+   balnet0 vs glmnetcv_hajek cells_matched 
+                                  0.00e+00 
+             balnet0 vs glmnetcv_hajek R_c 
+                                  2.22e-16 
+        balnet0 vs glmnetcv_hajek R_c_mcse 
+                                  1.11e-16 
+           balnet0 vs glmnetcv_hajek R_bar 
+                                  3.64e-16 
+      balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                  4.44e-16 
+      balnet0 vs glmnetcv_ht cells_matched 
+                                  0.00e+00 
+                balnet0 vs glmnetcv_ht R_c 
+                                  2.22e-16 
+           balnet0 vs glmnetcv_ht R_c_mcse 
+                                  1.05e-15 
+              balnet0 vs glmnetcv_ht R_bar 
+                                  4.27e-16 
+         balnet0 vs glmnetcv_ht R_bar_mcse 
+                                  1.79e-15 
+      abw_balnet0 vs balnet0 cells_matched 
+                                  0.00e+00 
+                abw_balnet0 vs balnet0 R_c 
+                                  2.22e-16 
+           abw_balnet0 vs balnet0 R_c_mcse 
+                                  5.99e-19 
+              abw_balnet0 vs balnet0 R_bar 
+                                  0.00e+00 
+         abw_balnet0 vs balnet0 R_bar_mcse 
+                                  3.31e-18 
+abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+          abw_balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+     abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.46e-16 
+        abw_balnet0 vs aipw_glmnetcv R_bar 
+                                  1.04e-15 
+   abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  1.22e-15 
+
+== sparsity 
+                         perf_rows_matched 
+                                  0.00e+00 
+                                      bias 
+                                  5.55e-17 
+                                     empse 
+                                  1.94e-16 
+                                      rmse 
+                                  1.11e-16 
+                                 mcse_rmse 
+                                  1.11e-16 
+    balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+              balnet0 vs aipw_glmnetcv R_c 
+                                  4.29e-16 
+         balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.39e-16 
+            balnet0 vs aipw_glmnetcv R_bar 
+                                  0.00e+00 
+       balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  1.11e-16 
+   balnet0 vs glmnetcv_hajek cells_matched 
+                                  0.00e+00 
+             balnet0 vs glmnetcv_hajek R_c 
+                                  2.22e-16 
+        balnet0 vs glmnetcv_hajek R_c_mcse 
+                                  2.22e-16 
+           balnet0 vs glmnetcv_hajek R_bar 
+                                  3.38e-16 
+      balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                  2.78e-17 
+      balnet0 vs glmnetcv_ht cells_matched 
+                                  0.00e+00 
+                balnet0 vs glmnetcv_ht R_c 
+                                  2.22e-16 
+           balnet0 vs glmnetcv_ht R_c_mcse 
+                                  1.67e-16 
+              balnet0 vs glmnetcv_ht R_bar 
+                                  2.83e-16 
+         balnet0 vs glmnetcv_ht R_bar_mcse 
+                                  8.33e-17 
+      abw_balnet0 vs balnet0 cells_matched 
+                                  0.00e+00 
+                abw_balnet0 vs balnet0 R_c 
+                                  2.22e-16 
+           abw_balnet0 vs balnet0 R_c_mcse 
+                                  1.91e-17 
+              abw_balnet0 vs balnet0 R_bar 
+                                  8.85e-16 
+         abw_balnet0 vs balnet0 R_bar_mcse 
+                                  2.08e-17 
+abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+          abw_balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+     abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  6.94e-17 
+        abw_balnet0 vs aipw_glmnetcv R_bar 
+                                  5.63e-16 
+   abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  4.16e-17 
+
+== tol_n 
+                  perf_rows_matched                                bias 
+                           0.00e+00                            1.39e-17 
+                              empse                                rmse 
+                           5.00e-16                            2.78e-17 
+                          mcse_rmse   balnet0_tol2 vs ols cells_matched 
+                           4.55e-18                            0.00e+00 
+            balnet0_tol2 vs ols R_c        balnet0_tol2 vs ols R_c_mcse 
+                           2.64e-16                            1.56e-17 
+          balnet0_tol2 vs ols R_bar      balnet0_tol2 vs ols R_bar_mcse 
+                           3.52e-16                            4.44e-16 
+balnet0_tol2.5 vs ols cells_matched           balnet0_tol2.5 vs ols R_c 
+                           0.00e+00                            1.98e-16 
+     balnet0_tol2.5 vs ols R_c_mcse         balnet0_tol2.5 vs ols R_bar 
+                           2.08e-17                            0.00e+00 
+   balnet0_tol2.5 vs ols R_bar_mcse   balnet0_tol3 vs ols cells_matched 
+                           2.22e-16                            0.00e+00 
+            balnet0_tol3 vs ols R_c        balnet0_tol3 vs ols R_c_mcse 
+                           2.11e-16                            1.73e-17 
+          balnet0_tol3 vs ols R_bar      balnet0_tol3 vs ols R_bar_mcse 
+                           1.34e-15                            1.11e-16 
+balnet0_tol3.5 vs ols cells_matched           balnet0_tol3.5 vs ols R_c 
+                           0.00e+00                            2.13e-16 
+     balnet0_tol3.5 vs ols R_c_mcse         balnet0_tol3.5 vs ols R_bar 
+                           1.91e-17                            0.00e+00 
+   balnet0_tol3.5 vs ols R_bar_mcse        balnet0 vs ols cells_matched 
+                           2.50e-16                            0.00e+00 
+                 balnet0 vs ols R_c             balnet0 vs ols R_c_mcse 
+                           2.14e-16                            2.69e-17 
+               balnet0 vs ols R_bar           balnet0 vs ols R_bar_mcse 
+                           0.00e+00                            1.67e-16 
+balnet0_tol4.5 vs ols cells_matched           balnet0_tol4.5 vs ols R_c 
+                           0.00e+00                            2.13e-16 
+     balnet0_tol4.5 vs ols R_c_mcse         balnet0_tol4.5 vs ols R_bar 
+                           1.56e-17                            0.00e+00 
+   balnet0_tol4.5 vs ols R_bar_mcse   balnet0_tol5 vs ols cells_matched 
+                           1.94e-16                            0.00e+00 
+            balnet0_tol5 vs ols R_c        balnet0_tol5 vs ols R_c_mcse 
+                           2.13e-16                            1.47e-17 
+          balnet0_tol5 vs ols R_bar      balnet0_tol5 vs ols R_bar_mcse 
+                           0.00e+00                            2.50e-16 
+balnet0_tol5.5 vs ols cells_matched           balnet0_tol5.5 vs ols R_c 
+                           0.00e+00                            2.22e-16 
+     balnet0_tol5.5 vs ols R_c_mcse         balnet0_tol5.5 vs ols R_bar 
+                           1.99e-17                            1.12e-15 
+   balnet0_tol5.5 vs ols R_bar_mcse   balnet0_tol6 vs ols cells_matched 
+                           1.67e-16                            0.00e+00 
+            balnet0_tol6 vs ols R_c        balnet0_tol6 vs ols R_c_mcse 
+                           2.13e-16                            1.65e-17 
+          balnet0_tol6 vs ols R_bar      balnet0_tol6 vs ols R_bar_mcse 
+                           2.22e-14                            1.67e-16 
+balnet0_tol6.5 vs ols cells_matched           balnet0_tol6.5 vs ols R_c 
+                           0.00e+00                            2.13e-16 
+     balnet0_tol6.5 vs ols R_c_mcse         balnet0_tol6.5 vs ols R_bar 
+                           1.47e-17                            0.00e+00 
+   balnet0_tol6.5 vs ols R_bar_mcse   balnet0_tol7 vs ols cells_matched 
+                           1.11e-16                            0.00e+00 
+            balnet0_tol7 vs ols R_c        balnet0_tol7 vs ols R_c_mcse 
+                           2.13e-16                            1.13e-17 
+          balnet0_tol7 vs ols R_bar      balnet0_tol7 vs ols R_bar_mcse 
+                           0.00e+00                            2.22e-16 
+
+== treat_share 
+                         perf_rows_matched 
+                                  0.00e+00 
+                                      bias 
+                                  7.18e-16 
+                                     empse 
+                                  3.62e-15 
+                                      rmse 
+                                  2.59e-15 
+                                 mcse_rmse 
+                                  3.10e-15 
+    balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+              balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+         balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.60e-16 
+            balnet0 vs aipw_glmnetcv R_bar 
+                                  3.35e-16 
+       balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  8.88e-16 
+   balnet0 vs glmnetcv_hajek cells_matched 
+                                  0.00e+00 
+             balnet0 vs glmnetcv_hajek R_c 
+                                  1.11e-16 
+        balnet0 vs glmnetcv_hajek R_c_mcse 
+                                  1.94e-16 
+           balnet0 vs glmnetcv_hajek R_bar 
+                                  0.00e+00 
+      balnet0 vs glmnetcv_hajek R_bar_mcse 
+                                  5.55e-16 
+      balnet0 vs glmnetcv_ht cells_matched 
+                                  0.00e+00 
+                balnet0 vs glmnetcv_ht R_c 
+                                  5.55e-16 
+           balnet0 vs glmnetcv_ht R_c_mcse 
+                                  1.72e-15 
+              balnet0 vs glmnetcv_ht R_bar 
+                                  1.55e-16 
+         balnet0 vs glmnetcv_ht R_bar_mcse 
+                                  1.76e-15 
+      abw_balnet0 vs balnet0 cells_matched 
+                                  0.00e+00 
+                abw_balnet0 vs balnet0 R_c 
+                                  3.33e-16 
+           abw_balnet0 vs balnet0 R_c_mcse 
+                                  6.94e-18 
+              abw_balnet0 vs balnet0 R_bar 
+                                  1.06e-14 
+         abw_balnet0 vs balnet0 R_bar_mcse 
+                                  1.04e-16 
+abw_balnet0 vs aipw_glmnetcv cells_matched 
+                                  0.00e+00 
+          abw_balnet0 vs aipw_glmnetcv R_c 
+                                  2.22e-16 
+     abw_balnet0 vs aipw_glmnetcv R_c_mcse 
+                                  1.53e-16 
+        abw_balnet0 vs aipw_glmnetcv R_bar 
+                                  0.00e+00 
+   abw_balnet0 vs aipw_glmnetcv R_bar_mcse 
+                                  5.00e-16 
+
+== coverage_empse n correct 
+rows_matched            m     coverage         mcse         bias        empse 
+    0.00e+00     0.00e+00     0.00e+00     0.00e+00     2.49e-17     8.88e-16 
+
+== coverage_empse n misspec 
+rows_matched            m     coverage         mcse         bias        empse 
+    0.00e+00     0.00e+00     0.00e+00     0.00e+00     2.11e-16     1.88e-15 
+
+== coverage_empse overlap correct 
+     rows_matched                 m          coverage              mcse 
+         0.00e+00          0.00e+00          0.00e+00          0.00e+00 
+             bias             empse diag_rows_matched       diag_median 
+         1.59e-16          1.89e-15          0.00e+00          0.00e+00 
+
+== coverage_empse overlap misspec 
+     rows_matched                 m          coverage              mcse 
+         0.00e+00          0.00e+00          0.00e+00          0.00e+00 
+             bias             empse diag_rows_matched       diag_median 
+         2.20e-16          3.75e-15          0.00e+00          0.00e+00 
+
+== coverage_empse signal correct 
+rows_matched            m     coverage         mcse         bias        empse 
+    0.00e+00     0.00e+00     0.00e+00     0.00e+00     4.99e-17     4.72e-16 
+
+== coverage_empse signal misspec 
+rows_matched            m     coverage         mcse         bias        empse 
+    0.00e+00     0.00e+00     0.00e+00     0.00e+00     4.99e-17     1.89e-15 
+
+Not recomputed here, checked by handoff/scripts/build_summaries.R (verification.md):
+ app_correct_n app_ipw_800k app_misspec_n app_misspec_nfine app_nc app_overlap_full app_overlap app_p_approx app_p_axis app_signal app_sparsity_equi app_sparsity_tan app_sparsity cv_alpha_x_overlap cv_folds cv_misspec cv_n cv_nbig cv_noise_x_overlap cv_noise cv_overlap cv_p cv_sparsity_misspec cv_sparsity wc_compare 

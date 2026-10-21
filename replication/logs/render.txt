@@ -1,0 +1,2 @@
+Error: no PDF, see replication/verification/render_log.txt
+Execution halted

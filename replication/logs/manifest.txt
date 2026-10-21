@@ -1,0 +1,9 @@
+705 files, 7153 MB; written replication/manifest.csv
+         role bytes.files bytes.MB
+1    fixtures          37        0
+2     package           1        0
+3      record          41        1
+4 replication          31        0
+5     results         542     7131
+6   summaries          49       19
+7      thesis           4        1

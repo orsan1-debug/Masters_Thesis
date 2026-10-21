@@ -1,0 +1,2370 @@
+---
+title: "Balancing weights against maximum likelihood propensity scores: a simulation study of `balnet` across sample size, overlap, dimension and penalty choice"
+subtitle: "ETC5860 Masters thesis, Monash University. Supervisor: Erik Sverdrup"
+author: "Otis Sandford"
+date: 2026-10-16
+number-sections: true
+abstract: |
+  Maximum likelihood fits propensity scores to predict treatment, balancing weights to balance covariates directly.
+  `balnet` fits balancing weights by a lasso-penalised balancing loss whose path runs to exact balance or stops short where infeasible.
+  We compare `balnet` with cross-validated lasso MLE weights, alone and augmented, by simulation across sample size, overlap, dimension past $p = n$, confounder density and outcome signal, with and without misspecification.
+  Balancing weights have lower RMSE throughout, by a third to two thirds on average, except noisy outcomes and the poorest overlap.
+  Whether the path reaches exact balance decides what else helps.
+  Augmentation adds nothing there and restores the lead where it stops short.
+  A second study finds stopping inside the path lowers RMSE for noisy outcomes or, once augmented, limited overlap.
+  Cross-validating the balancing loss captures this most often, though none is best in more than three cells in ten.
+  We recommend augmented balancing weights tuned this way.
+
+  *Keywords:* balancing weights; propensity score; inverse probability weighting; lasso; Monte Carlo simulation.
+format:
+  html:
+    mainfont: "Times New Roman, Times, serif"
+  pdf:
+    pdf-engine: xelatex
+    documentclass: article
+    fontsize: 12pt
+    linestretch: 1.15
+    mainfont: Times New Roman
+    papersize: a4
+    geometry: margin=2.25cm
+    toc: false
+    # Main-body tables and figures float (!htbp), so no page is left half empty;
+    # appendix tables and figures are set in place. Tables are set in 8pt with
+    # their captions at text size.
+    include-in-header:
+      text: |
+        \usepackage{needspace}
+        % In the appendix a heading, its caption and the first rows of a table
+        % stay on one page (the flag is set at the start of the appendix).
+        \newif\ifappendixpages
+        \AddToHook{cmd/section/before}{\ifappendixpages\Needspace*{10\baselineskip}\fi}
+        \AddToHook{cmd/subsection/before}{\ifappendixpages\Needspace*{10\baselineskip}\fi}
+        \AddToHook{cmd/subsubsection/before}{\ifappendixpages\Needspace*{10\baselineskip}\fi}
+        \makeatletter
+        % Space, not content: a float shares its page with text unless it
+        % fills 85% of it; displays, headings and captions take smaller
+        % skips; the paragraph gap is half of parskip's default.
+        \renewcommand{\topfraction}{.9}
+        \renewcommand{\bottomfraction}{.7}
+        \renewcommand{\textfraction}{.1}
+        \renewcommand{\floatpagefraction}{.85}
+        \g@addto@macro\normalsize{%
+          \setlength\abovedisplayskip{6pt plus 2pt minus 4pt}%
+          \setlength\belowdisplayskip{6pt plus 2pt minus 4pt}%
+          \setlength\abovedisplayshortskip{0pt plus 2pt}%
+          \setlength\belowdisplayshortskip{3pt plus 2pt minus 2pt}}
+        \renewcommand\section{\@startsection{section}{1}{\z@}%
+          {-2.25ex \@plus -1ex \@minus -.2ex}{1.2ex \@plus .2ex}%
+          {\normalfont\Large\bfseries}}
+        \renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+          {-2ex \@plus -.75ex \@minus -.2ex}{.9ex \@plus .2ex}%
+          {\normalfont\large\bfseries}}
+        \renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+          {-1.75ex \@plus -.5ex \@minus -.2ex}{.7ex \@plus .2ex}%
+          {\normalfont\normalsize\bfseries}}
+        \AtBeginDocument{\setlength{\parskip}{3.5pt plus 1pt}}
+        % Appendix tables and figures are set in place rather than floated,
+        % so a table breaks across pages under its caption; a figure and its
+        % caption share one box.
+        \AtBeginDocument{%
+          \renewenvironment{atbl}{\par\if@nobreak\else\Needspace*{6\baselineskip}\fi\def\@captype{atbl}\def\fps@table{H}}{\par}%
+          \renewenvironment{afig}{\par\if@nobreak\else\Needspace*{6\baselineskip}\fi\def\@captype{afig}\noindent\begin{minipage}{\linewidth}}{\end{minipage}\par}%
+          % panels (a), (b) of an appendix float are numbered within it
+          \@ifpackageloaded{subcaption}%
+            {\DeclareCaptionSubType{atbl}\DeclareCaptionSubType{afig}}{}%
+          \captionsetup{skip=6pt}%
+          \captionsetup[table]{font=normalsize}%
+          \floatplacement{figure}{!htbp}}
+        % Tables other than gt's, which set their own size, in 8pt.
+        \AddToHook{env/longtable/begin}{\fontsize{8pt}{9.6pt}\selectfont}
+        \setlength{\tabcolsep}{3.5pt}
+        % The article class sets the abstract as a quotation, which indents
+        % its first line and every paragraph. Same margins, no indents.
+        \renewenvironment{abstract}{%
+          \small
+          \begin{center}{\bfseries\abstractname\vspace{-.5em}\vspace{\z@}}\end{center}%
+          \list{}{\listparindent\z@ \itemindent\z@ \rightmargin\leftmargin
+                  \parsep 6pt \@plus 2pt}%
+          \item\relax}{\endlist}
+        % Reference entries flush left, no hanging indent.
+        \AtBeginDocument{\ifdefined\cslhangindent\setlength{\cslhangindent}{0pt}\fi}
+        \makeatother
+# Appendix tables and figures are numbered separately, as Appendix Table 1
+# and Appendix Figure 1.
+crossref:
+  custom:
+    - kind: float
+      key: atbl
+      reference-prefix: Appendix Table
+      caption-prefix: Appendix Table
+      caption-location: top
+      latex-env: atbl
+    - kind: float
+      key: afig
+      reference-prefix: Appendix Figure
+      caption-prefix: Appendix Figure
+      latex-env: afig
+editor: visual
+bibliography: references.bib
+# Keep R warnings, such as "package was built under R version ...",
+# out of the document.
+execute:
+  warning: false
+---
+
+# Introduction
+
+Much of the evidence on programmes, treatments and interventions is observational. Without randomisation, the groups compared differ in their pre-treatment characteristics, and those differences, not the treatment, may explain any gap in outcomes.
+
+The standard approach is to assume conditional independence, meaning that once the relevant pre-treatment characteristics are controlled for, treatment allocation is as good as random. Key to this is the propensity score, the probability of receiving treatment given the observed covariates [@rosenbaum1983]. One use of the score is inverse-propensity weighting (IPW), which weights each unit by the inverse of its estimated probability of the treatment it received. In medical research its use has increased rapidly, for example in comparing treatments from hospital records where patients were never randomised [@austin2015; @benmichaelkeel2023]. In economics, IPW is used to evaluate programmes such as job training, where the effect on participants' earnings must be recovered from a non-experimental comparison group [@busso2014].
+
+In practice the score is unknown and must be estimated. The usual estimator is logistic regression fit by maximum likelihood (MLE). It chooses the parameters of the propensity model so that the fitted score predicts the observed treatment assignment as well as possible [@wager2024]. The goal of weighting here however, is not to predict treatment assignment accurately but to balance covariates for comparable treatment groups [@zhao2019].
+
+While IPW with the oracle propensity score balances covariate means exactly, MLE-estimated propensity scores do not generally achieve this, even without model misspecification [@wager2024; @sverdrup2026]. Under misspecification or in small samples, small estimation errors are amplified by inversion of the propensity score and can produce severe imbalance and biased estimates [@benmichael2021]. This problem is compounded by weight instability, as observations with small propensity scores receive disproportionately large weights, inflating variance and leading researchers to ad hoc solutions [@chattopadhyay2020]. Furthermore, these fixes presume a balance check that in a review of applied medical studies using IPW, most did not make [@austin2015].
+
+Instead of modelling the score, covariate balancing methods choose the weights to target directly the balance that IPW requires. The covariate balancing propensity score (CBPS) applies this within a propensity model, selecting its parameters to satisfy the sample balance conditions [@imai2014]. As a result, their estimates tend to be more robust to model misspecification and more efficient than those from MLE weights [@chattopadhyay2020]. Under a correctly specified linear outcome and logistic propensity model, this efficiency is exact and IPW with balancing weights is $\sqrt{n}$-consistent with lower variance than even the oracle IPW [@wager2024].
+
+The theoretical case for covariate balancing is well established, but most implementations struggle with large or high-dimensional data. CBPS and entropy balancing approaches both enforce exact balance conditions, which become unworkable in large-scale data settings [@fong2022; @sverdrup2026]. Stable balancing weights from @zubizarreta2015 require a maximum imbalance tolerance to be set before estimation and must be re-solved if this tolerance is unattainable or the bias-variance tradeoff is unattractive [@sverdrup2026]. @zhao2019 shows balancing estimators can generally be expressed as minimising a covariate balancing loss function, which opens them to lasso and other penalties. RCAL from @tan2020a implements lasso regularisation for a covariate balancing loss function, but as the package is written in R it struggles computationally with large data.
+
+Like balancing approaches, doubly robust estimators offer protection against misspecification. These estimators, referred to as augmented estimators, combine the weights with an outcome model and remain consistent if either the propensity model or the outcome model is correctly specified [@ding2023]. The standard version is the augmented IPW (AIPW) estimator. It corrects the regression estimate by applying the IPW weights to the outcome model's residuals and adding their average [@robins1994]. Where exact balance is out of reach, AIPW has outperformed unaugmented balancing weights [@athey2018].
+
+Much recent work builds doubly robust estimators for the balancing approach, many obtaining the weights by optimising for balance directly rather than by first estimating a propensity score [@wang2020; @hirshberg2021; @brunssmith2025]. These augmented estimators therefore sit outside the class of covariate balancing propensity scores that @zhao2019 unifies. Within that class, Tan's augmented estimator fits the outcome model with weights from the same propensity score, so changing the weights changes the outcome model too [@tan2020b].[^1] @brunssmith2025 discuss a general augmented balancing weight (ABW) estimator, where the outcome model is held fixed and the IPW weights are replaced by balancing weights. Here, when both models are linear in the same covariates, ABW is a single regression combining the outcome model and OLS, which collapses to OLS at exact balance [@wager2024]. For weights from the covariate balancing loss above, which come through a logistic link, this collapse holds only up to an approximation error.
+
+[^1]: Tan's estimator refits the outcome model whenever the weights change, so a comparison between weights would also be a comparison between outcome models. Applying it here would confound Study 1, which compares across weighting estimators.
+
+Of the balancing implementations above, `balnet` from @sverdrup2026 applies modern optimisation techniques to the regularised covariate balancing loss. Like RCAL it uses lasso regularisation, but through a core solver written in C++ that scales to large and high-dimensional data. The solver also supports ridge and elastic net penalties, which Study 2 uses. Its path for $n = 100{,}000$ and $p = 500$ computes in under a minute, while alternative balancing packages failed to produce results within an hour. Under lasso regularisation the penalty parameter $\lambda$ is equivalent to the maximum allowable covariate imbalance, so its regularisation path provides a practical diagnostic for overlap and lets the analyst set the imbalance to tolerate [@sverdrup2026]. The path ends at the target imbalance rather than at exact balance, and truncates earlier where that target is infeasible. The imbalance left over can then be handed to an outcome model [@wager2024].
+
+For modelling approaches it is standard practice to choose $\lambda$ by cross-validation (CV) of the prediction error, a choice one would reasonably expect to extend to balancing loss approaches.[^2] However, for balancing weights recent work cautions against applying cross-validation naively, finding that no tuning rule is uniformly best [@brunssmith2025].
+
+[^2]: Both RCAL and `balnet` provide a CV setting with tunable folds in their base package.
+
+For balancing methods the held-out loss becomes the balancing loss or the remaining covariate imbalance. CV then assumes the held-out loss is an unbiased estimate of the error in the estimated effect, but the penalty trades observable variance against unobservable bias, a trade CV cannot reliably make [@tan2020a; @brunssmith2025; @athey2018]. Following the reasoning behind balancing weights, @wang2020 score balance on bootstrap samples over a grid of approximate balance tolerances and find that under poor overlap exact balance is not always optimal. On the `balnet` path this becomes a question of where to set $\lambda$, or whether to set it at all, as by construction its truncated path already produces approximate balancing weights when exact balance is not feasible.
+
+Study 1 asks to what degree and when balancing weights improve on MLE weights, whether used alone or in an augmented estimator. Study 2 then asks where `balnet`'s path endpoint does not minimise root mean squared error (RMSE), and whether at those points any selector beats it. Across both studies the dividing line is whether the `balnet` path reaches exact balance, which with the outcome signal tells the analyst when balancing weights, augmentation and a selector each pay.
+
+# Aims
+
+## Study 1
+
+Our first study aims to guide the choice between balancing weights and MLE weights, whether used alone or in an augmented estimator. The settings that follow vary the sample size, overlap, dimension, the number and correlation of confounders, and the strength of the outcome signal. Each is run under both a correctly specified and a misspecified propensity score. Following @tan2020a, we focus on how the two sets of weights perform relative to each other across these settings and over three outcome functions.
+
+Both sets of weights are also augmented with the same lasso outcome model, so ABW and AIPW differ only in their weights. Comparing the two shows whether differences between balancing and MLE weights hold once an outcome model is added. At exact balance, `balnet`$_{10^{-4}}$ differs from OLS by the approximation error of its logistic weights [@brunssmith2025]. We track this error where OLS can be fitted and the path reaches its target.
+
+**Sample size:** Under a correctly specified propensity score both approaches are consistent [@wager2024]. For a linear outcome, IPW with balancing weights is expected to have lower variance than even IPW with the true propensity score. Here we ask how the sample size affects the relative performance of `balnet`$_{10^{-4}}$ and `cv.glmnet`, a baseline for the later comparisons.
+
+Under a misspecified propensity score, IPW estimators can converge away from the true estimand, and with MLE weights their bias and RMSE have been found to worsen as $n$ grows [@warp2023; @kang2007]. We therefore ask whether the bias of `cv.glmnet` settles as $n$ rises to $10^6$, and how `balnet`$_{10^{-4}}$ compares. We also track AIPW, which has been found to compound errors when both models are wrong [@kang2007]. Where a bias settles while the sampling error shrinks, coverage must collapse with $n$, which we report at the empirical SE [@morris2019].
+
+**Overlap:** We then compare the two sets of weights as overlap degrades, meaning that treated and control units increasingly lack counterparts with similar propensity scores. We also include levels at which overlap is practically violated, as defined in the data-generating mechanism.
+
+With a correctly specified outcome model, AIPW has outperformed unaugmented approximate balancing weights at both overlap levels studied [@athey2018]. Under poor overlap and a misspecified outcome model, however, unaugmented approximate balancing weights have produced lower RMSE than AIPW [@chattopadhyay2020]. Besides these swapped signs, we ask how `balnet`$_{10^{-4}}$ performs once exact balance is out of reach, as exact balancing weights can become infeasible under poor overlap [@hainmueller2012; @sverdrup2026].
+
+**High-dimensional settings:** In healthcare especially, propensity scores are fitted to a large number of covariates, as in database studies [@wyss2026]. By raising the number of covariates to $p/n = 4$ we cover these settings, which force the MLE weights to select four confounders within thousands of covariates and the balancing weights to balance thousands. Here we also ask how the balancing loss behaves as $p$ grows.
+
+Firstly, exact balance is expected to fail for `balnet`$_{10^{-4}}$ around $p/n = 0.5$, so that its path stops short of its target. Here, we look for the error of `cv.glmnet` to grow gradually with $p$ [@tan2020b], and for ABW to separate from `balnet`$_{10^{-4}}$ [@wager2024]. Against AIPW, augmented balancing weights have kept a lead in past work, though not one that consistently widened with $p$ [@athey2018; @Ninget.al], so we also examine this lead.
+
+Secondly, we ask whether misspecification changes how the modelling estimators respond to added covariates. Under misspecification, the RMSE of IPW with MLE weights fell as $p$ grew in @tan2017 but rose in @athey2018. Running both specifications on the same draws lets us consider the effects of $p$ and misspecification separately.
+
+**With a denser covariate profile:** The $p/n$ grid is limited to four confounders, as Kang–Schafer misspecification requires [@kang2007]. This is restrictive, as conditional independence typically needs many covariates to be plausible. Here, we increase the number of confounders $s$ to $16$ and $64$, allow their signal to even out as the decay rate $\nu$ falls from $1$ to $0.5$, and consider independent, AR(1)-correlated and equicorrelated covariance structures. Each design also has a misspecified propensity score, built from the transformation of @tan2020b. There, balancing weights from the same loss as `balnet` have substantially outperformed MLE weights [@tan2020a], which we test at every $s$.
+
+At $p/n = 0.1$, the error from modelling weights is bounded at a rate that grows with the number of active covariates [@tan2020b]. In contrast, exact balancing weights give an unbiased estimate for a linear outcome at any $s$ [@benmichael2021]. The advantage of balancing over modelling weights should then widen as $s$ rises. From $p/n = 0.5$, however, exact balance should fail, and the bias of balancing weights for a linear outcome is then at most the largest remaining imbalance scaled by the $\ell_1$ norm of the outcome coefficients [@zhao2019]. As the outcome signal has fixed variance, spreading it over more confounders raises this norm, so the bias should rise with $s$ and as $\nu$ falls, except under equicorrelation. Correlation may pull the other way. When the outcome variance is held fixed, correlated confounders absorb part of each other's signal and their coefficients shrink, lowering the $\ell_1$ norm that bounds the bias, most of all under equicorrelation.
+
+Raising $s$ also makes the propensity model denser, which matters for the augmented estimators. AIPW relies on a sufficiently sparse propensity model, whereas augmented balancing weights assume nothing about treatment assignment beyond overlap [@athey2018]. AIPW should then lose ground to ABW as that model grows denser.
+
+**Outcome signal:** Lastly, we ask how the strength of the outcome signal changes the comparison between balancing and modelling weights. Here, the outcome signal strength $\kappa$ rises from $0.02$ to $1$ against a fixed noise level, under both correctly specified and misspecified propensity scores.
+
+As $\kappa$ falls, the bias that exact balance removes shrinks, but its cost in variance does not. At low $\kappa$, `balnet`$_{10^{-4}}$ may then lose ground to modelling weights. At larger $\lambda$ its path gives approximate balance, which lets us choose how much bias to trade for variance, though the best trade depends on the signal-to-noise ratio [@wang2020; @zhao2019].
+
+## Study 2
+
+In preliminary runs a cross-validated $\lambda$ beat the path endpoint for IPW only when the outcome signal was weak. Our second study therefore asks whether tuning or bootstrapping approaches can offer a better stopping point than the endpoint. First, when does the RMSE-minimising $\lambda$ come before the path endpoint, an interior optimum. Second, where and how often does one of our five selectors improve on the endpoint, a selector win.
+
+By construction no selector sees the outcome, so each picks the $\lambda$ on the path that minimises one of three criteria. The first, `bloss`, is the balancing loss that `balnet` minimises along its path. The second, `smd`, is the mean absolute standardised mean difference across covariates after weighting, the bootstrap balance measure of @wang2020 averaged rather than summed. The third, `inf`, is the largest absolute standardised mean difference after weighting, the quantity our $\lambda$ bounds under lasso.
+
+Each criterion is scored by cross-validation or by a half-sample bootstrap motivated by @wang2020. The balancing loss is scored by cross-validation only, giving five selectors, as its fit minimises its own target and scoring it on sub-samples would favour the endpoint deterministically, analogous to scoring a likelihood at its own maximiser.
+
+We are especially interested in overlap and outcome signal. Approximate balance has been found to lower RMSE relative to exact balance when overlap is limited [@wang2020]. For augmented balancing weights with ridge penalties, the RMSE-minimising penalty has been found to grow with outcome noise, which selectors using only the covariates and treatment cannot see [@brunssmith2025]. If this holds for `balnet`, interior optima and selector wins should both become more likely as $\kappa$ falls. We also ask whether moving the penalty form $\alpha$ from lasso towards ridge lowers RMSE, at the endpoint or at the interior optimum.
+
+# Methods
+
+## Estimand
+
+Our estimand is the average treatment effect, $\tau = \mathbb{E}[Y_i(1) - Y_i(0)]$. We set $\tau = 0$ in every cell so $\hat \tau$ is its own error by construction.
+
+## Data-generating mechanism
+
+**Simulation design:** We combine data-generating process (DGP) designs from the IPW literature into one model that reproduces the stress conditions common in observational data. The design of @kang2007, extended to high-dimensional settings by @tan2020a, provides our baseline for testing misspecification. As overlap is a key assumption of IPW, an overlap scaler on the propensity score gives a range of overlap conditions [@busso2014; @keele2025]. While the design of @tan2020a is high-dimensional, only four of its covariates are active. A sparsity parameter, as in @zhao2019, allows the more realistic case where many covariates are active. Autoregressive covariance structures, as in @tan2020b and @zhao2019, allow simulation under moderate correlation, and an equicorrelated structure extends that correlation to every covariate. Finally, since a comparison of RMSE depends on the sample size, we vary it [@morris2019].
+
+Within this design, each cell draws $n$ observations of $p$ multivariate normal covariates $X_i = (X_{i1}, \ldots, X_{ip})$ with mean zero and unit variance. Their covariance takes three levels. Setting $\operatorname{cov}(X_{ij}, X_{ik}) = \rho^{|j-k|}$ gives iid covariates at $\rho = 0$ and an AR(1) structure at $\rho = 0.5$, and a third, equicorrelated level sets $\operatorname{cov}(X_{ij}, X_{ik}) = 0.5$ for all $j \neq k$ through one common factor, $X_{ij} = \sqrt{0.5}\,Z_{i0} + \sqrt{0.5}\,Z_{ij}$ with $Z_{i0}, Z_{ij} \overset{\text{iid}}{\sim} \mathcal{N}(0, 1)$ [@friedman2010]. Under AR(1) the active covariates are adjacent, which may limit the effect of correlation [@athey2018], whereas under equicorrelation every inactive covariate shares the common factor with the active ones. The treated proportion is 0.5, as in @kang2007.
+
+The true propensity score is $$e^*(X_i) = \left\{1 + \exp\left(\frac{g_i}{c\,\sigma_g} - \alpha\right)\right\}^{-1},
+\qquad g_i = \sum_{j=1}^{s} j^{-\nu} X_{ij},$$ {#eq-score} where $s$ is the number of active covariates, $\nu$ is their signal decay rate along $j$ and $\alpha$ sets the treated proportion. Overlap holds for any overlap scaler $c > 0$, with $c = 1$ as its base to roughly correspond with @tan2020a.[^3] Lowering $c$ weakens overlap by pushing $e^*(X_i)$ towards 0 and 1.
+
+[^3]: The design in @tan2020a corresponds to $c = 1/1.15 \approx 0.87$ so our base case has slightly stronger overlap levels, due to our standardisation.
+
+@atbl-ov-levels shows the proportion of units whose true propensity score falls outside \[0.01, 0.99\] and \[0.05, 0.95\] at each level of $c$, and @afig-ov-levels displays the density of $e^*(X_i)$ for each arm. In the terms of @wager2024, our design satisfies weak but not strong overlap, as $e^*(X_i)$ stays strictly between 0 and 1 at any $c > 0$ but is never bounded away from them. Under sufficiently degraded overlap, samples contain covariate regions with only treated or only control units, which we consider practical violations of common support following @chattopadhyay2020. Such violations are possible at $c=0.5$, likely at $0.25$ and almost certain by $c \le 0.05$.
+
+To prevent changes in $s$, $\nu$ and the covariance structure shifting overlap, we standardise $g_i$ using its population variance $\sigma_g^2 = \sum_{j,k \le s} (jk)^{-\nu} \operatorname{cov}(X_{ij}, X_{ik})$. Dividing by $\sigma_g$ makes $g_i/\sigma_g$ standard normal, leaving only $c$ and $\alpha$ to shift $e^*(X_i)$. To prevent $c$ shifting the treated proportion, we select $\alpha$ numerically so that the expected value of $e^*(X_i)$ equals the target, which gives $\alpha = 0$ at 0.5[^4]. Treatment is assigned as $W_i \sim \text{Bernoulli}\{e^*(X_i)\}$. Potential outcomes are generated as $Y_i(0) = Y_i(1) = \kappa\, h(X_i) + \varepsilon_i$, where $\varepsilon_i \sim \mathcal{N}(0, 1)$ and $\kappa$ sets the outcome signal strength, so at $\kappa = 0$ the outcome is noise alone. Outcome specifications follow @tan2020a and use the first four covariates, the active set when $s = 4$, $$\begin{aligned}
+h^{\text{lin}}(X_i)  &= X_{i1} + 0.5\,X_{i2} + 0.5\,X_{i3} + 0.5\,X_{i4} \\
+h^{\text{quad}}(X_i) &= \sum_{j=1}^{4} \{\max(X_{ij}, 0)\}^2 \\
+h^{\text{exp}}(X_i)  &= \sum_{j=1}^{4} \exp(X_{ij}/2)
+\end{aligned}$$ {#eq-outcomes} In the sparsity grid, to keep every active covariate a confounder as $s$ varies, we instead let $h$ load on all $s$ active covariates, weighted by $j^{-\nu}$.
+
+[^4]: Since $g_i/\sigma_g$ is standard normal, this mean depends only on $\alpha$ and $c$ and rises strictly in $\alpha$, so the solution is unique and found by `uniroot.`
+
+**Misspecification structure:** We force misspecification with the covariate transformations of @kang2007, in which the estimators observe transformed covariates $\tilde{X}$ rather than the true $X$, $$\begin{aligned}
+\tilde{X}_{i1} &= \exp(X_{i1}/2) \\
+\tilde{X}_{i2} &= \frac{X_{i2}}{1 + \exp(X_{i1})} + 10 \\
+\tilde{X}_{i3} &= (0.04\,X_{i1}\,X_{i3} + 0.6)^3 \\
+\tilde{X}_{i4} &= (X_{i2} + X_{i4} + 20)^2 .
+\end{aligned}$$ {#eq-ks} As in @tan2020a, $\tilde{X}_{i1}, \ldots, \tilde{X}_{i4}$ are standardised within each sample to mean zero and unit variance, and the remaining covariates are observed as they are. The transformations are written for four covariates, so we apply them at $s = 4$, where the transformed covariates are exactly the confounders shared by $e^*(X_i)$ and $Y_i$.
+
+These transformations misspecify both models our augmented estimators fit, a logistic score and a linear outcome model. Here, the data-generating score and outcome do not change. They are still a logit and a linear regression in $X$, and written in the observed $\tilde{X}$ they remain linear in the parameters with nonlinear terms in $\tilde{X}$. The estimators are misspecified only in that they enter the transformed covariates themselves as the linear terms. This gives a realistic misspecification structure, in which a slight error in a researcher's functional form is enough to misspecify a model [@kang2007].
+
+::: {#tbl-spec}
+| Arm | $\hat{e}$ on | Outcome on | $\hat{e}$ | Outcome linear | Outcome nonlinear |
+|------------|:----------:|:----------:|:----------:|:----------:|:----------:|
+| Correct specification | $X$ | $X$ | correct | correct | misspecified |
+| Misspecification | $\tilde{X}$ | $\tilde{X}$ | misspecified | misspecified | misspecified |
+| Refit on $X$ (`_ortrue`) | $\tilde{X}$ | $X$ | misspecified | correct | misspecified |
+
+Specification of the propensity score and the outcome model in each arm of the design, by outcome.
+:::
+
+Only the augmented estimators have an outcome model, so only they reach the third row of @tbl-spec. There the outcome model is refitted on $X$ and is correct, so its residuals have mean zero and weighting them with a misspecified score adds no bias. The second row is the case @kang2007 describe as the practical motivation behind doubly robust estimators, where a practitioner naturally assumes a linear outcome model and a logistic score are adequate because both look trustworthy. There, naive application of doubly robust estimators can give errors that grow with sample size, which we call double fragility, following @testa2026.
+
+Beyond $s = 4$ the Kang–Schafer transformations no longer reach every confounder, so our denser grids use the transformation of @tan2020b instead. Here, $X^\dagger_{ij} = X_{ij} + \{\max(X_{ij} + 1, 0)\}^2$ is applied to every active covariate and standardised within each sample, while $W_i$ and $Y_i$ are still generated from $X$. To keep the same practical interpretation of misspecification, we deviate from @tan2020b by placing $X^\dagger$ in the observed covariates rather than the true models. Both models fitted on $X^\dagger$ are then misspecified, as before.
+
+**Simulation settings:** Each grid varies one or more factors against a base case of $n = 1000$, $p = 50$, $s = 4$, $\nu = 1$, $\rho = 0$, $c = 1$, $\kappa = 1$ and a treated proportion of 0.5, with all three outcomes computed on each draw. Most grids vary one factor (@tbl-grids). Sample size is crossed with overlap, dimension, path endpoint and treated proportion, and the denser grids cross five factors, a non-factorial structure chosen for computational time [@morris2019]. Within a grid every estimator and both specifications run on the same draws, from L'Ecuyer–CMRG streams indexed by cell and replication, so only the observed covariates differ between the correct and misspecified arms. Cells use 10 000 replications, except 1000 on the $n \times c$ and denser grids, with Monte Carlo standard errors on every measure, and a replication in which an estimator fails is kept as missing and counted [@morris2019]. All runs use R 4.5 or 4.6 [@rcore2025] with `balnet` 0.0.4 [@sverdrup2026] and `glmnet` 5.0 [@friedman2010]. The code, run scripts and stored summaries are available from the author.
+
+```{r}
+#| label: tbl-grids
+#| tbl-cap: "The Study 1 grids."
+#| tbl-pos: "!htbp"
+#| echo: false
+library(gt)
+grids <- tibble::tribble(
+  ~grid,                   ~factor,                                            ~levels,                                                                                ~spec,                   ~reps,
+  "Sample size",           "$n$",                                              "{500, 1k, 5k, 10k, 50k, 100k, 200k, 400k}",                                            "correct",               10000,
+  "Sample size",           "$n$",                                              "{500, 1k, 5k, 10k, 50k}; 250 to 200k (29) and 1M",                                     "misspecified",          10000,
+  "Overlap",               "$c$, at $n$ = 1000 and 10 000",                    "{0.05, 0.15, 0.25, 0.5, 0.75, 1, 2}",                                                  "both",                  10000,
+  "Sample size × overlap", "$n$, $c$",                                         "100 to 5000 (12) × 0.01 to 1 (13)",                                                    "both",                   1000,
+  "Dimension",             "$p/n$, at $n$ = 500 and 1000",                     "{0.05, 0.1, 0.5, 1, 2, 4}",                                                            "both",                  10000,
+  "Denser profile",        "$n$, $p/n$, $s$, $\\nu$, $\\rho$",                 "{500, 1000} × {0.1, 0.5, 1} × {4, 16, 64} × {1, 0.5} × {0, 0.5}, $s \\le p$",       "both",                   1000,
+  "Equicorrelated",        "as above at cov = 0.5",                            "34 cells",                                                                             "both",                   1000,
+  "Outcome signal",        "$\\kappa$",                                        "{0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1}",                                            "both",                  10000,
+  "Treated proportion",    "treated proportion, at $n$ = 1000 and 10 000",     "{0.05, 0.1, 0.2, 0.5}",                                                                "both",                  10000,
+  "Path endpoint",         "$n$, maximum imbalance",                           "{500, 1k, 5k, 10k, 50k} × $10^{-2}$ to $10^{-7}$ by half decades (11)",                "both",                  10000
+)
+grids_gt <- grids |>
+  gt() |>
+  cols_label(grid = "Grid", factor = "Factor varied", levels = "Levels",
+             spec = "Specification", reps = "Replications") |>
+  fmt_markdown(c(factor, levels)) |>
+  # four-digit counts without a separator, as in the text
+  fmt_number(reps, decimals = 0, sep_mark = " ") |>
+  text_transform(\(x) sub("^(\\d) (\\d{3})$", "\\1\\2", x),
+                 locations = cells_body(reps)) |>
+  cols_align("left", -reps) |>
+  cols_align("right", reps) |>
+  opt_table_lines("none") |>
+  tab_options(table.border.top.style = "solid", table.border.top.width = px(1.5),
+              table.border.top.color = "black",
+              column_labels.border.bottom.style = "solid",
+              column_labels.border.bottom.width = px(0.75),
+              column_labels.border.bottom.color = "black",
+              table.border.bottom.style = "solid", table.border.bottom.width = px(1.5),
+              table.border.bottom.color = "black",
+              table.font.names = c("Times New Roman", "Times", "serif"),
+              table.font.size = if (knitr::is_latex_output()) "8pt" else pct(85)) |>
+  tab_source_note(md(paste("A range gives its number of levels in brackets.",
+                           "Factors not listed take their base-case values.",
+                           "The treated proportion and path endpoint grids were run but are not reported.")))
+# in the pdf the long text columns wrap, so the table fits the page, and
+# the table spans the text width with its note beneath, set whole where it
+# stands; the HTML keeps gt's widths
+if (knitr::is_latex_output()) {
+  grids_gt <- cols_width(grids_gt, factor ~ px(100), levels ~ px(190)) |>
+    tab_options(latex.use_longtable = FALSE, latex.tbl.pos = "H")
+}
+grids_gt
+```
+
+### Study 2
+
+Study 2 changes two things in the design of Study 1. Here, each replication carries seven outcomes on one draw, with $\kappa$ halved from one to $1/32$ and then set to zero, so the selectors, folds and half-samples are shared along the noise axis. The penalty form $\alpha$ runs from ridge through the elastic net to lasso. Overlap takes six of the seven values of Study 1, without $c = 2$. Sample size, dimension and misspecification are each crossed with overlap, and $n$ and $p$ with $\alpha$ as well. A denser grid takes the confounder profile $s \in \{4, 16, 64\}$ under its three covariance structures, at $n = 1000$, $p = 100$ and $c = 0.25$ under both specifications. Every grid runs 2500 replications except the two largest samples at 1000 (@tbl-grids-s2).
+
+```{r}
+#| label: tbl-grids-s2
+#| tbl-cap: "The Study 2 grids."
+#| tbl-pos: "!htbp"
+#| echo: false
+library(gt)
+grids_s2 <- tibble::tribble(
+  ~grid,                             ~factor,              ~levels,                                                                          ~spec,                   ~reps,
+  "Overlap",                         "$c$",                "{0.05, 0.15, 0.25, 0.5, 0.75, 1}",                                               "correct",               2500,
+  "Outcome noise",                   "$\\kappa$",          "{1, 1/2, 1/4, 1/8, 1/16, 1/32, 0}",                                              "correct",               2500,
+  "Noise × overlap",                 "$\\kappa$, $c$",     "{1, …, 1/32, 0} × {1, 0.5, 0.25, 0.15}",                                                       "correct",               2500,
+  "Penalty form × overlap",          "$\\alpha$, $c$",     "{0, 0.25, 0.5, 0.75, 1} × {1, 0.5, 0.25, 0.15}",                                 "correct",               2500,
+  "Sample size × overlap × penalty", "$n$, $c$, $\\alpha$", "{250, 500, 1000, 2000} × {0.25, 0.15} × {0.5, 1}",                               "correct",               2500,
+  "Large $n$ × overlap",             "$n$, $c$",           "{5000, 10 000} × {0.25, 0.15}",                                                  "correct",               1000,
+  "Dimension × overlap × penalty",   "$p$, $c$, $\\alpha$", "{50, 250, 500, 1000} × {0.5, 0.25} × {0.5, 1}",                                  "correct",               2500,
+  "Misspecification × overlap",      "$c$",                "{0.05, 0.15, 0.25, 0.5, 0.75, 1}",                                               "misspecified",          2500,
+  "Denser profile",                  "$s$, covariance",    "{4, 16, 64} × {iid, AR(1), equi}, at $p$ = 100, $\\nu$ = 0.5, $c$ = 0.25",       "both",                  2500
+)
+grids_s2_gt <- grids_s2 |>
+  gt() |>
+  cols_label(grid = "Grid", factor = "Factor varied", levels = "Levels",
+             spec = "Specification", reps = "Replications") |>
+  fmt_markdown(grid) |>
+  fmt_markdown(c(factor, levels)) |>
+  # four-digit counts without a separator, as in the text
+  fmt_number(reps, decimals = 0, sep_mark = " ") |>
+  text_transform(\(x) sub("^(\\d) (\\d{3})$", "\\1\\2", x),
+                 locations = cells_body(reps)) |>
+  cols_align("left", -reps) |>
+  cols_align("right", reps) |>
+  opt_table_lines("none") |>
+  tab_options(table.border.top.style = "solid", table.border.top.width = px(1.5),
+              table.border.top.color = "black",
+              column_labels.border.bottom.style = "solid",
+              column_labels.border.bottom.width = px(0.75),
+              column_labels.border.bottom.color = "black",
+              table.border.bottom.style = "solid", table.border.bottom.width = px(1.5),
+              table.border.bottom.color = "black",
+              table.font.names = c("Times New Roman", "Times", "serif"),
+              table.font.size = if (knitr::is_latex_output()) "8pt" else pct(85)) |>
+  tab_source_note(md(paste("The base case is lasso at $n$ = 1000, $p$ = 50,",
+                           "$s$ = 4 and $c$ = 1, with four confounders among",
+                           "iid covariates; factors not listed take these",
+                           "values. From the penalty-form grid onward every",
+                           "cell carries all seven $\\kappa$ levels on one",
+                           "draw.")))
+# in the pdf the long text columns wrap, so the table fits the page, and
+# the table spans the text width with its note beneath, set whole where it
+# stands; the HTML keeps gt's widths
+if (knitr::is_latex_output()) {
+  grids_s2_gt <- cols_width(grids_s2_gt, factor ~ px(100), levels ~ px(190)) |>
+    tab_options(latex.use_longtable = FALSE, latex.tbl.pos = "H")
+}
+grids_s2_gt
+```
+
+## Methodology
+
+We consider the standard potential outcomes setting with a sample of $n$ units, a treatment indicator $W_i \in \{0, 1\}$ and potential outcomes $Y_i(1)$ and $Y_i(0)$ under treatment and control. Identification of the ATE, $\tau = \mathbb{E}[Y_i(1) - Y_i(0)]$, relies on conditional independence and overlap. Under these assumptions the propensity score $e(x) = P[W_i = 1 \mid X_i = x]$ allows unbiased estimation via IPW:
+
+$$\tau = \mathbb{E}\left[\frac{W_i Y_i}{e(X_i)} - \frac{(1 - W_i) Y_i}{1 - e(X_i)}\right].$$ {#eq-ipw}
+
+**Propensity score estimation:** We compare two approaches under a logistic propensity score model, $e(x) = 1 / [1 + \exp\{-(\beta_0 + x^\top \beta)\}]$. Both use penalised logistic regression but differ in the loss function minimised.
+
+**Standard MLE approach:** The MLE approach estimates $\beta$ by minimising the negative Bernoulli log-likelihood, $$\ell_{\text{ML}}(\beta) = -\frac{1}{n} \sum_{i=1}^{n} \left[ W_i \eta_i - \log\{1 + \exp(\eta_i)\} \right],$$ {#eq-mle} where $\eta_i = \beta_0 + X_i^\top \beta$. This targets accurate prediction of treatment assignment, with first-order conditions $$\frac{1}{n} \sum_{i=1}^{n} \{ W_i - \hat{e}(X_i) \} X_{ij} = 0, \quad j = 1, \ldots, p,$$ {#eq-mle-foc} that balance predicted and observed treatment whatever the specification. We use the penalised MLE of the `glmnet` package [@friedman2010], which computes a regularisation path in a penalty parameter $\lambda$ that acts as a coefficient budget, with lasso penalties and $\lambda$ chosen by five-fold cross-validation at its minimum-deviance value, the estimator we write `cv.glmnet`.
+
+**Covariate balancing approach:** The covariate balancing approach starts from the finite-sample bias of IPW estimators, which is driven by covariate imbalance [@wager2024, ch. 7]. Achieving this balance in finite samples requires $$\frac{1}{n} \sum_{i=1}^{n} \frac{W_i X_{ij}}{\hat{e}(X_i)} = \frac{1}{n} \sum_{i=1}^{n} X_{ij}, \quad j = 1, \ldots, p.$$ {#eq-exactbalance}
+
+For estimating treatment effects the covariate balancing approach uses two separate fits, targeting balance for the treated and control means. When estimating the treated mean $\mathbb{E}[Y_i(1)]$, this balance condition is enforced by a loss function with first-order conditions $$\frac{1}{n} \sum_{i=1}^{n} \left( \frac{W_i}{\hat{e}(X_i)} - 1 \right) X_{ij} = 0, \quad j = 1, \ldots, p,$$ {#eq-bal-foc} which integrates to the covariate balancing loss function $$\ell_1(\eta) = \frac{1}{n} \sum_{i=1}^{n} \left[ W_i \exp(-\eta_i) + (1 - W_i) \eta_i \right].$$ {#eq-bal-loss} The corresponding loss function $\ell_0(\eta)$ for the control mean $\mathbb{E}[Y_i(0)]$ follows by symmetry. For exact balancing, the condition for a solution to exist is also stricter under this approach than with MLE, requiring that no linear combination of the covariates is non-negative on every treated unit while averaging at or below zero over the controls [@tan2020a]. To address this, we regularise the covariate balancing loss function using the penalised approach of @sverdrup2026, where the penalised objective under lasso regularisation is
+
+$$\ell_1(\eta) + \lambda \sum_{j=1}^{p} |\beta_j|.$$ {#eq-bal-pen} Under lasso penalisation, the exact balance requirements from @eq-exactbalance are relaxed by the KKT conditions giving
+
+$$\left| \frac{1}{n} \sum_{i=1}^{n} \frac{W_i X_{ij}}{\hat{e}(X_i)} - \frac{1}{n} \sum_{i=1}^{n} X_{ij} \right| \leq \lambda, \quad j = 1, \ldots, p.$$ {#eq-kkt}
+
+Here $\lambda$ is the maximum allowable imbalance across covariates, in standardised mean differences since `balnet` standardises the covariates by default. The regularisation path then gives a sequence of solutions at decreasing imbalance tolerances, which also serves as a diagnostic for overlap [@sverdrup2026]. When further reductions in imbalance are infeasible, `balnet` truncates its path before the path floor $\lambda_{min} = 10^{-4}$, and we count a replication as truncated when either arm's path ends above it. The estimator at the path end is written `balnet`$_{10^{-4}}$. In the terms of @zhao2019, `balnet` is then an approximate balancing estimator, defined by the imbalance left in each arm, bounded by $\lambda$.[^5]
+
+[^5]: For $\alpha < 1$, used in Study 2, each covariate's imbalance is no longer capped and grows with its coefficient, moving `balnet` from the lasso's control of the worst covariate toward $\ell_2$ ridge balancing [@brunssmith2025].
+
+**Modelling IPW estimators:** Modelling aims for covariate balance by predicting the propensity score, on the intuition that a correctly estimated propensity score will balance confounders through IPW estimation.
+
+1.  The Horvitz–Thompson (HT) IPW estimator for the ATE,
+
+    $$\hat\tau_{\mathrm{HT}} = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{W_iY_i}{\hat e(X_i)} - \frac{(1-W_i)Y_i}{1-\hat e(X_i)}\right],$$ {#eq-ht}
+
+    weights each unit by the inverse of its estimated propensity score $\hat e(X_i)$, following the survey sampling estimator from @horvitz1952. Under the oracle propensity score it is unbiased for $\tau$ [@wager2024, ch. 2].
+
+2.  The Hájek (H) estimator, $$\hat\tau_{\mathrm{H}} = \frac{\sum_{i=1}^{n} W_iY_i/\hat e(X_i)}{\sum_{i=1}^{n} W_i/\hat e(X_i)} - \frac{\sum_{i=1}^{n} (1-W_i)Y_i/\{1-\hat e(X_i)\}}{\sum_{i=1}^{n} (1-W_i)/\{1-\hat e(X_i)\}},$$ {#eq-hajek} normalises the HT estimator by dividing both groups by the sum of their weights, bounding the estimate by the observed outcomes to avoid minor errors in $\hat e(X_i)$ causing large errors in $\hat\tau$ through inversion [@hajek1971; @ding2023, ch. 11].
+
+For the balancing loss approach there is no distinction between HT and H, as the weights in each arm sum to $n$ by construction when the balancing loss is minimised [@tan2020a; @sverdrup2026]. Three references complete the set. The oracle is each estimator at the true propensity score, OLS is fitted within each arm on the observed covariates and predicted for all units [@kang2007], and the unadjusted estimator is the difference in means.
+
+**Doubly robust IPW estimators:** To mitigate the effects of model misspecification, both doubly robust estimators estimate an outcome model alongside the propensity score, as only one need be correctly specified.
+
+1.  The augmented IPW (AIPW) estimator [@robins1994].
+
+    $$\begin{aligned}
+    \hat\tau_{\mathrm{AIPW}} ={}& \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr] \\
+    &+ \frac{\sum_{i}\hat w_i^{(1)}\{Y_i - \hat m_1(X_i)\}}{\sum_{i}\hat w_i^{(1)}}
+    - \frac{\sum_{i}\hat w_i^{(0)}\{Y_i - \hat m_0(X_i)\}}{\sum_{i}\hat w_i^{(0)}},
+    \end{aligned}$$ {#eq-aipw}
+
+    adds a penalised outcome model to the MLE weights. The outcome model $\hat m_w(x) = \hat\beta_{w,0} + x^\top\hat\beta_w$ estimates $m_w(x) = \mathbb{E}[Y_i(w) \mid X_i = x]$, and is fit within arm $w$ and predicted for all $n$ units. Residual terms are normalised as in the Hájek estimator [@ding2023]. The population bias for $\mu_1 = \mathbb{E}[Y_i(1)]$ is the product of the two models' errors,
+
+    $$\operatorname{Bias}(\hat\mu_1^{\mathrm{AIPW}}) = \mathbb{E}\!\left[\frac{e(X) - \hat e(X)}{\hat e(X)}\,\{m_1(X) - \hat m_1(X)\}\right],$$ {#eq-aipw-bias}
+
+    so one correct model is enough. In finite samples the error is bounded by the product of the two fits' errors, so with both models misspecified neither factor is small and the errors can compound [@ding2023].
+
+2.  The augmented balancing weights (ABW) estimator, in the general form of @brunssmith2025, is for the ATE $$\begin{aligned} \hat\tau_{\mathrm{ABW}} ={}& \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr] \\ &+ \frac{\sum_{i}\hat\gamma_i^{(1)}\{Y_i - \hat m_1(X_i)\}}{\sum_{i}\hat\gamma_i^{(1)}} - \frac{\sum_{i}\hat\gamma_i^{(0)}\{Y_i - \hat m_0(X_i)\}}{\sum_{i}\hat\gamma_i^{(0)}}, \end{aligned}$$ {#eq-abw} where $\hat\gamma_i^{(1)}, \hat\gamma_i^{(0)}$ are the `balnet` weights at the path endpoint and $\hat m_w(x) = \hat\beta_{w,0} + x^\top\hat\beta_w$ is a lasso outcome model fit within arm $w$ through the cross-validated penalty parameter $\delta_w$, predicted for all $n$ units.
+
+    @brunssmith2025 show that with weights and outcome model linear in the same covariates, the ABW estimator collapses to OLS at exact balance, $$ \hat\tau_{\mathrm{ABW}} = \frac{1}{n}\sum_{i=1}^{n}\bigl[\hat m_1(X_i) - \hat m_0(X_i)\bigr], \qquad \lambda_1 = \lambda_0 = 0. $$ {#eq-abw-ols}
+
+    Under lasso ($\ell_1$, $\alpha = 1$) the collapse at exact balance is the same. Away from it, the weights correct balance only for covariates whose raw imbalance exceeds $\lambda$, with $\hat m_w$ handling the rest, a closed form that holds only for uncorrelated covariates [@brunssmith2025, Prop. 5.1–5.2 and supp. App. E.3].
+
+    The balancing weights of `balnet` are built on a logistic propensity score, so at exact balance the logistic link leaves $\hat\tau_{\mathrm{ABW}}$ an approximation error relative to OLS [@brunssmith2025, Remark 5 and supp. Prop. D.1].
+
+## Regularisation
+
+We fit both approaches under the elastic net framing of @friedman2010. Here $\alpha$ sets the form of the penalty, ridge at $\alpha = 0$, lasso at $\alpha = 1$ and the elastic net anywhere between. The penalty shrinks coefficients, scaled by $\lambda$, as each fit minimises $$\ell_1(\eta) + \lambda \Big[ (1 - \alpha)\tfrac{1}{2} \sum_{j=1}^{p} \beta_j^2 + \alpha \sum_{j=1}^{p} |\beta_j| \Big].$$ {#eq-enet} Ridge shrinks every coefficient towards zero leaving all nonzero, the lasso sets some at exactly zero, and the elastic net does both in a mix set by $\alpha$. Study 1 uses only the lasso penalty ($\ell_1$), while Study 2 covers all three.
+
+## Performance measures {#sec-s1-measures}
+
+**Bias:** the average error of the estimates, $\mathrm{Bias} = \bar\tau - \tau$, where $\bar\tau = \frac{1}{m}\sum_{r=1}^{m}\hat\tau_r$ is the mean of the estimates $\hat\tau_r$ over $m$ replications. As $\tau = 0$, bias is $\bar\tau$.
+
+**EmpSE:** the standard deviation of the estimates across replications, $\mathrm{EmpSE} = \sqrt{\frac{1}{m-1}\sum_{r=1}^{m}(\hat\tau_r - \bar\tau)^2}$, measuring precision [@morris2019].
+
+**RMSE:** the root mean squared error, $\mathrm{RMSE} = \sqrt{\frac{1}{m}\sum_{r=1}^{m}(\hat\tau_r - \tau)^2}$, combining bias and precision, as $\mathrm{RMSE}^2 \approx \mathrm{Bias}^2 + \mathrm{EmpSE}^2$.
+
+**MCSE:** the Monte Carlo standard error, the uncertainty in each measure from using a finite $m$, derived as in @morris2019. Bands and bars in the figures are 95% Monte Carlo intervals. For bias, it is $\mathrm{EmpSE}/\sqrt{m}$, for RMSE it is $\mathrm{SD}\big[(\hat\tau_r - \tau)^2\big]/(2\,\mathrm{RMSE}\sqrt{m})$ by the delta method, and for EmpSE it is $\mathrm{EmpSE}/\sqrt{2(m-1)}$.
+
+**Coverage at the empirical SE:** the share $C$ of replications in which $\hat\tau_r \pm 1.96\,\mathrm{EmpSE}$ covers $\tau$, with Monte Carlo standard error $\sqrt{C(1 - C)/m}$. No variance estimator is implemented for the balancing weights, so EmpSE stands in for the estimated width. With the width exact and the estimates near normal, bias is the only source of under-coverage, so this is the coverage a correctly sized interval would reach. Coverage at the nominal $0.95$, the level the interval claims, means the bias is small against the spread, and coverage falls with $n$ wherever the bias shrinks more slowly than $\sqrt{1/n}$ [@morris2019].
+
+**Relative RMSE performance** $\boldsymbol{\bar R(\Theta)}$**:** To guide the choice between estimators, we introduce an average relative performance indicator $\bar R(\Theta)$. Here, estimator $A$ is compared with estimator $B$ over $\Theta$, a set of cells $c$, where each $c$ is a simulation setting under our DGP. So that cells with large RMSE do not dominate, the ratio $R_c$ is averaged on the log scale, with its exponent taken for $\bar R(\Theta)$, $$R_c = \frac{\mathrm{RMSE}_{A,c}}{\mathrm{RMSE}_{B,c}}, \qquad \bar R(\Theta) = 100\Big\{1 - \exp\Big(\frac{1}{|\Theta|} \sum_{c \in \Theta} \log R_c\Big)\Big\},$$ {#eq-rbar} so that $\bar R(\Theta) > 0$ indicates that, over $\Theta$, estimator $A$ has on average $\bar R(\Theta)$ per cent lower RMSE than $B$.
+
+**Share of bias** $\boldsymbol{\bar s_m(\Theta)}$**:** To show whether differences in $\bar R(\Theta)$ are driven by bias or variance, for each estimator $m$ we report its share of bias using squared RMSE (MSE), $$s_{m,c} = \frac{\mathrm{bias}_{m,c}^2}{\mathrm{RMSE}_{m,c}^2}, \qquad \bar s_m(\Theta) = \frac{1}{|\Theta|}\sum_{c \in \Theta} s_{m,c}.$$ {#eq-sbar}
+
+A cell counts as a win for $A$ when $\log R_c$ lies more than three Monte Carlo standard errors below zero, and as a loss when it lies more than three above, so cells within three MCSE of zero are ties.
+
+By holding $\tau = 0$ fixed, comparing ratios, jointly considering $\bar R(\Theta)$ and $\bar s_m(\Theta)$, and using RMSE, which is on the same scale as EmpSE, we address several precautions raised by @morris2019.
+
+### Study 2
+
+**Selectors:** Each selector picks a $\lambda$ from one full `balnet` fit per replication, which also supplies the path endpoint. Cross-validation refits the path on ten folds, scores every $\lambda$ on the held-out fold and takes the $\lambda$ with the lowest mean score. The three cross-validated criteria are scored on the same folds, so they differ only in the criterion. The bootstrap does not refit. It scores the weights of the full fit on 500 random half-samples of the data and takes the $\lambda$ with the lowest mean score, following @wang2020. Selection is made separately in the treated and control fits, so a selector returns one $\lambda$ per arm.
+
+**Evaluation:** Each selected $\lambda$ gives both balancing estimators from Study 1. Under lasso the path ends at a maximum imbalance of $10^{-4}$, as in Study 1. Under ridge and the elastic net $\lambda$ no longer bounds the standardised mean differences, so the path ends at a fixed fraction of $\lambda_{\max}$ instead. To locate the RMSE-minimising $\lambda$, both estimators are also evaluated at every point of a fixed $\lambda$ grid per cell, set from a pilot draw and spaced evenly on the log scale from $\lambda_{\max}$ to the path end.
+
+**Measures:** Both aims are read from RMSE relative to the path endpoint on the same draws. An interior optimum occurs when the lowest RMSE along the $\lambda$ grid sits more than five per cent below the endpoint's. This is a reporting threshold, about two Monte Carlo standard errors at 2500 replications. A selector win occurs when a selector's RMSE sits below the endpoint's by more than three times their combined Monte Carlo standard error. Combining the two as if independent overstates the error of the difference, since the estimates share draws, so the rule errs towards calling a tie. Both are reported as the share of cells in which they occur, and a win carries the selector's RMSE as a ratio to the endpoint's.
+
+**Robustness check:** Both rules are also applied, with `balnet` alone, to the design of @wongchan2018 as run by @wang2020, matched to our misspecified grid by overlap and confounding strength. The two designs give the same verdict on the selector win in every one of fifteen matched cells and on the interior optimum in all but one ([Appendix H](#sec-app-wc)).
+
+# Study 1 Results
+
+## Sample size {#sec-s1-n}
+
+```{r}
+#| label: adv-setup
+#| include: false
+# Rbar, sbar, per-cell measures and the appendix tables of every Study 1
+# section, stored and verified by handoff/scripts/build_summaries.R; here
+# only read and drawn
+source(here::here("handoff", "load.R"))
+# the estimators the Results text discusses: the share-of-bias heat maps
+# draw only these, and the appendix tables hold the rest
+text_arms <- c("balnet0", "abw_balnet0", "glmnetcv_hajek", "aipw_glmnetcv")
+```
+
+```{r}
+#| label: n-path-data
+#| include: false
+# balnet, glmnet (Hájek) and AIPW-glmnet along n under a misspecified
+# propensity score, and the augmented estimators refitted with the outcome
+# model on the true covariates (stored section misspec_npath,
+# handoff/R/sections.R): n = 250 to 200k on the fine grid's draws, and
+# n = 1M, a separate run. The fine-grid file is too large to build anywhere
+# but the PC: until build_summaries("misspec_npath") has run there, both
+# figures are left out
+npath_built <- file.exists(here::here("output", "thesis_summaries",
+                                      "misspec_npath.rds"))
+npath_arms <- c("balnet0", "abw_balnet0", "glmnetcv_hajek",
+                "aipw_glmnetcv")
+ortrue_arms <- c("balnet0", "abw_balnet0_ortrue", "glmnetcv_hajek",
+                 "aipw_glmnetcv_ortrue")
+if (npath_built) {
+  misspec_npath <- read_summary("misspec_npath")
+  npath_grid <- setdiff(unique(misspec_npath$perf$n), 1e6)
+  npath_m <- signif(npath_strips_mcse(misspec_npath, npath_arms), 2)
+  ortrue_m <- signif(npath_strips_mcse(misspec_npath, ortrue_arms,
+                                       "linear"), 2)
+  # ABW-balnet leaves balnet's line at n = 250 only
+  npath_abw <- signif(max(npath_gap(misspec_npath, "abw_balnet0", "balnet0",
+                                    from = 500)), 1)
+  # the captions are typed in the figure chunks so they read and edit as
+  # text; the render stops here if the stored numbers no longer match them
+  stopifnot(
+    isTRUE(all.equal(max(npath_m), 0.089)),
+    isTRUE(all.equal(max(ortrue_m), 0.039)),
+    isTRUE(all.equal(npath_abw, 0.0009)),
+    min(npath_grid) == 250, max(npath_grid) == 2e5,
+    misspec_npath$info$reps == 10000)
+}
+```
+
+```{r}
+#| label: n-both-data
+#| include: false
+# both propensity scores on the sample sizes the two grids share, n = 500 to
+# 50k, 10 000 replications per cell on the same draws (stored section
+# n_both, handoff/R/sections.R); "both" pools the two specifications' cells
+n_both <- read_summary("n_both")
+# the captions of tbl-n-adv and tbl-app-n-ref give the grid and the cells,
+# which differ between the pooled block and the single-specification ones,
+# so stop if the stored ones differ
+n_both_k <- n_both$avg |>
+  filter(set == "all", theta == "pair", outcome == "pooled") |>
+  summarise(k = max(n_cells), .by = block)
+stopifnot(identical(sort(unique(n_both$perf$n)),
+                    c(500, 1000, 5000, 10000, 50000)),
+          all(n_both_k$k[match(c("correct", "misspec", "both"),
+                               n_both_k$block)] == c(15, 15, 30)))
+# n_both stores more pairs than tbl-n-adv shows
+n_adv_pairs <- tribble(
+  ~A,              ~B,
+  "abw_balnet0",   "balnet0",
+  "abw_balnet0",   "aipw_glmnetcv",
+  "abw_balnet0",   "glmnetcv_hajek",
+  "balnet0",       "aipw_glmnetcv",
+  "balnet0",       "glmnetcv_hajek",
+  "aipw_glmnetcv", "glmnetcv_hajek"
+)
+```
+
+We begin with the sample-size grid, under a correctly specified and a misspecified propensity score (@tbl-n-adv). Balancing weights have lower RMSE than MLE weights in every cell under either specification. At exact balance, ABW collapses to the unaugmented `balnet`, and together they average $68.6\%$ lower RMSE than the Hájek estimator and $33.8\%$ lower than AIPW. Pooled across specifications, `balnet`$_{10^{-4}}$ no longer beats the oracle in every cell, though it still does under quadratic outcomes (@atbl-app-n-ref). Against OLS, the approximation error of its logistic weights pulls in both directions and cancels out on average under a correctly specified score.
+
+```{r}
+#| label: tbl-n-adv
+#| tbl-cap: "$\\bar R(\\Theta)$ and $\\bar s_m(\\Theta)$ of A against B, $n$ = 500 to 50k."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_avg(n_both, blocks = c("both", "correct", "misspec"),
+          pairs = n_adv_pairs, cell_counts = FALSE,
+          note = paste("The averages are over 30 cells, 15 per",
+                       "specification, at 10 000 Monte Carlo replications."))
+```
+
+**Under a correctly specified propensity score,** the balancing estimators have lower RMSE than every modelling estimator across outcome functions, the one exception a near-zero difference against AIPW under linear outcomes. Here, the difference between modelling and balancing is bias driven while balancing's advantage over the oracle comes through variance, consistent with its theoretical efficiency [@wager2024]. Beyond these sample sizes, the correctly specified grid to $n = 400{,}000$ shows the same ordering, with balancing's lead over modelling widening slightly with $n$ (@atbl-q1-adv). AIPW also recovers much of the RMSE losses of the unaugmented modelling weights, less so where the shared outcome model is wrong, under the quadratic and exponential outcomes.
+
+**Under a misspecified propensity score,** both models are fitted on $\tilde X$ and are doubly wrong (@tbl-spec). Both balancing estimators keep substantially lower RMSE in every cell, consistent with the findings of @tan2020a. Their average lead across $n$ runs from $96.9\%$ over the HT estimator at the extreme to $54.3\%$ over AIPW in modelling's best case (@atbl-app-avg-n-m; @tbl-n-adv). The lead of the unaugmented balancing weights over the Hájek estimator is about the same as under a correct score, but its source changes. The unaugmented `balnet` now carries a higher share of bias while the Hájek estimator's error is mostly variance.
+
+Averaging over outcome functions also hides a reversal. Under a correctly specified score, balancing's lead was largest under the linear outcome. Misspecification reverses that ordering. Here the linear outcome is balancing's worst case, misspecification multiplying the RMSE of `balnet`$_{10^{-4}}$ relative to the Hájek estimator's by $2.4$ and pushing it behind the oracle (@tbl-n-adv; @atbl-app-n-ref). Conversely, it now performs best under the quadratic, where previously its lead over the Hájek estimator was smallest, misspecification dividing the same ratio by $2.4$. Following @benmichael2021, the relative loss of `balnet`$_{10^{-4}}$ here comes from balancing being unable to improve past exact balance on $\tilde X$. The Hájek estimator may be spared because its errors sit where the score is small, a region the linear outcome keeps moderate [@tan2020a].
+
+For the augmented estimators we take the two cases in turn, the outcome model refitted on the true covariates $X$ and both models fitted on $\tilde X$. The first is a benchmark an analyst who sees only $\tilde X$ cannot reach, and shows the double robustness the augmented estimators provide when the outcome model is correct in both function and covariates.
+
+@fig-n-refit follows the two augmented estimators with the outcome model refitted on $X$ from $n = 250$ to $10^6$ under the linear outcome function, with `balnet`$_{10^{-4}}$ and the Hájek estimator alongside for reference. The correct outcome model leaves both augmented estimators approximately unbiased beyond the smallest samples, but their RMSE parts as $n$ grows. ABW's falls with $n$ while AIPW's turns upward alongside the Hájek estimator's, whose weights it shares. The gap is the cost of the wrong weights, which a correct outcome model strips of bias but not variance [@benmichael2021]. Across $n$ this leaves ABW $52\%$ below AIPW under the linear outcome and about three quarters lower when the outcome function is also misspecified (@atbl-app-avg-n-m).
+
+```{r}
+#| label: fig-n-refit
+#| fig-cap: "Outcome model refitted on $X$ by $n$, misspecified propensity score, linear outcome. $n$ = 1M (dotted) is a separate run."
+#| fig-width: 6.5
+#| fig-height: 3.0
+#| eval: !expr npath_built
+#| include: !expr npath_built
+#| echo: false
+fig_npath_strips(misspec_npath, ortrue_arms, outcomes = "linear",
+                 measures = npath_measures, separate = 1e6,
+                 title = expression(paste("Outcome model refitted on ", italic(X))))
+```
+
+Once both models are fitted on the observed $\tilde X$, the double fragility of AIPW is clear. The outcome model that protected it in the refit is now a second source of error. Fitted on $\tilde X$, it leaves the part of the outcome missed by its linear covariates in its residuals, which are then weighted by the misspecified MLE weights, so the bias is the imbalance those weights leave in the residual [@benmichael2021].
+
+@fig-n-misspec follows `balnet`$_{10^{-4}}$ and the modelling estimators across our three doubly wrong settings. Our balancing estimator converges, but to the wrong value, as is expected of a misspecified estimator. Its variance shrinks towards zero and its bias settles near $-0.22$, $-0.07$ and $-0.14$ under the linear, quadratic and exponential outcome functions (@atbl-n-path). We focus on the Hájek and AIPW estimators, as the poor performance of the HT estimator is well documented [@kang2007; @busso2014], and leave its results to the appendix.
+
+```{r}
+#| label: fig-n-misspec
+#| fig-cap: "Both models fitted on $\\tilde X$ by $n$, misspecified propensity score. $n$ = 1M (dotted) is a separate run. ABW coincides with balnet from $n$ = 500."
+#| fig-width: 6.5
+#| fig-height: 6.0
+#| eval: !expr npath_built
+#| include: !expr npath_built
+#| echo: false
+fig_npath_strips(misspec_npath, npath_arms, measures = npath_measures,
+                 separate = 1e6,
+                 title = expression(paste("Both models fitted on ", tilde(italic(X)))))
+```
+
+The Hájek estimator does not settle. Under every outcome function its bias shrinks through zero and then grows positive, and its RMSE passes a minimum and rises to the largest sample. More data makes it worse, a direction @testa2026 also saw to $n = 1000$. @kang2007 traced the worsening to a few enormous weights where the fitted model misses in the region of near-zero scores. As $n$ grows those tails lengthen rather than settling, and the share of the sample carrying the weight shrinks with it. At $n = 500$ the MLE weights are no more extreme than the true score's, with a similar largest weight and a larger effective sample size (@atbl-app-n-diag-m-lin), so the tails cannot explain the bias. Here, the bias comes from the imbalance the weights leave in $\tilde X$.
+
+Under the linear outcome function the balancing weights settle at the same bias alone and augmented, near $-0.2$, well below the Hájek estimator. Augmented, they reduce to OLS on $\tilde X$, as exact balance makes the outcome model a linear adjustment on $\tilde X$ [@brunssmith2025]. Unaugmented, they differ from that OLS only by the approximation error, so both carry the part of the outcome not linear in $\tilde X$. The double fragility of AIPW is pronounced here. Its path starts ahead of the Hájek estimator, slips behind it by $n = 2000$, and loses ground from there to over three times its RMSE by $n = 10^6$ (@atbl-n-path). This is the ordering @kang2007 report up to $n = 1000$, here holding to $10^6$. For AIPW, two wrong models have previously been found to beat one when the outcome model's misspecification is moderate, though every bias still scales with the propensity score error [@warp2023]. Here the two errors compound instead.
+
+Under the quadratic and exponential outcome functions the outcome model is also wrong in form, yet AIPW now beats the Hájek estimator, likely because the linear model in $\tilde X$ picks up part of the outcome's curvature, so its residual is less imbalanced than the outcome itself [@benmichael2021]. It still stays well behind ABW, and `balnet`$_{10^{-4}}$ pulls further ahead of the Hájek estimator. Under the exponential, AIPW is the one modelling series that settles, at a bias near $-0.13$. The outcome's $\exp(X_1/2)$ term is linear in $\tilde X_1$, so the outcome model may fit exactly the part of the outcome where most of the score's signal sits. Refitting the outcome model on $X$ does not rescue AIPW under either outcome function, and under the quadratic it makes both augmented estimators worse at large $n$. The same wrong-form model costs almost nothing under a correctly specified propensity score, where both augmented estimators are nearly unbiased, so what AIPW appears unable to carry is the pairing of two wrong models.
+
+Misspecification costs the balancing weights a fixed bias that more data does not shrink. For modelling, it costs the weights a bias that falls, crosses zero and grows again while their tails lengthen with $n$, and that bias compounds in AIPW under the linear outcome function. Balancing stays ahead at every $n$ under every outcome function, alone and augmented, and the bias of `cv.glmnet` has not settled by $n = 10^6$.
+
+## Overlap {#sec-s1-overlap}
+
+```{r}
+#| label: adv-ov
+#| include: false
+# overlap7 (n = 1000) and overlap8 (n = 10 000), c = 0.05 to 2, 10 000 reps
+# (runs/aipw/aipw_overlap.R, runs/aipw/aipw_overlap10k_dgp2.R), both
+# specifications on the same draws; each summary averages over every (n, c)
+# cell, and "Both specifications" pools both specifications' cells. Sets of
+# c (poor: c <= 0.25, good: c >= 0.5) are in handoff/R/sections.R
+overlap <- read_summary("overlap")
+# the rows the text reads from each table: over all c pooled over both
+# specifications, and by specification for the good and poor sets
+ov_rows <- list(
+  all = tribble(
+    ~block,    ~A,            ~B,
+    "both",    "balnet0",     "aipw_glmnetcv",
+    "both",    "balnet0",     "glmnetcv_hajek",
+    "both",    "abw_balnet0", "balnet0",
+    "both",    "abw_balnet0", "aipw_glmnetcv"),
+  good = tribble(
+    ~block,    ~A,            ~B,
+    "correct", "balnet0",     "aipw_glmnetcv",
+    "correct", "abw_balnet0", "balnet0",
+    "correct", "abw_balnet0", "aipw_glmnetcv",
+    "misspec", "balnet0",     "aipw_glmnetcv",
+    "misspec", "abw_balnet0", "aipw_glmnetcv"),
+  poor = tribble(
+    ~block,    ~A,            ~B,
+    "correct", "balnet0",     "aipw_glmnetcv",
+    "correct", "abw_balnet0", "aipw_glmnetcv",
+    "misspec", "balnet0",     "aipw_glmnetcv",
+    "misspec", "abw_balnet0", "aipw_glmnetcv")
+)
+ov_shown <- map(ov_rows, \(rows) {
+  s <- overlap
+  s$avg <- semi_join(overlap$avg, rows, by = c("block", "A", "B"))
+  s
+})
+```
+
+Pooled over overlap and both specifications, balancing estimators have lower RMSE on average, and `balnet`$_{10^{-4}}$ has lower RMSE than the Hájek estimator in every cell (@tbl-ov-adv). ABW has on average $20.2\%$ lower RMSE than `balnet`$_{10^{-4}}$ and $32.5\%$ lower than AIPW, while the unaugmented `balnet` has on average $23.1\%$ lower than AIPW and $59.9\%$ lower than the Hájek estimator.
+
+```{r}
+#| label: tbl-ov-adv
+#| tbl-cap: "$\\bar R(\\Theta)$ and $\\bar s_m(\\Theta)$ of A against B, $c$ = 0.05 to 2, $n$ = 1000 and 10 000, both specifications."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_avg(ov_shown$all, cell_counts = FALSE,
+          note = paste("The averages are over 84 cells, 42 per",
+                       "specification, at 10 000 Monte Carlo replications.",
+                       "Pairs with glmnet omit the six correct-specification",
+                       "cells at $c$ = 0.05, where glmnet lacks more than 1%",
+                       "of its estimates."))
+```
+
+AIPW has lower RMSE than `balnet`$_{10^{-4}}$ on average only where common support is practically violated and the propensity score is correctly specified. There MLE's performance is also unobservable at $c = 0.05$, where $81.8\%$ of the sample have a propensity score below $0.01$ or above $0.99$ (@atbl-ov-levels).
+
+Where we assume common support holds, both balancing estimators have lower RMSE on average than the modelling estimators, with ABW averaging $7.5\%$ lower RMSE than AIPW and $0.2\%$ lower than `balnet`$_{10^{-4}}$ across outcome functions (@tbl-ov-adv-hi). Balancing's advantage here holds across nonlinear outcomes, though for the linear outcome function, where the shared outcome model is correct, ABW has $0.6\%$ higher RMSE than AIPW while `balnet`$_{10^{-4}}$ has $0.8\%$ higher. For misspecified propensity scores, both balancing estimators have RMSE around $51\%$ lower than AIPW, as on the sample-size grid.
+
+```{r}
+#| label: tbl-ov-adv-hi
+#| tbl-cap: "$\\bar R(\\Theta)$ and $\\bar s_m(\\Theta)$ of A against B where common support holds."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_avg(ov_shown$good, set = "good", cell_counts = FALSE,
+          note = paste("Overlap $c$ = 0.5 to 2 at $n$ = 1000 and 10 000. The",
+                       "averages are over 24 cells per specification, at",
+                       "10 000 Monte Carlo replications."))
+```
+
+Where we assume common support is violated, under a correctly specified score ABW has $21.7\%$ lower RMSE than AIPW while the unaugmented `balnet` has around $1.5$ times the RMSE of AIPW (@tbl-ov-adv-lo). This ordering holds under every outcome function, with the gap to `balnet`$_{10^{-4}}$ widest under the linear outcome. Under a misspecified score, for all $c \leq 0.25$ ABW has $37.7\%$ lower RMSE than AIPW on average, while `balnet`$_{10^{-4}}$ has $29.3\%$ lower. As in simulations with practical or outright positivity violations, `balnet`$_{10^{-4}}$ has lower RMSE than the Hájek estimator [@chattopadhyay2020; @keele2025] but is biased where its path truncates. Under a misspecified score the lowest RMSE at the weakest overlap does not improve with $n$ (@atbl-app-ov-full-m).
+
+```{r}
+#| label: tbl-ov-adv-lo
+#| tbl-cap: "$\\bar R(\\Theta)$ and $\\bar s_m(\\Theta)$ of A against B where common support is violated."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_avg(ov_shown$poor, set = "poor", cell_counts = FALSE,
+          note = paste("Overlap $c$ = 0.05 to 0.25 at $n$ = 1000 and 10 000.",
+                       "The averages are over 12 cells under correct",
+                       "specification and 18 under misspecification, at",
+                       "10 000 Monte Carlo replications."))
+```
+
+```{r}
+#| label: adv-ov-share
+#| include: false
+# share of bias per arm, c and outcome, averaged over n = 1000 and 10 000
+# (set by_c in handoff/R/sections.R); grey where an arm lacks any n at that c
+ov_cbar <- heat_share_avg(overlap, set = "by_c", x = "overlap",
+                          arms = text_arms,
+                          x_lab = expression("Overlap " * italic(c)),
+                          x_fmt = fmt_dot)
+ov_cbar_share <- ov_cbar$share
+# of the chart's note, only the grey-cell sentence, when there is one
+ov_cbar_note <- regmatches(ov_cbar$note, regexpr("Grey cells[^.]*\\.", ov_cbar$note))
+ov_cbar_height <- ov_cbar$height
+```
+
+As overlap degrades below $c = 0.5$, the share of bias rises for both balancing estimators. Under correct specification, averaged over both sample sizes, the unaugmented `balnet` jumps from a $1\%$ share at $c = 0.5$ to $41\%$ at $c = 0.25$ under linear outcomes (@fig-ov-adv). This average hides a split by sample size, with the share $83\%$ at $n = 1000$, where every path stops short, and zero at $n = 10{,}000$, where nearly every path reaches its target (@atbl-app-ov-full-c). In contrast, ABW moves from unbiased to a $6\%$ share, rising to $28\%$ by $c = 0.05$ where `balnet`$_{10^{-4}}$ is at $97\%$. This pattern holds across outcomes, except that ABW under quadratic outcomes becomes more variance driven on either side of $c = 0.25$.
+
+```{r}
+#| label: fig-ov-adv
+#| fig-cap: !expr paste("Share of bias by $c$, averaged over $n$ = 1000 and 10 000, both specifications. glmnet (HT) not drawn.", ov_cbar_note)
+#| fig-width: 6.5
+#| fig-height: !expr ov_cbar_height
+#| echo: false
+ov_cbar_share
+```
+
+```{r}
+#| label: ov-nc-data
+#| include: false
+# DGP2, p = 50, n x c grid (12 n x 13 c), both PS specifications, seed 202,
+# 1000 reps, same draws (runs/aipw/aipw_n_by_overlap_dgp2.R); stored
+# summary "nc": every arm and cell, and the share of truncated paths
+nc <- read_summary("nc")
+nc_fig_n <- c(200, 5000)
+# afig-app-nc's caption is typed in Appendix D; the render stops here if
+# the stored numbers no longer match it
+nc_m <- signif(nc_mcse(nc, nc_fig_n), 2)
+nc_left_out <- filter(nc$perf, n %in% nc_fig_n, dropped)
+stopifnot(
+  nc$info$reps == 1000,
+  max(nc_m) == 0.23, nc_m[["glmnetcv_hajek"]] == 0.23,
+  all(nc_left_out$spec == "correct"))
+```
+
+@afig-app-nc follows the estimators as overlap improves in small and large samples. Across all settings, ABW has lower RMSE than the unaugmented `balnet` wherever the path of `balnet` stops short of exact balance, increasingly so under a correctly specified score as overlap degrades, and with more data the path reaches exact balance at poorer overlap.
+
+Where we assume common support holds, ABW has the lowest RMSE of the modelling and balancing estimators in small samples under every outcome. In these samples AIPW also has a lower RMSE than `balnet`$_{10^{-4}}$ under a correctly specified score, and this extends to larger samples as overlap degrades. Under a misspecified propensity score the advantage of `balnet`$_{10^{-4}}$ over AIPW extends to poorer overlap, with a lower RMSE at $n = 5000$ from $c = 0.1$, even where its path truncates, and at every $c$ under linear outcomes.
+
+Where we assume common support is practically violated, `balnet`$_{10^{-4}}$ truncates at every $n$, with a higher RMSE than ABW in both samples, far more so under a correctly specified score. Under a misspecified score AIPW has a lower RMSE than ABW at the weakest overlap under the quadratic outcome and the two are level under the exponential, but as overlap improves ABW takes over, earlier in the larger sample, consistent with approximate residual balancing outperforming AIPW in the misspecified setting of @athey2018, which varied dimension. At the weakest overlap no weighting estimator removes half the confounding in either sample, as in @keele2025, where no method overcame outcome misspecification once overlap was poor.[^6]
+
+[^6]: At $c = 0.01$ the unadjusted difference is $-2.06$ (linear, quadratic) and $-1.56$ (exponential) at both $n$, against a lowest weighting RMSE of $1.08$ (design values, weighting RMSEs in @atbl-app-nc-full-m).
+
+## High-dimensional settings {#sec-s1-hd}
+
+```{r}
+#| label: adv-p
+#| include: false
+# p/n = 0.05 to 4 at n = 500 and 1000, s = 4, both specifications on the
+# same draws (runs/aipw/aipw_paxis_dgp2.R)
+p_axis <- read_summary("p_axis")
+p_heat <- heat_cells(p_axis, x = "pn", by = "n", arms = text_arms,
+                     x_lab = expression(italic(p) / italic(n)),
+                     x_fmt = fmt_dot)
+```
+
+```{r}
+#| label: pn-data
+#| include: false
+# the shares of balnet paths that stop short, stored with the appendix entry
+# (app_p_axis), place the shading of the p/n figures; the pairs are the ones
+# the text quotes
+app_p_axis <- read_summary("app_p_axis")
+pn_pairs <- tribble(
+  ~A,            ~B,
+  "balnet0",     "glmnetcv_hajek",
+  "balnet0",     "aipw_glmnetcv",
+  "abw_balnet0", "balnet0",
+  "abw_balnet0", "aipw_glmnetcv"
+)
+# the captions of fig-pn-rmse and afig-app-pn-bias are typed, so the render
+# stops here if the stored numbers no longer match them
+pn_rmse_m <- signif(pn_lines_mcse(p_axis, "rmse"), 2)
+pn_bias_m <- signif(pn_lines_mcse(p_axis, "bias"), 2)
+pn_trunc <- pn_trunc_share(app_p_axis)
+stopifnot(
+  pn_rmse_m[["glmnetcv_hajek"]] == 0.053,
+  max(pn_rmse_m[names(pn_rmse_m) != "glmnetcv_hajek"]) == 0.016,
+  max(pn_bias_m) == 0.0051,
+  all(pn_trunc$share[pn_trunc$pn >= 0.5] == 1),
+  max(pn_trunc$share[pn_trunc$pn < 0.5]) < 0.06,
+  p_axis$info$reps == 10000)
+```
+
+```{r}
+#| label: tbl-pn-adv
+#| tbl-cap: "$\\bar R(\\Theta)$ of A against B and $\\bar s_m(\\Theta)$ of A over all $p/n$, at exact balance and once the path stops short, $n$ = 500 and 1000."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_pn_regimes(p_axis, pn_pairs)
+```
+
+As covariates are added, balancing keeps its advantage over modelling on average, alone and augmented (@tbl-pn-adv). `balnet`$_{10^{-4}}$ has lower RMSE than `cv.glmnet` (Hájek) in every cell, by $49.1\%$ on average under a correctly specified score and $39.2\%$ under misspecification. Augmentation narrows this to $13.6\%$ and $17.8\%$ for ABW over AIPW, and on average AIPW overtakes the unaugmented `balnet`.
+
+These averages hide the expected change at $p/n = 0.5$, from which every `balnet`$_{10^{-4}}$ path stops short of exact balance. Bias then makes up most of its error, with its share rising from $0.01$ to $0.89$ under a correctly specified score (@tbl-pn-adv). Here, its lead over the Hájek estimator nearly halves, from $66.9\%$ to $36.9\%$, and it also slips behind the oracle (@atbl-app-pn-full-c).
+
+ABW again collapses to `balnet`$_{10^{-4}}$ at exact balance. Once the path stops short, the outcome model adjusts for the remaining imbalance, and ABW's RMSE is $55.4\%$ and $33.5\%$ lower than that of `balnet`$_{10^{-4}}$. Unlike `balnet`$_{10^{-4}}$, ABW stays ahead of AIPW, by $18.4\%$ and $13.7\%$. Its lead widens from $p/n = 0.5$ under a correctly specified score but narrows under misspecification.
+
+Once the path stops short, the lead of `balnet`$_{10^{-4}}$ over the Hájek estimator narrows as $p$ grows under all settings (@fig-pn-rmse). Both estimators grow more biased, but at different rates. As expected, the bias of the Hájek estimator grows gradually, while that of `balnet`$_{10^{-4}}$ grows faster as its leftover imbalance increases with $p$ [@zhao2019]. Its nonzero coefficients stop growing with $p$ once the path stops short (@atbl-app-pn-diag-c-lin; @atbl-app-pn-diag-m-lin). Our grid extends the comparison of @tan2020a to higher dimensions, up to $p/n = 4$, where the narrowing we find between the unaugmented estimators mirrors the result of @athey2018 for approximately balancing weights.
+
+```{r}
+#| label: fig-pn-rmse
+#| fig-cap: "RMSE against $p/n$ at $n$ = 500 and 1000, both specifications. Shading marks where the balnet path stops short, the dotted line $p = n$."
+#| fig-width: 6.5
+#| fig-height: 4.8
+#| echo: false
+pn_lines(p_axis, app_p_axis, "rmse",
+         title = expression(paste("RMSE against ", italic(p) / italic(n))))
+```
+
+Augmentation does not remove the whole cost of the leftover imbalance, with ABW's bias still growing with $p$ from $p/n = 0.5$ (@afig-app-pn-bias). Its lead over AIPW holds steady at $15\%$ to $21\%$ under a correctly specified score (@atbl-app-pn-full-c), but narrows as $p$ grows under misspecification, most clearly for the linear outcome. The narrowing comes from both sides, as ABW's bias grows faster than AIPW's once the path stops short, while AIPW's variance falls with $p$ and offsets its own growing bias, most of all at $n = 1000$. To our knowledge this narrowing has not been reported, and the augmented balancing weights of @athey2018, which target balance without a propensity score, show a steady lead over AIPW.[^7]
+
+[^7]: Unlike ours, their AIPW used elastic-net propensity scores trimmed at 0.05 and 0.95 [@athey2018].
+
+The cost of misspecification to the MLE estimators shrinks as covariates are added. For the Hájek estimator this cost falls in every series, and has vanished or reversed for nonlinear outcomes by $p/n = 4$. Though the relative cost falls, Hájek's RMSE still generally rises with $p$, consistent with the findings of @athey2018. As discussed earlier, misspecification costs AIPW more than the Hájek estimator at low $p$, and this cost too shrinks as $p$ grows (@fig-pn-rmse).
+
+```{r}
+#| label: adv-sp
+#| include: false
+# n x p/n x s x decay x covariance structure, correct specification, linear
+# and quadratic outcomes (runs/aipw/sparsity_axis.R: iid and AR(1) in one
+# grid, equicorrelated in its own); structures and nu as in the DGM section
+sparsity <- read_summary("sparsity")
+# the regimes are kept apart, each in the same order (sets in
+# handoff/R/sections.R; s = 64 is not run at n = 500, p/n = 0.1). The
+# truncated sets by covariance structure also store rows by decay, which
+# the text does not use, so only their rows by s are shown, as at exact
+# balance
+sp_sets <- sparsity
+sp_sets$avg <- filter(sp_sets$avg,
+                      !(set %in% c("truncated_iid", "truncated_ar1",
+                                   "truncated_equi") & factor %in% "decay"))
+sp_factor_labs <- c(s = "confounders s", decay = "decay ν",
+                    corr = "covariates")
+# RMSE of each estimator against s, pooled over the cells of the tables in
+# Appendix F (fig_sp_change() stops if the two disagree)
+sp_change <- fig_sp_change(sparsity)
+```
+
+**With a denser covariate profile:** With four confounders, $\nu = 1$ and independent covariates, the sparsity grid shares the propensity score of the $p/n$ grid. From $p/n = 0.5$ every `balnet` path stops short of exact balance, whatever $s$, $\nu$ or $\rho$, so exact balance and the truncated path are reported apart throughout (@fig-sp-change). `balnet` again has lower RMSE than the Hájek estimator in every cell under both scores, and by more than three MCSE in all but one under Tan's transformation, whatever the number of confounders, their decay or the covariate correlation.[^8] ABW keeps a lead over AIPW on average under independent and AR(1)-correlated covariates, but under equicorrelation the two stay within a few per cent.
+
+[^8]: In the remaining cell ($n = 1000$, $s = 4$, $\nu = 1$, AR(1), quadratic outcome) the RMSE of `balnet` is $40\%$ of the Hájek estimator's, but heavy-tailed Hájek estimates leave the ratio within three MCSE of one, so it is not counted as a win.
+
+```{r}
+#| label: fig-sp-change
+#| fig-cap: "RMSE by $s$ and covariance structure, correct specification, at exact balance and once the path stops short, pooled over outcomes and decay rates. glmnet (HT) not drawn."
+#| fig-width: 6.5
+#| fig-height: !expr sp_change$height
+#| echo: false
+sp_change$plot
+```
+
+**Dynamics across** $s$: While exact balance holds, `balnet` stays close to unbiased in every cell, with absolute bias at most 0.006 for the linear outcome and 0.028 for the quadratic, at every $s$, $\nu$ and $\rho$ (@atbl-app-sp-cells). Here, the Hájek estimator grows more biased as confounders are added under independent and AR(1)-correlated covariates, so the lead of `balnet` widens with $s$, from $62.2\%$ to $71.1\%$ under independent and from $56.5\%$ to $65.3\%$ under AR(1)-correlated covariates at $n = 1000$. The lead is larger under slower decay, whereas under equicorrelation it narrows instead (@atbl-app-sp-exact). As expected, the error of the MLE weights grows with the number of active covariates [@tan2020b]. Exact balance instead removes the bias for the linear outcome at any $s$.
+
+Once the path stops short, all four estimators are biased downwards (@atbl-app-sp-cells). The bias of `balnet` grows as confounders are added and, beyond four, as their decay slows, and is smaller under AR(1)-correlated covariates, consistent with the findings of @zhao2019 for the number of confounders and of @athey2018 for correlation. Under equicorrelation it falls with $s$ instead. `balnet` still keeps a lead of $37\%$ to $48\%$ over the Hájek estimator at every $s$, though its error turns to bias, with a share rising from 0.73 to 0.86 under independent and from 0.60 to 0.76 under AR(1)-correlated covariates (@atbl-app-sp-trunc). Its linear bias is nearly the full imbalance bound with four confounders but between a half and three quarters of it with 64 under independent and AR(1)-correlated covariates (@atbl-app-sp-bound).
+
+The gain from augmentation follows the same split. Once the path stops short, ABW has lower RMSE than AIPW in every cell under independent and AR(1)-correlated covariates, and its lead grows with $s$, from $20.1\%$ to $28\%$ by 16 confounders under independent and from $10.0\%$ to $32.5\%$ under AR(1)-correlated covariates (@atbl-app-sp-trunc). Under these two structures both augmented estimators grow more biased as confounders are added, AIPW faster. As expected, AIPW loses ground as the propensity model it relies on grows denser [@athey2018]. This is consistent with the findings of @bradic2019, where the error of AIPW rose with the number of active propensity covariates while that of augmented balancing weights did not. While exact balance holds, the same pattern appears at $n = 1000$, from a lead of $5.8\%$ under independent and none under AR(1)-correlated covariates at four confounders to $35.0\%$ and $12.5\%$ at 64.
+
+The unaugmented `balnet` also catches AIPW as confounders are added. Once the path stops short, `balnet` has 1.3 times the RMSE of AIPW at four confounders under independent and AR(1)-correlated covariates. At 64 it is level with AIPW under AR(1)-correlated covariates and ahead under independent ones, and the gap shrinks with $s$ under every covariance structure (@atbl-app-sp-trunc). Here, the bias of AIPW grows with $s$ faster than that of `balnet`, while under equicorrelation the bias of `balnet` falls faster.
+
+Tan's transformation costs `balnet`, not the Hájek estimator, and only while exact balance holds. There the RMSE of `balnet` rises by about a half under independent covariates, two thirds for the linear outcome, and by a fifth under AR(1), so the lead narrows from $63.6\%$ to $49.6\%$ under independent covariates and little elsewhere (@atbl-app-sp-tan). Here, exact balance on the transformed covariates does not guarantee balance in the original ones, in which the outcome is linear, so part of the confounding bias can return [@zhao2019]. This differs from the findings of @tan2020a, where balancing weights had similar or smaller MSE under a correct score and a substantial advantage under a Kang–Schafer misspecification. Under the transformation the lead of ABW over AIPW also narrows with $s$ at exact balance, the reverse of its direction under a correct score. The direction matches the findings of @tan2020b under a misspecified score, though their outcome model was correct.
+
+Equicorrelated covariates break the pattern. While exact balance holds, the Hájek estimator grows less biased as confounders are added, so the lead of `balnet` narrows from $47.7\%$ to $40.4\%$ instead of widening, and once the path stops short the bias of `balnet` falls with $s$ too (@atbl-app-sp-exact; @atbl-app-sp-trunc). ABW and AIPW stay within a few per cent of each other at exact balance and once the path stops short, and Tan's transformation costs `balnet` little. We read this through $Z_0$, the common factor every equicorrelated covariate shares, which makes up about three quarters of the variance of the propensity index at four confounders and over nine tenths at 64 (@atbl-app-sp-share). Here, a sparse fit already captures most of the confounding, so balancing more columns adds little.
+
+## Outcome signal {#sec-s1-signal}
+
+```{r}
+#| label: adv-sig
+#| include: false
+# outcome signal strength 0.02 to 1 at n = 1000, p = 50, both
+# specifications on the same draws (runs/aipw/aipw_strength.R)
+signal <- read_summary("signal")
+sig_heat <- heat_cells(signal, x = "strength", arms = text_arms,
+                       x_fmt = fmt_dot,
+                       x_lab = expression("Outcome signal strength " * kappa))
+```
+
+Under a correctly specified propensity score, the ranking of `balnet`$_{10^{-4}}$ and the Hájek estimator reverses as the outcome signal grows against the fixed noise (@atbl-app-sig-full-c). As only the ratio of signal to noise decides the ranking, a low $\kappa$ reads as a noisy outcome. In the noisiest cells, $\kappa \le 0.05$, `balnet`$_{10^{-4}}$ has $9\%$ to $12\%$ higher RMSE, and once the noise falls back, from $\kappa = 0.2$, it has lower RMSE, by $62\%$ to $74\%$ at $\kappa = 1$. Here, the bias of the Hájek estimator grows with the signal while `balnet`$_{10^{-4}}$ stays close to unbiased, but exact balance leaves it a smaller effective sample size (median 345 against 430 per arm, @atbl-app-sig-diag-c-lin), which decides the ranking while the noise dominates. Its $32.9\%$ advantage pooled over $\kappa$ (@tbl-sig-adv) averages over the cells where its RMSE is higher. The oracle reverses against `balnet`$_{10^{-4}}$ in the same way, so the efficiency advantage of exact balance holds only once the signal clears the noise.
+
+```{r}
+#| label: tbl-sig-adv
+#| tbl-cap: "$\\bar R(\\Theta)$ and $\\bar s_m(\\Theta)$ of balnet against glmnet (Hájek), correct specification, $\\kappa$ = 0.02 to 1."
+#| tbl-pos: "!htbp"
+#| echo: false
+# the comparison the text quotes from this table
+table_avg(signal, blocks = "correct",
+          pairs = tibble(A = "balnet0", B = "glmnetcv_hajek"),
+          cell_counts = FALSE,
+          note = paste("The averages are over 24 cells at 10 000 Monte Carlo",
+                       "replications."))
+```
+
+Under a misspecified propensity score both estimators are biased in proportion to the signal, as the bias acts through the outcome [@zhao2019; @warp2023], but the Hájek estimator is about twice as biased. `balnet`$_{10^{-4}}$ has lower RMSE at every noise level but the highest, by $49\%$ to $68\%$ at $\kappa = 1$, and the two are level at $\kappa = 0.02$. There the Hájek estimator has the lower median absolute error, as a few extreme weights lift its RMSE.
+
+Augmentation again leaves `balnet`$_{10^{-4}}$ unchanged, with the RMSE of ABW within 0.001 of it in every cell. Under a correctly specified score the gain for the Hájek estimator grows as the noise falls, from none at $\kappa = 0.02$, where the outcome model often keeps no covariate, to $59\%$ to $74\%$ lower RMSE at $\kappa = 1$. The augmented pair reverses as the unaugmented one does, with ABW ahead of AIPW only from $\kappa = 0.2$, by under $8\%$. Under misspecification neither pair reverses, and ABW stays ahead of AIPW at every noise level but the highest, by $18\%$ to $43\%$ at $\kappa = 1$.
+
+In a noisy outcome, then, the balance at the end of the `balnet` path costs more in variance than it removes in bias, as anticipated where the best amount of balance depends on the noise relative to the signal [@zhao2019].
+
+## Coverage {#sec-s1-coverage}
+
+```{r}
+#| label: cov-data
+#| include: false
+# Coverage at the empirical SE (Performance measures): the share of
+# replications with |tau_hat_r| <= 1.96 EmpSE, tau = 0, per cell, with its
+# binomial MCSE. Built once from results/aipw through handoff's reader
+# (handoff/R/build.R, read_results()) and stored in
+# output/thesis_summaries/coverage_empse.rds; delete that file to rebuild.
+# Grids: n (correct n = 500 to 400k; misspecified n = 500 to 50k and the
+# separate n = 1M run), overlap (c = 0.05 to 2 at n = 1000 and 10 000) and
+# outcome signal (kappa = 0.02 to 1 at n = 1000), both specifications, the four estimators the text follows and Oracle
+# (Hájek) as the unbiased reference
+cov_path <- here::here("output", "thesis_summaries", "coverage_empse.rds")
+cov_arms <- c(text_arms, "oracle_hajek")
+cov_grids <- c("n", "overlap", "signal", "diag")
+if (!file.exists(cov_path) ||
+    !all(cov_grids %in% names(readRDS(cov_path)))) {
+  build_env <- new.env()
+  sys.source(here::here("handoff", "R", "build.R"), envir = build_env)
+  z <- qnorm(0.975)
+  cov_cells <- function(long, spec) {
+    long |>
+      filter(is.finite(error)) |>
+      group_by(across(-c(level, sim, error))) |>
+      summarise(m = n(), bias = mean(error), empse = sd(error),
+                coverage = mean(abs(error) <= z * empse), .groups = "drop") |>
+      mutate(mcse = sqrt(coverage * (1 - coverage) / m), spec = spec)
+  }
+  cov_files <- list(
+    n = list(
+      correct = "aipw_correct_n400k_dgp2.csv.gz",
+      misspec = c("aipw_misspec_n_dgp2.csv.gz", "aipw_misspec_n_dgp2n1mill.csv.gz")),
+    overlap = list(
+      correct = c("aipw_correct_overlap7_dgp2.csv.gz", "aipw_correct_overlap8_dgp2.csv.gz"),
+      misspec = c("aipw_misspec_overlap7_dgp2.csv.gz", "aipw_misspec_overlap8_dgp2.csv.gz")),
+    signal = list(
+      correct = "aipw_correct_strength_dgp2.csv.gz",
+      misspec = "aipw_misspec_strength_dgp2.csv.gz"))
+  coverage_empse <- imap(cov_files, \(specs, grid) {
+    imap(specs, \(fs, spec) {
+      map(fs, \(f) build_env$read_results(f, cov_arms)) |>
+        bind_rows() |>
+        cov_cells(spec)
+    }) |> bind_rows()
+  })
+  # the MLE weights by overlap level, behind the Hájek estimator's loss of
+  # coverage at c = 2 (footnote cov-wmax): median largest weight and
+  # effective sample size of the treated arm, by specification and n
+  coverage_empse$diag <- imap(cov_files$overlap, \(fs, spec) {
+    map(fs, \(f) build_env$read_results(f, c("wmax_glm1", "ess_glm1"))) |>
+      bind_rows() |>
+      filter(outcome == "linear", is.finite(error)) |>
+      summarise(value = median(error), .by = c(n, overlap, estimator)) |>
+      mutate(spec = spec)
+  }) |> bind_rows()
+  saveRDS(coverage_empse, cov_path)
+  write.csv(bind_rows(coverage_empse, .id = "grid"),
+            sub("rds$", "csv", cov_path), row.names = FALSE)
+}
+coverage_empse <- readRDS(cov_path)
+cov_m <- signif(max(map_dbl(coverage_empse[cov_grids != "diag"],
+                            \(d) max(d$mcse))), 1)
+# the typed numbers of the section (footnote cov-wmax, the n and signal
+# paragraphs): the render stops here if the stored files no longer give them
+cov_wm <- \(est, c) coverage_empse$diag |>
+  filter(spec == "misspec", n == 1e4, overlap == c, estimator == est) |>
+  pull(value)
+cov_hj <- coverage_empse$overlap |>
+  filter(spec == "misspec", n == 1e4, overlap == 2, outcome == "linear",
+         estimator == "glmnetcv_hajek")
+cov_sg <- \(oc) coverage_empse$signal |>
+  filter(spec == "misspec", strength == 1, outcome == oc,
+         estimator == "glmnetcv_hajek")
+stopifnot(
+  round(cov_wm("wmax_glm1", 2)) == 15, round(cov_wm("wmax_glm1", 1)) == 98,
+  round(cov_wm("wmax_glm1", 0.05), -1) == 1450,
+  round(cov_wm("ess_glm1", 2), -2) == 4600,
+  round(cov_hj$empse, 2) == 0.03, round(cov_hj$bias, 2) == -0.15,
+  round(cov_sg("quad1")$empse / cov_sg("linear")$empse) == 3,
+  abs(cov_sg("quad1")$bias) < abs(cov_sg("linear")$bias),
+  max(filter(coverage_empse$n, spec == "correct",
+             estimator == "glmnetcv_hajek")$coverage) < 0.445)
+# one palette and shape set for both coverage figures: the n-path figures'
+# colours for the four estimators, plus the oracle
+cov_pal <- c(npath_strip_pal[text_arms], oracle_hajek = "#D55E00")
+cov_shape <- c(npath_strip_shape[text_arms], oracle_hajek = 4)
+names(cov_pal) <- names(cov_shape) <- arm_labs[cov_arms]
+cov_rows <- function(d) {
+  d |>
+    mutate(estimator = factor(estimator, cov_arms, arm_labs[cov_arms]),
+           outcome = factor(outcome, outcome_models, outcome_labs),
+           spec = factor(spec, c("correct", "misspec"),
+                         block_labs[c("correct", "misspec")]),
+           lo = pmax(coverage - 1.96 * mcse, 0),
+           hi = pmin(coverage + 1.96 * mcse, 1))
+}
+cov_theme <- function() {
+  list(theme_bw(base_size = 9, base_family = "serif"),
+       theme(legend.position = "bottom", strip.background = element_blank(),
+             legend.text = element_text(size = 7.5),
+             panel.grid.minor = element_blank(),
+             panel.grid.major = element_line(linewidth = 0.2)),
+       guides(colour = guide_legend(override.aes = list(size = 1.8))))
+}
+```
+
+```{r}
+#| label: fig-n-coverage
+#| fig-cap: "Coverage at the empirical SE by $n$, both specifications. The dotted line is the nominal 95%, $n$ = 1M (misspecified) a separate run."
+#| fig-width: 6.5
+#| fig-height: 3.8
+#| echo: false
+cov_n <- cov_rows(coverage_empse$n) |>
+  mutate(run = if_else(n >= 1e6, "separate", "grid"))
+cov_breaks <- c(500, 5e3, 5e4, 5e5)
+ggplot(cov_n, aes(n, coverage, colour = estimator, shape = estimator,
+                  group = estimator)) +
+  geom_hline(yintercept = 0.95, linetype = "dotted", colour = "grey40") +
+  geom_linerange(aes(ymin = lo, ymax = hi), linewidth = 0.4, alpha = 0.6,
+                 show.legend = FALSE) +
+  geom_line(data = \(d) filter(d, run == "grid"), linewidth = 0.5,
+            show.legend = FALSE) +
+  geom_point(size = 1.2) +
+  facet_grid(spec ~ outcome) +
+  scale_x_log10(breaks = cov_breaks, labels = format_kM(cov_breaks)) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 0.95)) +
+  scale_colour_manual(values = cov_pal) +
+  scale_shape_manual(values = cov_shape) +
+  labs(x = expression(italic(n)), y = "Coverage at the empirical SE",
+       colour = NULL, shape = NULL) +
+  cov_theme()
+```
+
+@fig-n-coverage shows what the biases of Study 1 cost a confidence interval along $n$. Under a correctly specified score `balnet`$_{10^{-4}}$, ABW and the oracle sit at nominal at every $n$, and AIPW reaches it by $n = 10{,}000$. The Hájek estimator never rises above $0.44$, as the shrinkage bias of its cross-validated lasso score does not fall with $n$ while its sampling error does (share of bias $0.88$, @tbl-n-adv). Under misspecification the picture inverts. The balancing estimators collapse to zero by $n = 10{,}000$ for the linear and exponential outcomes and more slowly for the quadratic, as the intervals zero in on their fixed bias. The Hájek and AIPW estimators instead reach nominal from $n = 5000$, AIPW from $10{,}000$ under the exponential outcome. In our design the largest MLE weight grows with $n$ while the true score's does not, from a median under ten at $n = 500$ to several hundred at $50{,}000$ (@atbl-app-n-diag-m-lin), so the Hájek and AIPW estimates carry heavy tails that inflate EmpSE beyond the spread of a typical estimate.
+
+Along overlap, coverage depends on the balance achieved (@afig-ov-coverage). Under a correctly specified score `balnet`$_{10^{-4}}$ holds nominal coverage where common support holds and loses it where it is practically violated, AIPW loses it only at $c \le 0.15$ under the linear and exponential outcomes, and ABW stays at or above $0.83$ at every $c$. The Hájek estimator sits below a half at every $c \ge 0.75$, and at $c = 0.05$ even the oracle falls below $0.15$. Under misspecification the balancing estimators keep partial coverage at $n = 1000$, rising with overlap from near zero at $c \le 0.15$ to between $0.7$ and $0.9$ at $c = 2$, before the collapse with $n$ seen above. The Hájek and AIPW estimators reach nominal only mid-grid and lose it at both ends, under practical violations and at $c = 2$, where the weights are no longer extreme and their bias is exposed.[^9]
+
+[^9]: Under misspecification at $n = 10{,}000$ the largest MLE weight in the treated arm has a median of $15$ at $c = 2$, against $98$ at $c = 1$ and about $1450$ at $c = 0.05$, and the arm's effective sample size is about $4600$ of $5000$. EmpSE of the Hájek estimator falls to $0.03$ while its bias stays near $-0.15$ for the linear outcome.
+
+Noise also obscures bias (@afig-sig-coverage). At low $\kappa$ the noise dominates EmpSE and every estimator reaches nominal coverage. A stronger outcome signal lowers the coverage of a biased estimator, as its bias grows while EmpSE stays fixed. Under a correctly specified score both balancing estimators and AIPW hold near nominal coverage at every $\kappa$, while the Hájek estimator falls to between $0.07$ and $0.34$ at $\kappa = 1$. Under misspecification every estimator is biased and loses coverage as the signal grows, the balancing estimators to $0.45$ at $\kappa = 1$ for the linear outcome. The quadratic outcome is the exception, where the Hájek and AIPW estimators stay above nominal. The weights do not depend on the outcome, so the same tails apply, and under the quadratic outcome they give the Hájek estimator an EmpSE three times the linear outcome's while its bias is smaller against it.
+
+Coverage does not change the RMSE orderings above, but illustrates how the estimators' errors would reach a confidence interval in application. For the balancing weights it is a fixed bias no variance estimator can correct, and for the MLE estimators heavy tails can widen the interval until it includes the true $\tau$. Where the signal is weak `balnet`'s bias is small against EmpSE, so a larger $\lambda$ can trade it for variance at little cost to coverage. Study 2 asks where that RMSE-minimising $\lambda$ lies inside the path, and whether any selector finds it.
+
+# Study 2 Results
+
+```{r}
+#| label: s2-setup
+#| include: false
+# the ten CV grids (s2_grids, handoff/R/thesis.R), each cell flagged by the
+# rules of s2_cell_flags(); the thesis API is loaded in adv-setup. A missing
+# summary stops the render here rather than dropping the section
+s2_files <- here::here("output", "thesis_summaries", paste0(s2_grids$id, ".rds"))
+if (!all(file.exists(s2_files))) {
+  stop("Study 2 summaries not built: ",
+       paste(basename(s2_files)[!file.exists(s2_files)], collapse = ", "))
+}
+s2_flags <- s2_grids$id |>
+  set_names() |>
+  map(\(id) s2_cell_flags(read_summary(id))) |>
+  list_rbind(names_to = "id")
+```
+
+```{r}
+#| label: s2-counts-text
+#| include: false
+# the shares the text quotes from tbl-s2-counts; the render stops here if
+# the stored summaries no longer give them
+s2_text <- s2_flags |>
+  summarise(no_signal = all(interior[strength == 0]),
+            full_signal = mean(interior[strength == 1]),
+            wins_inside = mean(interior[win]),
+            interior_share = mean(interior), win_share = mean(win),
+            .by = est) |>
+  arrange(match(est, names(s2_est_labs)))
+stopifnot(
+  s2_text$no_signal,
+  round(100 * s2_text$full_signal) == c(8, 59),
+  round(100 * s2_text$interior_share) == c(61, 79),
+  round(100 * s2_text$win_share) == c(58, 78),
+  # "almost always where an interior optimum exists"
+  s2_text$wins_inside > 0.99
+)
+```
+
+```{r}
+#| label: s2-helpers
+#| include: false
+# What the Study 2 displays have in common. All of them go through the
+# three rules in s2_cell_flags() (interior optimum, selector win, lead), so
+# no figure can disagree with tbl-s2-counts.
+
+# one colour and one shape per selector, the same in every figure: the two
+# scorings of a criterion share a hue, cross-validation the darker
+s2_selector_cols <- c(cv.bloss = "#2E8B57", cv.smd = "#2C5F9E",
+                      boot.smd = "#9DC3E6", cv.inf = "#B2182B",
+                      boot.inf = "#F4A582")
+s2_selector_shapes <- c(cv.bloss = 16, cv.smd = 15, boot.smd = 0,
+                        cv.inf = 17, boot.inf = 2)
+s2_cov_labs <- c(iid = "iid", ar1 = "AR(1)", equi = "equi")
+
+#' Theme of the Study 2 line figure, the one pn_lines() and fig_nc() use,
+#' so it sits beside them.
+#' @return A ggplot2 theme.
+s2_theme_lines <- function() {
+  theme_bw(base_size = 9, base_family = "serif") +
+    theme(plot.title = element_text(size = 10, margin = margin(b = 3)),
+          plot.title.position = "plot",
+          legend.position = "bottom",
+          legend.box.spacing = unit(0, "pt"),
+          legend.key.spacing.x = unit(6, "pt"),
+          legend.text = element_text(size = 7.5),
+          panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(linewidth = 0.2),
+          strip.background = element_blank(),
+          strip.text = element_text(size = 9),
+          panel.spacing.x = unit(8, "pt"),
+          axis.text = element_text(colour = "black"),
+          axis.text.x = element_text(size = 7))
+}
+
+# the noise x overlap grid, drawn in full
+s2_nxo <- read_summary("cv_noise_x_overlap")
+
+# the design columns of every cell, so the flags of s2-setup can go back on
+# their grids
+s2_design <- s2_grids$id |>
+  set_names() |>
+  map(\(id) read_summary(id)$cells |>
+        select(part, cell, strength,
+               any_of(c("overlap", "alpha", "n", "p", "s", "covcor"))) |>
+        distinct()) |>
+  list_rbind(names_to = "id")
+s2_flags_d <- inner_join(s2_flags, s2_design,
+                         by = c("id", "part", "cell", "strength"))
+
+#' Median lambda at which the path ends and median lambda each selector
+#' picks, per overlap level: the median over a grid's cells and both arms of
+#' the stored per-cell medians. The selectors never see the outcome, so one
+#' pick serves every signal strength.
+#' @param s read_summary() of a CV grid whose picks carry an overlap column.
+#' @return Tibble: overlap, arm (the selectors and "fixed"), lambda.
+s2_median_lambdas <- function(s) {
+  s$picks |>
+    filter(arm %in% c(s2_selectors, "fixed")) |>
+    summarise(lambda = median(median_lambda), .by = c(overlap, arm))
+}
+
+#' RMSE along the lambda grid as a ratio to the endpoint's, per cell. Grid
+#' points past the median lambda at which the path ends are dropped: there
+#' every replication's path is already over and the ratio only repeats the
+#' endpoint's. The endpoint itself is the last point, drawn at that median.
+#' @param s read_summary() of a CV grid.
+#' @param outcome One outcome model.
+#' @return Tibble: est, overlap, strength, k, lambda, ratio, at_min.
+s2_path_ratios <- function(s, outcome = "linear") {
+  cells <- s$perf |>
+    filter(arm == "fixed", outcome == .env$outcome) |>
+    select(est, cell, overlap, strength, end = rmse)
+  lambda_end <- s2_median_lambdas(s) |>
+    filter(arm == "fixed") |>
+    select(overlap, lambda_end = lambda)
+  path <- s$perf |>
+    filter(arm == "path", outcome == .env$outcome, k < 30) |>
+    select(est, cell, k, lambda, rmse) |>
+    inner_join(cells, by = c("est", "cell"))
+  endpoint <- cells |>
+    inner_join(lambda_end, by = "overlap") |>
+    mutate(k = 30, lambda = lambda_end, rmse = end) |>
+    select(-lambda_end)
+  bind_rows(path, endpoint) |>
+    inner_join(lambda_end, by = "overlap") |>
+    filter(lambda >= lambda_end) |>
+    mutate(ratio = rmse / end) |>
+    mutate(at_min = ratio == min(ratio), .by = c(est, cell)) |>
+    select(est, overlap, strength, k, lambda, ratio, at_min)
+}
+
+#' Per selector and cell of a CV grid, whether it wins against the path
+#' endpoint and whether it has the lowest RMSE of the five, by the rules of
+#' s2_cell_flags().
+#' @param s read_summary() of a CV grid.
+#' @param z Multiple of the combined MCSE a win must clear.
+#' @return One row per part, cell, outcome, strength, est and selector, with
+#'   ratio, the selector's RMSE over the endpoint's.
+s2_selector_flags <- function(s, z = 3) {
+  key <- c("part", "cell", "outcome", "strength", "est")
+  end <- s$perf |>
+    filter(arm == "fixed") |>
+    select(all_of(key), end = rmse, end_mcse = mcse_rmse)
+  s$perf |>
+    filter(arm %in% s2_selectors) |>
+    inner_join(end, by = key) |>
+    mutate(win = rmse < end - z * sqrt(mcse_rmse^2 + end_mcse^2),
+           lead = rmse == min(rmse), ratio = rmse / end, .by = all_of(key)) |>
+    select(all_of(key), selector = arm, win, lead, ratio)
+}
+
+# the selector flags of every grid, with each cell's interior flag, for
+# tbl-s2-selectors
+s2_sel <- s2_grids$id |>
+  set_names() |>
+  map(\(id) s2_selector_flags(read_summary(id))) |>
+  list_rbind(names_to = "id") |>
+  inner_join(select(s2_flags, id, part, cell, outcome, strength, est,
+                    interior),
+             by = c("id", "part", "cell", "outcome", "strength", "est"))
+
+#' Tiles of one grid: at each level of a design factor and signal strength,
+#' the share of cells with an interior optimum and whether a selector wins
+#' in any of them, pooled over the outcomes and the grid's other factors.
+#' @param flags s2_flags_d rows of one grid, cut to the levels shown.
+#' @param col Design column across the tiles.
+#' @param group,sub Outer and inner strips, as plotmath.
+#' @param fmt Labels for the levels of col.
+#' @return Tibble: group, sub, x, strength, est, cells, interior, win.
+s2_tiles <- function(flags, col, group, sub, fmt = format_plain) {
+  flags |>
+    arrange(.data[[col]]) |>
+    summarise(cells = n(), interior = mean(interior), win = any(win),
+              .by = c(all_of(col), strength, est)) |>
+    mutate(group = group, sub = sub, x = fmt(.data[[col]])) |>
+    select(group, sub, x, strength, est, cells, interior, win)
+}
+
+#' The dense twin's tiles, one panel per covariance structure.
+#' @param flags s2_flags_d rows of one dense twin.
+#' @param group Outer strip, as plotmath.
+#' @return s2_tiles() rows for the three structures.
+s2_dense_tiles <- function(flags, group) {
+  map(names(s2_cov_labs),
+      \(cv) s2_tiles(filter(flags, covcor == cv), "s", group,
+                     s2_cov_labs[[cv]])) |>
+    list_rbind()
+}
+
+# the panels of fig-s2-design and fig-s2-spec, in display order
+s2_design_tiles <- bind_rows(
+  s2_tiles(filter(s2_flags_d, id == "cv_alpha_x_overlap"), "alpha",
+           "Penalty~form", "alpha", fmt_dot),
+  s2_tiles(filter(s2_flags_d, (id == "cv_n" & alpha == 1) | id == "cv_nbig"),
+           "n", "Sample~size", "italic(n)", format_k),
+  s2_tiles(filter(s2_flags_d, id == "cv_p", alpha == 1), "p",
+           "Dimension", "lasso"),
+  s2_tiles(filter(s2_flags_d, id == "cv_p", alpha == 0.5), "p",
+           "Dimension", "elastic~net"))
+s2_spec_tiles <- bind_rows(
+  s2_tiles(filter(s2_flags_d, id == "cv_noise_x_overlap"), "overlap",
+           "Correct", "italic(c)", fmt_dot),
+  s2_tiles(filter(s2_flags_d, id == "cv_misspec"), "overlap",
+           "Misspecified", "italic(c)", fmt_dot),
+  s2_dense_tiles(filter(s2_flags_d, id == "cv_sparsity"), "Denser~grid"),
+  s2_dense_tiles(filter(s2_flags_d, id == "cv_sparsity_misspec"),
+                 "Denser~grid*','~transformed"))
+
+#' fig-s2-path: RMSE along the lambda path relative to the endpoint's, one
+#' line per signal strength, panels by estimator and overlap, with each
+#' line's minimum, the interior rule, the median endpoint lambda and the
+#' median lambda each selector picks.
+#' @param ratios s2_path_ratios() output.
+#' @param lambdas s2_median_lambdas() output.
+#' @param gain The interior rule, a dotted line at 1 - gain.
+#' @param top Ratios above this are cut off, so the interior region stays
+#'   readable where the top of the path is many times the endpoint.
+#' @param title Title over the panels, or NULL.
+#' @return A ggplot.
+fig_s2_path <- function(ratios, lambdas, gain = 0.05, top = 4,
+                        title = NULL) {
+  c_levels <- sort(unique(ratios$overlap))
+  k_levels <- sort(unique(ratios$strength))
+  # plotmath strips, so c is italic as in the text
+  c_lab <- \(c) factor(paste0("italic(c) == ", c),
+                       paste0("italic(c) == ", c_levels))
+  d <- ratios |>
+    mutate(est = factor(s2_est_labs[est], unname(s2_est_labs)),
+           c_lab = c_lab(overlap),
+           kappa = factor(strength, k_levels, format_kappa(k_levels)))
+  ends <- lambdas |>
+    filter(arm == "fixed") |>
+    mutate(c_lab = c_lab(overlap))
+  picks <- lambdas |>
+    filter(arm != "fixed") |>
+    mutate(c_lab = c_lab(overlap), selector = factor(arm, s2_selectors))
+  ggplot(d, aes(lambda, ratio, colour = kappa, group = kappa)) +
+    geom_hline(yintercept = 1, linewidth = 0.3) +
+    geom_hline(yintercept = 1 - gain, linewidth = 0.3, linetype = "dotted") +
+    geom_vline(data = ends, aes(xintercept = lambda), linewidth = 0.3,
+               linetype = "dashed", colour = "grey50") +
+    geom_line(linewidth = 0.45) +
+    geom_point(data = filter(d, at_min), size = 1.1) +
+    # the picks sit on the floor of each panel, one shape per selector
+    geom_point(data = picks, aes(lambda, 0.3, shape = selector),
+               inherit.aes = FALSE, size = 1.6) +
+    facet_grid(est ~ c_lab, labeller = labeller(c_lab = label_parsed)) +
+    # the path runs left to right, from lambda_max to the endpoint
+    scale_x_continuous(
+      transform = scales::transform_compose("log10", "reverse"),
+      breaks = c(0.5, 0.1, 0.01, 0.001, 0.0001),
+      labels = c("0.5", "0.1", "0.01", "0.001", "0.0001")) +
+    scale_y_log10(breaks = c(0.5, 1, 2, 4)) +
+    coord_cartesian(ylim = c(0.28, top)) +
+    # light for no signal, dark for the full signal
+    scale_colour_viridis_d(option = "mako", begin = 0.2, end = 0.85,
+                           direction = -1) +
+    scale_shape_manual(values = s2_selector_shapes) +
+    labs(x = expression(lambda), y = "RMSE relative to the endpoint",
+         colour = expression(kappa), shape = "Median pick", title = title) +
+    s2_theme_lines() +
+    # two keys under the panels, one above the other
+    theme(legend.box = "vertical", legend.spacing.y = unit(0, "pt"))
+}
+
+#' fig-s2-lead: the selector with the lowest RMSE in each cell, a dot where
+#' a selector wins against the endpoint. Drawn as the share-of-bias heat
+#' maps are.
+#' @param flags s2_flags_d rows of the noise x overlap grid.
+#' @param title Title over the panels, or NULL.
+#' @return A ggplot.
+fig_s2_lead <- function(flags, title = NULL) {
+  c_levels <- sort(unique(flags$overlap))
+  k_levels <- sort(unique(flags$strength))
+  d <- flags |>
+    mutate(est = factor(s2_est_labs[est], unname(s2_est_labs)),
+           outcome = factor(outcome_labs[outcome], outcome_labs),
+           overlap_lab = factor(fmt_dot(overlap), fmt_dot(c_levels)),
+           kappa = factor(strength, k_levels, format_kappa(k_levels)),
+           lead = factor(lead, s2_selectors))
+  ggplot(d, aes(overlap_lab, kappa, fill = lead)) +
+    geom_tile(colour = "white", linewidth = 0.6) +
+    geom_point(data = filter(d, win), size = 0.9) +
+    facet_grid(est ~ outcome) +
+    scale_fill_manual(values = s2_selector_cols, drop = FALSE) +
+    labs(x = expression(paste("Overlap ", italic(c))),
+         y = expression(paste("Outcome signal ", kappa)),
+         fill = "Lowest RMSE", title = title) +
+    theme_heat(length(k_levels) * 2)
+}
+
+#' fig-s2-design and fig-s2-spec: tiles of the share of cells with an
+#' interior optimum, a dot where any selector wins, by signal strength and
+#' the factor each grid varies, balnet on top and ABW below. Drawn as the
+#' share-of-bias heat maps are, on the same fill.
+#' @param tiles s2_tiles() output, panels in display order.
+#' @param title Title over the panels, or NULL.
+#' @return A ggplot.
+fig_s2_tiles <- function(tiles, title = NULL) {
+  k_levels <- sort(unique(tiles$strength))
+  d <- tiles |>
+    # one x level per panel column, labelled by the level alone
+    mutate(x_id = paste(group, sub, x),
+           x_id = factor(x_id, unique(x_id)),
+           group = factor(group, unique(group)),
+           sub = factor(sub, unique(sub)),
+           kappa = factor(strength, k_levels, format_kappa(k_levels)),
+           est = factor(s2_est_labs[est], unname(s2_est_labs)))
+  ggplot(d, aes(x_id, kappa, fill = interior)) +
+    geom_tile(colour = "white", linewidth = 0.6) +
+    geom_point(data = filter(d, win), size = 0.6) +
+    ggh4x::facet_nested(est ~ group + sub, scales = "free_x",
+                        space = "free_x", labeller = label_parsed) +
+    scale_x_discrete(labels = \(l) sub("^\\S+ \\S+ ", "", l)) +
+    scale_fill_gradient(low = "#F7F7F7", high = "#3F2A7A", limits = c(0, 1),
+                        breaks = c(0, 0.5, 1), labels = c("0", ".5", "1"),
+                        name = "Share with an\ninterior optimum",
+                        guide = guide_colourbar(title.position = "top",
+                                                title.hjust = 0)) +
+    labs(x = NULL, y = expression(paste("Outcome signal ", kappa)),
+         title = title) +
+    theme_heat(length(k_levels) * 2) +
+    theme(strip.text = element_text(size = 8))
+}
+
+#' tbl-s2-selectors: per selector, the share of cells over all grids in
+#' which it wins against the endpoint, in which it wins among the cells with
+#' an interior optimum, and in which it has the lowest RMSE of the five, and
+#' its mean RMSE change against the endpoint (geometric mean of the ratio over
+#' all cells, as a percentage), for balnet and ABW.
+#' @param sel s2_sel: the selector flags of every grid with each cell's
+#'   interior flag.
+#' @param font Font stack.
+#' @return A gt table.
+table_s2_selectors <- function(sel, font = font_serif) {
+  rows <- sel |>
+    # given first: summarise() would otherwise read the overwritten win
+    summarise(given = 100 * mean(win[interior]), win = 100 * mean(win),
+              lead = 100 * mean(lead),
+              gm = 100 * (exp(mean(log(ratio))) - 1), cells = n(),
+              .by = c(selector, est)) |>
+    pivot_wider(names_from = est,
+                values_from = c(win, given, lead, gm, cells)) |>
+    arrange(match(selector, s2_selectors)) |>
+    mutate(criterion = paste0("`", sub("^.*\\.", "", selector), "`"),
+           scoring = if_else(startsWith(selector, "cv"),
+                             "Cross-validation", "Bootstrap"),
+           selector = paste0("`", selector, "`"))
+  cells <- unique(c(rows$cells_ipw, rows$cells_abw))
+  stopifnot(length(cells) == 1)
+  rate_cols <- c("win_ipw", "win_abw", "given_ipw", "given_abw",
+                 "lead_ipw", "lead_abw", "gm_ipw", "gm_abw")
+  rows |>
+    select(selector, criterion, scoring, all_of(rate_cols)) |>
+    gt() |>
+    tab_spanner("Selector win (%)", c(win_ipw, win_abw)) |>
+    tab_spanner("Win given an interior optimum (%)",
+                c(given_ipw, given_abw)) |>
+    tab_spanner("Lowest RMSE (%)", c(lead_ipw, lead_abw)) |>
+    tab_spanner("Mean RMSE change (%)", c(gm_ipw, gm_abw)) |>
+    cols_label(.list = c(
+      list(selector = "Selector", criterion = "Criterion",
+           scoring = "Scoring"),
+      set_names(as.list(rep(unname(s2_est_labs), 4)), rate_cols)
+    )) |>
+    fmt_markdown(c(selector, criterion)) |>
+    fmt_number(all_of(rate_cols), decimals = 0) |>
+    cols_align("left", c(selector, criterion, scoring)) |>
+    cols_align("right", all_of(rate_cols)) |>
+    style_booktabs(font) |>
+    tab_source_note(md(paste(
+      "Shares of the", cells, "cells per estimator over the ten Study 2",
+      "grids. Selector win: RMSE below the endpoint's by more than three",
+      "times their combined MCSE. Lowest RMSE: lowest of the five in the",
+      "cell, whether or not it wins. Mean RMSE change: geometric mean of",
+      "the selector's RMSE over the endpoint's, all cells.")))
+}
+
+#' tbl-s2-alpha: per penalty form, the share of cells with an interior
+#' optimum and with a selector win, and the RMSE at the endpoint and at the
+#' path minimum relative to the lasso's in the same cell, as a geometric
+#' mean over the cells at poor overlap and full signal. The forms do not
+#' share draws, so the ratios carry no paired MCSE.
+#' @param flags s2_flags_d rows of the penalty-form grid.
+#' @param font Font stack.
+#' @return A gt table.
+table_s2_alpha <- function(flags, font = font_serif) {
+  key <- c("overlap", "strength", "outcome", "est")
+  geo_mean <- \(r) exp(mean(log(r)))
+  to_lasso <- flags |>
+    inner_join(filter(flags, alpha == 1) |>
+                 select(all_of(key), end_lasso = end, min_lasso = path_min),
+               by = key) |>
+    mutate(end = end / end_lasso, min = path_min / min_lasso)
+  at_one <- to_lasso |>
+    filter(overlap <= 0.25, strength == 1) |>
+    summarise(end = geo_mean(end), min = geo_mean(min), .by = c(alpha, est)) |>
+    pivot_wider(names_from = est, values_from = c(end, min))
+  shares <- flags |>
+    summarise(interior = 100 * mean(interior), win = 100 * mean(win),
+              .by = c(alpha, est)) |>
+    pivot_wider(names_from = est, values_from = c(interior, win))
+  # for the note: the endpoint gain with no signal, the same for both
+  # estimators, and how far any form strays from the lasso at c = 1
+  no_signal <- to_lasso |>
+    filter(overlap <= 0.25, strength == 0, alpha < 1) |>
+    summarise(end = geo_mean(end), .by = alpha)
+  at_good <- to_lasso |>
+    filter(overlap == 1, alpha < 1) |>
+    summarise(end = geo_mean(end), min = geo_mean(min), .by = c(alpha, est))
+  rows <- shares |>
+    inner_join(at_one, by = "alpha") |>
+    arrange(desc(alpha)) |>
+    mutate(alpha = case_when(alpha == 1 ~ "1 (lasso)",
+                             alpha == 0 ~ "0 (ridge)",
+                             .default = format_plain(alpha))) |>
+    select(alpha, interior_ipw, interior_abw, win_ipw, win_abw,
+           end_ipw, end_abw, min_ipw, min_abw)
+  gt(rows) |>
+    tab_spanner("Interior optimum (%)", c(interior_ipw, interior_abw)) |>
+    tab_spanner("Selector win (%)", c(win_ipw, win_abw)) |>
+    tab_spanner("RMSE / lasso, endpoint", c(end_ipw, end_abw)) |>
+    tab_spanner("RMSE / lasso, optimum", c(min_ipw, min_abw)) |>
+    cols_label(alpha = md("$\\alpha$"), interior_ipw = "balnet",
+               interior_abw = "ABW", win_ipw = "balnet", win_abw = "ABW",
+               end_ipw = "balnet", end_abw = "ABW", min_ipw = "balnet",
+               min_abw = "ABW") |>
+    fmt_number(c(interior_ipw, interior_abw, win_ipw, win_abw),
+               decimals = 0) |>
+    fmt_number(c(end_ipw, end_abw, min_ipw, min_abw), decimals = 2) |>
+    cols_align("left", alpha) |>
+    cols_align("right", -alpha) |>
+    style_booktabs(font) |>
+    tab_source_note(md(sprintf(paste(
+      "Shares over the 84 cells per $\\alpha$ and estimator (four overlaps,",
+      "seven $\\kappa$, three outcomes). Ratios: geometric mean over the 18",
+      "cells at $c \\le 0.25$ and $\\kappa$ = 1 of the RMSE at the endpoint,",
+      "or at the path minimum, to the lasso's in the same cell. The",
+      "endpoints differ by construction and the forms do not share draws.",
+      "With no signal every $\\alpha < 1$ lowers the endpoint RMSE of both",
+      "estimators by %s%% to %s%%, and at $c$ = 1 every form stays within",
+      "%s%% of the lasso at both points."),
+      round(100 * (1 - max(no_signal$end))),
+      round(100 * (1 - min(no_signal$end))),
+      ceiling(100 * max(abs(c(at_good$end, at_good$min) - 1))))))
+}
+
+s2_path_cap <- paste(
+  "RMSE along the $\\lambda$ path relative to the endpoint, by $c$ and",
+  "$\\kappa$, linear outcome, $n$ = 1000, $p$ = 50. Points mark each minimum,",
+  "the dotted line the interior rule, the dashed line the median endpoint",
+  "$\\lambda$ and symbols each selector's median $\\lambda$. Ratios above 4",
+  "are cut off.")
+```
+
+## Overview
+
+@tbl-s2-counts shows how often the RMSE-minimising $\lambda$ comes before the path endpoint and how often a selector improves on it. As expected, both become more common at weaker outcome signals, where the endpoint's cost in variance stays fixed by noise while the bias it removes falls with the signal. With no signal both estimators have an interior optimum in every cell, in line with Study 1. From $\kappa = 1/4$ the two diverge, with `balnet`'s share falling from $35\%$ to $8\%$ at full signal while ABW's holds near $60\%$. On average across our outcome signal levels, an interior optimum occurs in $61\%$ of cells for `balnet` and $79\%$ for ABW.
+
+```{r}
+#| label: tbl-s2-counts
+#| tbl-cap: "Interior optima and selector wins for balnet and ABW, (A) by grid, (B) by $\\kappa$."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_s2_counts(s2_flags)
+```
+
+At least one selector improves on the endpoint in $58\%$ of cells for `balnet` and $78\%$ for ABW, almost always where an interior optimum exists. `cv.bloss` wins most often for both estimators, followed by `boot.inf` (@atbl-s2-selectors). Still, none of the five has the lowest RMSE in more than around $30\%$ of cells. Applied naively, however, `boot.inf` appears the stronger candidate for `balnet`, with RMSE on average $5\%$ below the endpoint's over all settings against $1\%$ for `cv.bloss`. For ABW the two are level on average, at $15\%$ and $16\%$, so `cv.bloss` remains our choice on its win count.
+
+## Outcome signal and overlap
+
+```{r}
+#| label: fig-s2-path
+#| fig-cap: !expr s2_path_cap
+#| fig-width: 6.5
+#| fig-height: 4.0
+#| echo: false
+fig_s2_path(s2_path_ratios(s2_nxo, "linear"), s2_median_lambdas(s2_nxo),
+            title = "RMSE relative to the endpoint")
+```
+
+**Interior optima:** @fig-s2-path traces RMSE along the path relative to the endpoint by overlap and outcome signal. We find that the outcome signal decides whether `balnet` has an interior optimum, while overlap sets how far below the endpoint's RMSE it lies and how strong a signal it survives. With no signal the path minimum lies $65\%$ below the endpoint at $c = 0.15$ against $17\%$ at $c = 1$, the larger gain under limited overlap we anticipated [@wang2020]. This gain closes as the signal grows, first at $c = 1$, where interior optima vanish from $\kappa = 1/8$, and everywhere by full signal. Under practical violations of common support, however, interior optima vanish sooner, lasting to $\kappa = 1/2$ at $c = 0.5$ but not at $c \le 0.25$. There the path already stops short of exact balance, so the endpoint weights are already approximately balanced and a larger $\lambda$ has little left to gain for `balnet`. This suggests $\lambda$ selection pays most in between, where the path reaches exact balance but overlap is limited.
+
+For ABW the roles reverse, and overlap rather than signal largely decides whether an interior optimum exists. At $c \le 0.5$ it has one at every signal level, in all but one cell, while at $c = 1$ its optima vanish from $\kappa = 1/8$, as with `balnet`. Both estimators share the weights, so a larger $\lambda$ lowers the variance of both, and in every interior cell the variance falls at the path minimum. In an augmented estimator, however, the bias from the remaining imbalance scales with the error of the outcome model rather than with the outcome coefficients themselves [@athey2018]. At full signal the optimal $\lambda$ of ABW adds only $13\%$ to $16\%$ of the bias it adds to `balnet` for the linear and exponential outcomes.[^10] Here, at $c \le 0.5$ the variance saved outweighs the bias added, while at $c = 1$ there is limited variance to remove. $\lambda$ selection for ABW therefore pays wherever overlap is degraded.
+
+[^10]: For the quadratic outcome at full signal and $c \le 0.25$, a larger $\lambda$ adds no bias to ABW, and at $c = 0.15$ lowers it, since balance on $X$ does not guarantee unbiasedness for an outcome that is not a linear function of $X$ [@zhao2019].
+
+```{r}
+#| label: fig-s2-lead
+#| fig-cap: "Selector with the lowest RMSE per cell by $c$ and $\\kappa$, $n$ = 1000, $p$ = 50. A dot marks a win against the endpoint."
+#| fig-width: 6.5
+#| fig-height: 3.8
+#| echo: false
+fig_s2_lead(filter(s2_flags_d, id == "cv_noise_x_overlap"),
+            title = "Selector with the lowest RMSE")
+```
+
+**Selector wins:** @fig-s2-lead marks the selector with the lowest RMSE in each cell and whether it beats the endpoint. At $\kappa = 0$ every selector improves on the endpoint of `balnet` at $c \le 0.5$, and `cv.smd` has the lowest RMSE in every cell. As the signal grows the lead passes to `cv.bloss` and `boot.inf`, the only two still beating the untuned estimators in most cells at $\kappa = 1/8$. By $\kappa = 1/4$ only `boot.inf` wins, in the three cells at $c = 0.5$. This is consistent with findings from @tan2017, where cross-validating this loss beat unpenalised calibration for pure noise but lost under the linear outcome we share, as the penalty it keeps biases the fit along the covariate the outcome loads on most. For ridge-augmented linear balancing weights, @brunssmith2025 found cross-validating imbalance the best selector and cross-validating the balancing loss itself the worst. Here, we find under lasso-penalised logistic weights the order reverses, with `cv.bloss` winning in all nine cells for ABW at full signal and $c \le 0.5$ while `cv.smd` and `cv.inf` lead only with little or no signal. Whether the weights' form or the penalty drives the reversal is beyond our design.
+
+The selectors use only the covariates and treatment, so the $\lambda$ each picks does not change with the outcome signal. The RMSE-minimising $\lambda$, however, falls as the signal grows, approaching the endpoint for `balnet` and settling above it for ABW (@fig-s2-path). Selector wins are therefore confined to the signal level where the RMSE-minimising $\lambda$ passes the one a selector picks.
+
+Scored by the bootstrap rather than cross-validation, the same imbalance criterion selects better balanced covariates. This is most pronounced under good overlap, where `boot.smd` and `boot.inf` set $\lambda \approx 0.01$ at $c = 1$ against $0.14$ to $0.62$ for `cv.smd` and `cv.inf` at every overlap. Under good overlap the weights near the endpoint are likely robust to resampling, while under poor overlap they rest on a few units with extreme weights, so the bootstrap selects a larger $\lambda$. Over all grids bootstrapping wins on `inf` in $52\%$ of cells for `balnet` and $70\%$ for ABW, against $43\%$ and $55\%$ for cross-validation, while on `smd` both methods perform similarly (@atbl-s2-selectors). The difference lies mostly where the endpoint is optimal. There cross-validation performs far worse, with RMSE around three times the endpoint's for `balnet` at $c = 0.5$, while the bootstrap stays within about a tenth of it under good overlap. This suggests bootstrapping is the safer scoring across criteria, though `cv.bloss` remains the selector that wins most often.
+
+**In other settings:** The remaining grids repeat this pattern (Appendix I). The penalty form matters mainly under poor overlap, where every $\alpha < 1$ improves the endpoint of ABW at every signal level while the lasso stays best for `balnet` at full signal (@atbl-s2-alpha). Along $n$ and $p$ interior optima follow how far the path stops short of exact balance, rising with $n$ at poor overlap and retreating to weak signal as $p$ grows (@afig-s2-design). Misspecification leaves `balnet` almost unchanged and removes most of ABW's full-signal optima, and in the denser grid ABW keeps a full-signal optimum in every cell only under equicorrelation (@afig-s2-spec). In no grid does a selector beat the endpoint of `balnet` at full signal under the lasso, and under good overlap neither estimator gains from approximate balance at full signal.
+
+# Conclusion
+
+```{r}
+#| label: concl-data
+#| include: false
+# the five grids of the Study 1 results, their specifications pooled, read
+# from the summaries the sections above already loaded; the pairs are the
+# ones the conclusion quotes
+concl_grids <- list("Sample size" = n_both, "Overlap" = overlap,
+                    "Dimension" = p_axis, "Denser confounders" = sparsity,
+                    "Outcome signal" = signal)
+concl_pairs <- tribble(
+  ~A,            ~B,
+  "balnet0",     "glmnetcv_hajek",
+  "balnet0",     "aipw_glmnetcv",
+  "abw_balnet0", "balnet0",
+  "abw_balnet0", "aipw_glmnetcv"
+)
+# the numbers the first two paragraphs quote; the render stops here if the
+# stored averages no longer give them
+concl_r <- \(s, A, B) s$avg |>
+  filter(set == "all", block == "both", outcome == "pooled", theta == "pair",
+         .data$A == .env$A, .data$B == .env$B) |>
+  pull(R_bar)
+stopifnot(
+  isTRUE(all.equal(concl_r(n_both, "balnet0", "glmnetcv_hajek"), 68.6,
+                   tolerance = 0.001)),
+  isTRUE(all.equal(concl_r(signal, "balnet0", "glmnetcv_hajek"), 34.2,
+                   tolerance = 0.002)),
+  isTRUE(all.equal(concl_r(n_both, "abw_balnet0", "aipw_glmnetcv"), 33.8,
+                   tolerance = 0.002)),
+  concl_r(p_axis, "abw_balnet0", "aipw_glmnetcv") < 20,
+  concl_r(sparsity, "abw_balnet0", "aipw_glmnetcv") < 20)
+```
+
+```{r}
+#| label: tbl-concl
+#| tbl-cap: "$\\bar R(\\Theta)$ of A against B over every cell of each Study 1 grid, both specifications."
+#| tbl-pos: "!htbp"
+#| echo: false
+table_rbar_grids(concl_grids, concl_pairs,
+                 note = paste("Cells: design cells × three outcomes × two",
+                              "specifications; on the denser grid the",
+                              "misspecification is Tan's transformation."))
+```
+
+**Across the comparable cells of Study 1,** balancing weights have lower RMSE than MLE weights in nearly every setting, alone and augmented, under both propensity scores and every outcome function, with two exceptions. Firstly, in the eight noisiest cells under a correctly specified score, the Hájek estimator has lower RMSE than `balnet`$_{10^{-4}}$, as exact balance there costs more in variance than it removes in bias. Secondly, between the augmented estimators, AIPW is also level with or ahead of ABW where common support is almost certainly violated under a misspecified score and a nonlinear outcome. Elsewhere, `balnet`$_{10^{-4}}$ leads the Hájek estimator by between a third and two thirds on average across the grids (@tbl-concl).
+
+Augmentation narrows the lead, to under a fifth for ABW over AIPW on the dimension and denser grids, and misspecification widens ABW's lead on every grid but the denser one. Between the unaugmented `balnet`$_{10^{-4}}$ and AIPW, the performance ordering depends on whether the path reaches exact balance. Where it stops short, from $p/n = 0.5$ and at $c \le 0.25$, AIPW is generally ahead. Where it reaches exact balance, `balnet`$_{10^{-4}}$ generally has lower RMSE, more so under misspecification. Augmentation therefore restores the lead of balancing weights wherever exact balance fails.
+
+As the sample grows, balancing weights stay ahead of MLE weights from $n = 250$ to $10^6$, and the misspecified ordering @tan2020a report at $n \le 800$ holds to $n = 10^6$. What changes with $n$ is how each approach fails. The balancing weights converge to a fixed bias, which a misspecified outcome model cannot remove, as ABW reduces to OLS on $\tilde X$ at exact balance [@brunssmith2025]. The MLE weights never settle, as their tails lengthen with $n$, extending to $n = 10^6$ the worsening @testa2026 saw at $n = 1000$. At the empirical SE this generally leaves the balancing estimators with no coverage by $n = 10{,}000$ and the MLE estimators with nominal coverage carried by their tails, so each fails to produce reliable intervals for different reasons.
+
+Under degrading overlap ABW separates from `balnet`$_{10^{-4}}$ only where its path stops short, and more data pushes that point to poorer overlap. This is consistent with the reasoning @athey2018 provide for the lead of AIPW over their approximate balancing weights. We find under misspecification the lead of `balnet`$_{10^{-4}}$ over AIPW also extends to poorer overlap levels. Where common support is almost certainly violated, ABW keeps most of its coverage under a correctly specified score, while `balnet`$_{10^{-4}}$ and the Hájek estimator have none and AIPW keeps it only for the quadratic outcome. Regardless, nominal coverage does not make an estimator reliable in this setting. At the weakest overlap under misspecification no weighting estimator removes half the confounding, as in @keele2025. There the lowest RMSE does not improve with $n$. Here applied researchers may instead consider changing their estimand.
+
+As more covariates are considered, `balnet` becomes an approximate balancing weight from $p/n = 0.5$. Here the error of `balnet`$_{10^{-4}}$ becomes bias-driven and its lead over the Hájek estimator narrows with $p$, consistent with the findings of @athey2018. Misspecification costs the MLE estimators less as $p$ grows, so under it the lead of ABW over AIPW narrows, as the bias of ABW grows faster once the path stops short while the variance of AIPW falls. In @athey2018 that lead held steady under misspecification, but their models are misspecified through one covariate only, whereas we misspecify through every confounder in $\tilde X$. To our knowledge, no previous simulation has taken lasso-penalised balancing weights and cross-validated lasso MLE weights, alone and augmented, past $p = n$ under both a correct and a misspecified propensity score.
+
+With the number of active confounders $s$ increasing, unaugmented balancing weights keep their lead at every $s$, $\nu$ and covariance structure under both scores. Under independent and AR(1)-correlated covariates their lead widens with $s$ while exact balance holds, as `balnet`$_{10^{-4}}$ stays close to unbiased and the error of the MLE weights grows with the number of active covariates [@tan2020b]. Once the path stops short, we find ABW's lead over AIPW grows with $s$ and the unaugmented `balnet`$_{10^{-4}}$ catches AIPW by $s = 64$. Under equicorrelation, where every covariate shares a common factor, the MLE bias falls with $s$ and the lead narrows at exact balance. Under Tan's transformation misspecification narrows the lead of balancing weights only while exact balance holds, as balancing a growing number of transformed covariates does not guarantee balance on the true ones.
+
+As the outcome signal weakens, the ranking of the unaugmented estimators reverses, and in the noisiest cells under a correctly specified score `balnet`$_{10^{-4}}$ has higher RMSE than the Hájek estimator. Exact balance leaves it a smaller effective sample size, and the bias it removes falls with the signal, so its efficiency advantage holds only once the signal clears the noise. Under misspecification it stays ahead at every noise level but the highest.
+
+**Our second study finds that approximate balance**, a $\lambda$ before the endpoint of `balnet`'s path, lowers RMSE below the endpoint in $61\%$ of cells for `balnet` and $79\%$ for ABW. We also find that tuning captures this gain in almost every such cell, though which selector does best differs across settings and between cross-validation and bootstrapping. For the unaugmented `balnet`, both findings hold under the Wong–Chan design, the interior optimum in fourteen of fifteen matched cells and the selector win in all fifteen (Appendix H). Under our design we observe for the unaugmented `balnet` that the outcome signal decides whether approximate balance is preferable, while overlap affects the size of its advantage. At full signal it is optimal in only $8\%$ of cells, with its advantage reduced further where the path already stops short of exact balance. For ABW, overlap largely decides whether approximate balance is optimal, as the outcome model absorbs most of the bias a larger $\lambda$ adds. Across penalty forms the lasso remains the better default for the unaugmented `balnet` at full signal, while ABW improves from the elastic net to ridge, $\alpha < 1$, as overlap degrades.
+
+Of the five selectors, `cv.bloss` wins most often for both estimators, yet no selector maintains the lowest RMSE across more than around $30\%$ of cells. When the endpoint is already optimal, tuning imbalance by bootstrap is a generally safer approach than by cross-validation. For naive application, where the outcome signal and the propensity score's specification are unknown, we recommend `boot.inf` for the unaugmented `balnet`, as it lowers RMSE below the path endpoint's by $5\%$ on average across our settings and wins against it in $52\%$ of cells. Where it loses, in $32\%$ of cells, its RMSE sits on average a third above the endpoint's, at worst more than three times as high, in the denser setting under Tan's transformation with 64 confounders and at full signal. For ABW, `cv.bloss` and `boot.inf` are level on average, so `cv.bloss` remains our choice based on its win count.
+
+**Both studies hinge on how strong the outcome signal is against the noise.** Where it is weak, every estimator's bias is small against the noise, so approximate balance lowers RMSE and coverage at the empirical SE stays near nominal under either score. As the signal grows, exact balance becomes the better choice for the unaugmented `balnet` and under misspecification `balnet`'s bias costs it coverage. In the worst case under a linear outcome, it holds nominal coverage only to $\kappa = 0.1$ and falls from there to $0.45$ at $\kappa = 1$, where the bias is about twice the EmpSE and a correctly sized $95\%$ confidence interval would exclude $\tau$ with around $55\%$ probability. AIPW fares no better there, at $0.69$ and $0.65$ under the linear and exponential outcomes. For `balnet`, low RMSE with nominal coverage at full signal is only achievable under a correctly specified score. There both the unaugmented `balnet` and ABW keep nominal coverage at every $\kappa$ and AIPW stays within a few points. Under our design, only the Hájek estimator loses its coverage, from $\kappa = 0.2$, as the lasso penalty shrinks its propensity score and that bias does not fall with $n$.
+
+**For applied researchers,** who can generally observe overlap but not the outcome signal, our recommendations consider the naive application of `balnet` under situations where overlap may be weak but common support is likely to hold, and where we are certain overlap is strong. We ignore settings where there are likely violations, as in these settings a reliable estimate of the treatment effect may be beyond reach.
+
+When confident that overlap is strong, the endpoint of ABW is the choice, as the path reaches exact balance, where it equals the unaugmented `balnet`, and pulls ahead of it wherever exact balance later fails under increased dimensionality or limited overlap.
+
+Where overlap is reduced but common support is likely to hold, the path still reaches exact balance, so ABW at its endpoint still equals the unaugmented `balnet`, but tuning can provide benefits. Our study recommends that applied researchers using `balnet` implement ABW tuned by `cv.bloss`. However, our findings are unable to establish a universally best tuning approach, which remains an open question for future research.
+
+## Limitations
+
+Our conclusions rest on one family of data-generating models. Within it, misspecification takes a different form on each grid, the Kang–Schafer transformations on the four-confounder grids and Tan's transformation on the denser grids. On the cells the grids share, the Kang–Schafer form costs the balancing and augmented estimators more for the linear outcome, so the two grids' misspecified results are not interchangeable. In Study 1, Tan's transformation also runs only at $c = 1$, so how it interacts with limited overlap is untested there.
+
+Positivity holds by construction, so the violations of common support we report are inferred from how much of the score's distribution lies near the boundary rather than imposed. Our propensity coefficients are all positive and the misspecified balancing bias is negative in every cell, so its sign may differ under other coefficient patterns. The denser grids add confounders to the propensity score and the outcome together,\[\^12\] so we cannot attribute the loss of AIPW as confounders are added to its propensity model alone.
+
+Exact balance is generally feasible only when both arms have more units than $p$ [@wager2024], so with a treated share of one half it fails from $p/n = 0.5$, and rarer treatment would bring that point earlier. The denser grids use one correlation level, $0.5$, and adjacent active covariates. They run 1000 replications rather than 10 000, and $s = 64$ is not run at $n = 500$ and $p/n = 0.1$.
+
+The MLE weights are tuned by five-fold cross-validation of the prediction error, not of balance, and prediction-tuned lasso can over-regularise the propensity model [@wyss2026]. Part of the advantage of balancing weights in high dimensions may then reflect this tuning rule rather than MLE itself. The MLE weights are also untrimmed, unlike the scores of @athey2018. `balnet`$_{10^{-4}}$ is taken at the end of its path rather than at a tuned $\lambda$, so Study 1 compares two default practices. Where the path stops short, the stopping rule is not logged, so infeasibility cannot be separated from slow convergence.
+
+ABW and AIPW share one lasso outcome model, tuned by cross-validation and fitted on the same data as the weights without cross-fitting, so the gains from augmentation rest on that model. ABW with an unweighted outcome model also sits outside the model-assisted theory of @tan2020b. No variance estimator is implemented for the balancing weights, so coverage is reported at the empirical SE only, the coverage of a correctly sized interval.
+
+Study 2 runs 2500 replications per cell, 1000 at the two largest samples, so its interior optimum rule is a reporting threshold of about two Monte Carlo standard errors. The RMSE-minimising $\lambda$ is chosen on the replications it is scored on, so its advantage over the endpoint is optimistic. The selector averages weight each setting by how often our grids run it, so another mix of signal, overlap and penalty form would move them and could change our recommendation. Our selectors never see the outcome, so the outcome-based tuning that @brunssmith2025 recommend as a starting point for ridge-augmented weights is untested. The selectors use ten folds throughout, with no other fold count tested. Under ridge and the elastic net the endpoint differs from the lasso's by construction, so the endpoints are not like for like. The Wong–Chan check uses `balnet` alone, the ATT and 1000 replications.
+
+Future work could add a variance estimator and the coverage of its intervals, tune the MLE weights by balance rather than prediction, record why each path stops, and vary the treated share.
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+{{< pagebreak >}}
+
+```{=latex}
+\appendixpagestrue
+```
+
+# Appendix {.unnumbered}
+
+```{r}
+#| include: false
+# every appendix table is set as a longtable, so it starts under its caption
+# and breaks across pages instead of jumping to the next page as a block
+# (style_booktabs, handoff/R/thesis.R)
+assign("latex_long_lines", 0L, envir = as.environment("thesis_api"))
+```
+
+## Appendix A: Correct specification {#sec-app-correct .unnumbered}
+
+```{r}
+#| label: adv-q1
+#| include: false
+# n = 500 to 400k, correct specification ([K] + [A]); Hájek at 400k: see
+# Appendix A
+correct_n <- read_summary("correct_n")
+```
+
+::: {#atbl-q1-adv}
+```{r}
+#| echo: false
+# the pairs Sample Size reads off this table: balancing against
+# modelling, and AIPW against the Hájek estimator it augments
+table_avg(correct_n, cell_counts = FALSE, shares = FALSE,
+          pairs = tribble(~A, ~B,
+                          "balnet0", "glmnetcv_hajek",
+                          "abw_balnet0", "aipw_glmnetcv",
+                          "aipw_glmnetcv", "glmnetcv_hajek"),
+          note = paste("The averages are over 24 cells, 8 per outcome, at",
+                       "10 000 Monte Carlo replications."))
+```
+
+Per cent lower RMSE $\bar R(\Theta)$ of A against B under correct specification, $n$ = 500 to 400k.
+:::
+
+## Appendix B: Misspecification {#sec-app-misspec .unnumbered}
+
+```{r}
+#| label: app-n-perf-m-data
+#| include: false
+# misspecified n grid: the fit diagnostics (stored summary app_misspec_n,
+# handoff/R/sections.R)
+app_misspec_n <- read_summary("app_misspec_n")
+```
+
+```{r}
+#| label: adv-n
+#| include: false
+# n = 500 to 50k, misspecified propensity score ([M] + add-on)
+misspec_n <- read_summary("misspec_n")
+```
+
+### Fit diagnostics {.unnumbered}
+
+::: {#atbl-app-n-diag-m-lin}
+```{r}
+#| echo: false
+table_diagnostics(app_misspec_n, outcome = "linear",
+                  keep = \(d) d$n <= 1000, sets = c("glm", "true"),
+                  families = c("ess", "wmax", "smd"), times = FALSE,
+                  note = "The weights do not depend on the outcome.")
+```
+
+Fit diagnostics of the glmnet and Oracle weights under a misspecified propensity score, linear outcome. Median (lower–upper quartile) across replications.
+:::
+
+### Sample sizes up to 1M {.unnumbered}
+
+::: {#atbl-n-path}
+```{r}
+#| eval: !expr npath_built
+#| include: !expr npath_built
+#| echo: false
+# stored section misspec_npath, read in n-path-data: the n the Sample Size
+# text reads off the paths (the start, where AIPW falls behind, the Hájek
+# estimator's minimum and its bias crossing zero, the largest samples) and
+# the n beside them
+npath_n <- c(250, 500, 1e3, 2e3, 3e3, 4e3, 5e3, 1e4, 1.5e4, 2e4, 5e4, 7.5e4,
+             1e5, 2e5, 1e6)
+npath_shown <- misspec_npath
+npath_shown$perf <- filter(misspec_npath$perf, n %in% npath_n)
+stopifnot(n_distinct(npath_shown$perf$n) == length(npath_n))
+# n is printed as on the figure's axis (250, 1k, ..., 1M); a factor keeps
+# the rows in numeric order
+npath_tab <- npath_shown
+npath_tab$perf <- mutate(npath_tab$perf,
+                         n = factor(format_kM(n), format_kM(sort(unique(n)))))
+# glmnet (HT)'s single-draw cells set the largest MCSE, so the note also
+# gives the largest MCSE of the other arms
+npath_m_tab <- signif(npath_mcse(npath_shown,
+                                 unique(npath_shown$perf$estimator),
+                                 faded_arm = "glmnetcv_ht"), 2)
+table_cells(npath_tab, layout = "long", row_cols = "n", whole_from = 100,
+            note = paste0("Without glmnet (HT): largest MCSE ",
+                          format(npath_m_tab[["rmse_other"]],
+                                 scientific = FALSE),
+                          " (RMSE) and ",
+                          format(npath_m_tab[["bias_other"]],
+                                 scientific = FALSE),
+                          " (bias).")) |>
+  pdf_col_width(unname(arm_labs[unique(npath_tab$perf$estimator)]), 64)
+```
+
+RMSE (bias) under a misspecified propensity score, by $n$. $n$ = 1M is a separate run.
+:::
+
+### Averages {.unnumbered}
+
+::: {#atbl-app-avg-n-m}
+```{r}
+#| echo: false
+# tbl-n-adv and tbl-app-n-ref show every other pair stored on these cells,
+# on the same draws, so only these two are left for this table
+table_avg(misspec_n,
+          pairs = tribble(~A, ~B,
+                          "abw_balnet0", "glmnetcv_ht",
+                          "abw_balnet0_ortrue", "aipw_glmnetcv_ortrue"),
+          cell_counts = FALSE, shares = FALSE,
+          note = paste("True OR: the outcome model fitted on the true",
+                       "covariates $X$. The averages are over 15 cells, 5",
+                       "per outcome, at 10 000 Monte Carlo replications."))
+```
+
+Per cent lower RMSE $\bar R(\Theta)$ of A against B under a misspecified propensity score, $n$ = 500 to 50k. Other pairs on these cells are in @tbl-n-adv and @atbl-app-n-ref.
+:::
+
+::: {#atbl-app-n-ref}
+```{r}
+#| echo: false
+# the reference estimators the Sample Size text quotes, on tbl-n-adv's cells
+table_avg(n_both, blocks = c("both", "correct", "misspec"),
+          pairs = tribble(~A, ~B,
+                          "balnet0", "oracle_hajek",
+                          "balnet0", "ols"),
+          cell_counts = FALSE,
+          note = paste("The averages are over 30 cells, 15 per",
+                       "specification, at 10 000 Monte Carlo replications."))
+```
+
+Per cent lower RMSE $\bar R(\Theta)$ and share of bias $\bar s_m(\Theta)$ of balnet against Oracle (Hájek) and OLS, $n$ = 500 to 50k.
+:::
+
+## Appendix C: Overlap {#sec-app-overlap .unnumbered}
+
+```{r}
+#| label: app-ov-full-data
+#| include: false
+# overlap c = 0.05 to 2 at n = 1000 and 10 000: performance and path
+# truncation of every arm but Oracle (HT) (stored summary app_overlap_full,
+# handoff/R/sections.R), one table per n
+app_overlap_full <- read_summary("app_overlap_full")
+```
+
+### Overlap levels {.unnumbered}
+
+::: {#afig-ov-levels}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 3.4
+#| echo: false
+library(ggplot2)
+
+# At a treated share of 0.5 the true score of DGP 2 has logit e* ~ N(0, 1/c^2),
+# so everything here is exact: integrals over that law, no simulation.
+# Levels: the overlap grid's seven and the n x c grid's lowest.
+olev_c   <- c(2, 1, 0.75, 0.5, 0.25, 0.15, 0.05, 0.01)
+olev_p   <- pnorm(qlogis(0.05) * olev_c)                 # P(e* < 0.05) = P(e* > 0.95)
+olev_pct <- function(x) ifelse(x < 5e-4, "< 0.1%", sprintf("%.1f%%", 100 * x))
+
+# share of each arm in bins of width 0.1:
+# P(e* in bin | W = w) = 2 * integral over the bin's logits of plogis(+/- l) dnorm(l, 0, 1/c)
+olev_br   <- seq(0, 1, by = 0.1)
+olev_bins <- do.call(rbind, lapply(olev_c, function(cc) {
+  arm_share <- function(sgn) vapply(seq_len(length(olev_br) - 1), function(k)
+    2 * integrate(function(l) plogis(sgn * l) * dnorm(l, 0, 1 / cc),
+                  qlogis(olev_br[k]), qlogis(olev_br[k + 1]), rel.tol = 1e-10)$value,
+    numeric(1))
+  data.frame(c = cc, lo = head(olev_br, -1), hi = olev_br[-1],
+             arm = rep(c("Treated", "Control"), each = length(olev_br) - 1),
+             share = c(arm_share(1), arm_share(-1)))
+}))
+
+# check against the simulation code, 200 000 draws per level (e* does not depend on p)
+local({
+  env <- new.env()
+  sys.source(here::here("R", "dgp.R"), envir = env)
+  withr::local_seed(2026)
+  for (cc in olev_c) {
+    d <- env$dgp2(n = 2e5, p = 4, s = 4, signs = "pos", covcor = "iid", overlap = cc)
+    for (w in c("Treated", "Control")) {
+      emp   <- prop.table(table(cut(d$e[d$W == (w == "Treated")], olev_br,
+                                    right = FALSE, include.lowest = TRUE)))
+      exact <- olev_bins$share[olev_bins$c == cc & olev_bins$arm == w]
+      stopifnot(max(abs(emp - exact)) < 0.01)
+    }
+    stopifnot(abs(mean(d$e < 0.05) - olev_p[olev_c == cc]) < 0.005,
+              abs(mean(d$e > 0.95) - olev_p[olev_c == cc]) < 0.005)
+  }
+})
+
+olev_panel <- function(x) factor(paste("italic(c) ==", x), paste("italic(c) ==", olev_c))
+olev_bins$y     <- ifelse(olev_bins$arm == "Treated", olev_bins$share, -olev_bins$share)
+olev_bins$panel <- olev_panel(olev_bins$c)
+# the arms are named once, in the first panel, in place of a legend
+olev_arms <- data.frame(panel = olev_panel(2), y = c(0.92, -0.92),
+                        label = c("Treated", "Control"), vjust = c(1, 0))
+
+ggplot(olev_bins, aes(xmin = lo, xmax = hi, ymin = 0, ymax = y, fill = arm)) +
+  geom_rect(colour = "white", linewidth = 0.2) +
+  geom_hline(yintercept = 0, linewidth = 0.3) +
+  geom_text(data = olev_arms, aes(x = 0.03, y = y, label = label, vjust = vjust),
+            inherit.aes = FALSE, hjust = 0, family = "serif", size = 3) +
+  facet_wrap(vars(panel), nrow = 2, labeller = label_parsed) +
+  scale_fill_manual(values = c(Treated = "grey30", Control = "grey70"),
+                    guide = "none") +
+  scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1"),
+                     expand = expansion(mult = 0.02)) +
+  scale_y_continuous(breaks = c(-1, -0.5, 0, 0.5, 1),
+                     labels = c("100%", "50%", "0", "50%", "100%"),
+                     limits = c(-1, 1)) +
+  labs(x = expression("True propensity score " * e^"*" * (X[i])),
+       y = "Share of arm in each bin") +
+  theme_bw(base_size = 10, base_family = "serif") +
+  theme(panel.grid = element_blank(), strip.background = element_blank(),
+        strip.text = element_text(size = 10),
+        axis.text = element_text(colour = "black"))
+```
+
+True propensity score by arm at each overlap level $c$, as the share of each arm in bins of width 0.1. The outermost bins hold the units outside \[0.1, 0.9\].
+:::
+
+::: {#atbl-ov-levels}
+```{r}
+#| echo: false
+library(gt)
+
+# Levels and olev_pct() from fig-ov-levels. The share outside [d, 1 - d] is exactly
+# 2 * pnorm(c * qlogis(d)); fig-ov-levels checks the law against R/dgp.R
+olev_tail <- function(d) olev_pct(2 * pnorm(qlogis(d) * olev_c))
+
+olev_tab <- data.frame(c = as.character(olev_c),
+                       out_10 = olev_tail(0.10), out_05 = olev_tail(0.05),
+                       out_01 = olev_tail(0.01)) |>
+  gt() |>
+  cols_label(c = md("*c*"), out_10 = "[0.1, 0.9]", out_05 = "[0.05, 0.95]",
+             out_01 = "[0.01, 0.99]") |>
+  tab_spanner("Outside", c(out_10, out_05, out_01)) |>
+  cols_align("right") |>
+  # the booktabs rules written out, so the chunk needs no handoff/ code
+  opt_table_lines("none") |>
+  tab_options(table.border.top.style = "solid", table.border.top.width = px(1.5),
+              table.border.top.color = "black",
+              column_labels.border.bottom.style = "solid",
+              column_labels.border.bottom.width = px(0.75),
+              column_labels.border.bottom.color = "black",
+              table.border.bottom.style = "solid", table.border.bottom.width = px(1.5),
+              table.border.bottom.color = "black",
+              table.font.names = c("Times New Roman", "Times", "serif"),
+              table.font.size = if (knitr::is_latex_output()) "8pt" else "16px") |>
+  tab_source_note(md("$c$ = 0.01 is used in the $n$ × $c$ grid only."))
+# in the pdf the table spans the text width, so its note lines up with it,
+# and is set whole where it stands
+if (knitr::is_latex_output()) {
+  olev_tab <- tab_options(olev_tab, latex.use_longtable = FALSE,
+                          latex.tbl.pos = "H")
+}
+olev_tab
+```
+
+Share of units with a true propensity score $e^*(X_i)$ outside each interval, by overlap level $c$.
+:::
+
+### Performance {.unnumbered}
+
+::: {#atbl-app-ov-full-c}
+```{r}
+#| echo: false
+table_full(app_overlap_full, "correct", outcome = "linear",
+           keep = \(d) d$n %in% c(1000, 10000) & d$overlap %in% c(0.15, 0.25, 0.5),
+           arms = c("balnet0", "glmnetcv_hajek"),
+           measures = c("bias", "rmse"), mcse = "note", extreme = FALSE,
+           trunc_note = TRUE)
+```
+
+Bias and RMSE under correct specification, linear outcome, $n$ = 1000 and 10 000.
+:::
+
+::: {#atbl-app-ov-full-m}
+```{r}
+#| echo: false
+table_full(app_overlap_full, "misspec",
+           keep = \(d) d$n %in% c(1000, 10000) & d$overlap %in% c(0.05, 0.15),
+           arms = text_arms, measures = "rmse", mcse = "note", extreme = FALSE)
+```
+
+RMSE under a misspecified propensity score, $n$ = 1000 and 10 000.
+:::
+
+### Coverage {.unnumbered}
+
+::: {#afig-ov-coverage}
+```{r}
+#| echo: false
+#| fig-width: 6.5
+#| fig-height: 4.2
+cov_ov <- cov_rows(coverage_empse$overlap) |>
+  mutate(n = factor(n, c(1000, 10000), c("n = 1000", "n = 10 000")))
+ggplot(cov_ov, aes(overlap, coverage, colour = estimator, shape = estimator,
+                   linetype = n, group = interaction(estimator, n))) +
+  geom_hline(yintercept = 0.95, linetype = "dotted", colour = "grey40") +
+  geom_linerange(aes(ymin = lo, ymax = hi), linewidth = 0.4, alpha = 0.6,
+                 show.legend = FALSE) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 1.2) +
+  facet_grid(spec ~ outcome) +
+  scale_x_log10(breaks = c(0.05, 0.25, 1, 2), labels = c(".05", ".25", "1", "2")) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 0.95)) +
+  scale_colour_manual(values = cov_pal) +
+  scale_shape_manual(values = cov_shape) +
+  scale_linetype_manual(values = c("solid", "22")) +
+  labs(x = expression("Overlap " * italic(c)), y = "Coverage at the empirical SE",
+       colour = NULL, shape = NULL, linetype = NULL) +
+  cov_theme()
+```
+
+Coverage at the empirical SE by overlap $c$ at $n$ = 1000 and 10 000, both specifications. The dotted line is the nominal 95%.
+:::
+
+## Appendix D: Overlap and sample size {#sec-app-nc .unnumbered}
+
+```{r}
+#| label: app-nc-data
+#| include: false
+# n x c grid (runs/aipw/aipw_n_by_overlap_dgp2.R; 12 n x 13 c, 1000 reps
+# per cell, both specifications on the same draws): performance of every
+# arm but Oracle (HT) (stored summary app_nc). The share of truncated balnet
+# paths is the section nc's (read in ov-nc-data)
+app_nc <- read_summary("app_nc")
+```
+
+### Performance {.unnumbered}
+
+::: {#afig-app-nc}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 5.2
+#| warning: false
+#| echo: false
+fig_nc(nc, nc_fig_n,
+       title = expression(paste("RMSE against overlap ", italic(c))))
+```
+
+RMSE against overlap $c$ = 0.01 to 1 at $n$ = 200 and 5000, both specifications. Shading marks where the balnet path truncates in at least half the replications (@atbl-app-nc-trunc). Modelling estimators are not drawn where more than 1% of replications have undefined weights.
+:::
+
+::: {#atbl-app-nc-full-m}
+```{r}
+#| echo: false
+table_full(app_nc, "misspec",
+           keep = \(d) d$n %in% c(200, 5000) & d$overlap <= 0.0147,
+           arms = text_arms, measures = "rmse", mcse = "note",
+           extreme = FALSE)
+```
+
+RMSE under a misspecified propensity score at the two weakest overlaps.
+:::
+
+### Path truncation {.unnumbered}
+
+::: {#atbl-app-nc-trunc}
+```{r}
+#| echo: false
+# the n of afig-app-nc and the n beside them on the grid
+nc_trunc_tab <- nc
+nc_trunc_tab$extra$trunc <- filter(nc$extra$trunc,
+                                   n %in% c(140, 200, 290, 3500, 5000))
+table_nc_trunc(nc_trunc_tab)
+```
+
+Replications (%) in which the balnet path truncates in at least one arm.
+:::
+
+## Appendix E: High-dimensional settings {#sec-app-pn .unnumbered}
+
+```{r}
+#| label: app-pn-data
+#| include: false
+# p/n grid, n = 500 and 1000, s = 4, both specifications on the same draws
+# (runs/aipw/aipw_paxis_dgp2.R): full performance of every arm but Oracle
+# (HT) and fit diagnostics (stored summary app_p_axis,
+# handoff/R/sections.R)
+app_p_axis <- read_summary("app_p_axis")
+```
+
+### Performance {.unnumbered}
+
+::: {#afig-app-pn-bias}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 5.2
+#| echo: false
+pn_lines(p_axis, app_p_axis, "bias",
+         title = expression(paste("Bias against ", italic(p) / italic(n))))
+```
+
+Bias against $p/n$ at $n$ = 500 and 1000, both specifications. Shading and dotted line as in @fig-pn-rmse.
+:::
+
+::: {#atbl-app-pn-full-c}
+```{r}
+#| echo: false
+table_full(app_p_axis, "correct", outcome = c("linear", "quad1", "exp"),
+           keep = \(d) d$pn >= 0.1, arms = c(text_arms, "oracle_hajek"), stack = TRUE,
+           measures = c("bias", "rmse"), mcse = "note", extreme = FALSE)
+```
+
+Bias and RMSE under correct specification, by outcome.
+:::
+
+::: {#atbl-app-pn-full-m}
+```{r}
+#| echo: false
+table_full(app_p_axis, "misspec", outcome = c("linear", "quad1", "exp"),
+           keep = \(d) d$pn >= 0.1, arms = text_arms, stack = TRUE,
+           measures = c("bias", "rmse"), mcse = "note", extreme = FALSE)
+```
+
+Bias and RMSE under a misspecified propensity score, by outcome.
+:::
+
+### Fit diagnostics {.unnumbered}
+
+::: {#atbl-app-pn-diag-c-lin}
+```{r}
+#| echo: false
+table_diagnostics(app_p_axis, "correct", outcome = "linear",
+                  keep = \(d) d$pn >= 0.1, stack = TRUE,
+                  families = "nnz", sets = "bal", fits = "ps",
+                  nnz_bal = "row", times = FALSE)
+```
+
+Nonzero coefficients of balnet and the glmnet propensity score under correct specification, linear outcome. Median (lower–upper quartile) across replications.
+:::
+
+::: {#atbl-app-pn-diag-m-lin}
+```{r}
+#| echo: false
+table_diagnostics(app_p_axis, "misspec", outcome = "linear",
+                  keep = \(d) d$pn >= 0.1, stack = TRUE,
+                  families = "nnz", sets = "bal", fits = "ps",
+                  nnz_bal = "row", times = FALSE)
+```
+
+Nonzero coefficients of balnet and the glmnet propensity score under a misspecified propensity score, linear outcome. Median (lower–upper quartile) across replications.
+:::
+
+## Appendix F: Sparsity grid {#sec-app-sp .unnumbered}
+
+```{r}
+#| label: app-sp-data
+#| include: false
+# sparsity grid, correct specification, linear and quadratic outcomes
+# (runs/aipw/aipw_sparsity_hd.R): full performance of every arm but Oracle
+# (HT) and fit diagnostics (stored summary app_sparsity,
+# handoff/R/sections.R); the section sparsity is read in adv-sp
+app_sparsity <- read_summary("app_sparsity")
+# its equicorrelated cells (stored summary app_sparsity_equi)
+app_sparsity_equi <- read_summary("app_sparsity_equi")
+# the same grid under Tan's transformation, iid, AR(1) and equicorrelated
+# (stored summary app_sparsity_tan); the text reads the cells at p/n = 0.1
+app_sparsity_tan <- read_summary("app_sparsity_tan")
+sp_tan_exact <- app_sparsity_tan
+sp_tan_exact$full$misspec <- filter(app_sparsity_tan$full$misspec, pn == 0.1)
+```
+
+### Performance {.unnumbered}
+
+::: {#atbl-app-sp-cells}
+```{r}
+#| echo: false
+table_sp_cells(app_sparsity, app_sparsity_equi)
+```
+
+Bias, RMSE and nonzero coefficients of the glmnet propensity score once the balnet path truncates, under correct specification.
+:::
+
+### Imbalance bound {.unnumbered}
+
+::: {#atbl-app-sp-bound}
+```{r}
+#| echo: false
+# the text reads the bound under independent and AR(1) covariates
+sp_bound_tab <- sparsity
+sp_bound_tab$extra$bound <- filter(sparsity$extra$bound,
+                                   corr != "equicorrelated")
+table_sp_bound(sp_bound_tab)
+```
+
+Linear-outcome bias of balnet as a percentage of the imbalance bound, the sum of the two arms' mean path ends times the $\ell_1$ norm of the outcome coefficient.
+:::
+
+### Averages {.unnumbered}
+
+::: {#atbl-app-sp-exact}
+```{r}
+#| echo: false
+table_sets(sp_sets,
+           sets = c(exact_all = "Overall", exact_s = "", exact = "",
+                    exact_s_iid = "Independent covariates",
+                    exact_s_ar1 = "AR(1) covariates",
+                    exact_s_equi = "Equicorrelated covariates"),
+           pairs = pairs_sp, factor_labs = sp_factor_labs,
+           note = paste("Correct specification, linear and quadratic",
+                        "outcomes. The overall row is over 60 cells, 30 per",
+                        "outcome, at 1000 Monte Carlo replications; the rows",
+                        "by $s$ use $n$ = 1000 only ($s$ = 64 is not run at",
+                        "$n$ = 500).")) |>
+  pdf_col_width(paste(pairs_sp$A, pairs_sp$B), 70)
+```
+
+Per cent lower RMSE $\bar R(\Theta)$ and share of bias $\bar s_m(\Theta)$ of A against B at exact balance ($p/n$ = 0.1).
+:::
+
+::: {#atbl-app-sp-trunc}
+```{r}
+#| echo: false
+table_sets(sp_sets,
+           sets = c(truncated_all = "Overall", truncated = "",
+                    truncated_iid = "Independent covariates",
+                    truncated_ar1 = "AR(1) covariates",
+                    truncated_equi = "Equicorrelated covariates"),
+           pairs = pairs_sp, factor_labs = sp_factor_labs,
+           note = paste("Correct specification, linear and quadratic",
+                        "outcomes. The overall row is over 144 cells, 72 per",
+                        "outcome, at 1000 Monte Carlo replications.")) |>
+  pdf_col_width(paste(pairs_sp$A, pairs_sp$B), 70)
+```
+
+Per cent lower RMSE $\bar R(\Theta)$ and share of bias $\bar s_m(\Theta)$ of A against B once the balnet path truncates ($p/n \geq 0.5$).
+:::
+
+### Tan's transformation {.unnumbered}
+
+::: {#atbl-app-sp-tan}
+```{r}
+#| echo: false
+table_full_cells(sp_tan_exact, outcome = c("linear", "quad1"),
+                 columns = list(rmse = text_arms), groups = "n")
+```
+
+RMSE under Tan's transformation, $p/n$ = 0.1.
+:::
+
+### Common factor share {.unnumbered}
+
+::: {#atbl-app-sp-share}
+```{r}
+#| echo: false
+# the common factor's share of the propensity index's variance under
+# equicorrelation, (sum_j j^-nu)^2 / {(sum_j j^-nu)^2 + sum_j j^-2nu}
+share_z0 <- function(s, nu) {
+  w <- seq_len(s)^(-nu)
+  sum(w)^2 / (sum(w)^2 + sum(w^2))
+}
+tibble::tibble(s = c(4L, 16L, 64L),
+               nu1 = sapply(s, share_z0, nu = 1),
+               nu05 = sapply(s, share_z0, nu = 0.5)) |>
+  gt(rowname_col = "s") |>
+  tab_stubhead(md("$s$")) |>
+  cols_label(nu1 = md("$\\nu = 1$"), nu05 = md("$\\nu = 0.5$")) |>
+  fmt_number(c(nu1, nu05), decimals = 2) |>
+  style_booktabs()
+```
+
+Share of the propensity index's variance carried by the common factor $Z_{i0}$ under equicorrelation, $(\sum_{j \le s} j^{-\nu})^2 / \{(\sum_{j \le s} j^{-\nu})^2 + \sum_{j \le s} j^{-2\nu}\}$.
+:::
+
+## Appendix G: Outcome signal {#sec-app-signal .unnumbered}
+
+```{r}
+#| label: app-sig-data
+#| include: false
+# outcome signal strength 0.02 to 1 at n = 1000, both specifications on the
+# same draws (runs/aipw/aipw_strength.R): full performance of every arm but
+# Oracle (HT) and fit diagnostics (stored summary app_signal,
+# handoff/R/sections.R); the section signal is read in adv-sig
+app_signal <- read_summary("app_signal")
+```
+
+### Performance {.unnumbered}
+
+::: {#atbl-app-sig-full-c}
+```{r}
+#| echo: false
+table_full(app_signal, "correct", outcome = c("linear", "quad1", "exp"),
+           arms = c("balnet0", "glmnetcv_hajek", "oracle_hajek"),
+           measures = c("bias", "rmse"), mcse = "note", extreme = FALSE)
+```
+
+Bias and RMSE under correct specification, by outcome, $n$ = 1000.
+:::
+
+### Fit diagnostics {.unnumbered}
+
+::: {#atbl-app-sig-diag-c-lin}
+```{r}
+#| echo: false
+# the weights do not depend on the outcome, so one table serves all
+# three
+table_diagnostics(app_signal, "correct", outcome = "linear",
+                  keep = \(d) d$strength <= 0.05, families = "ess",
+                  sets = c("bal", "glm"), fits = character(),
+                  times = FALSE)
+```
+
+Effective sample size of the balnet and glmnet weights under correct specification, $n$ = 1000. Median (lower–upper quartile) across replications. The weights do not depend on the outcome.
+:::
+
+### Coverage {.unnumbered}
+
+::: {#afig-sig-coverage}
+```{r}
+#| echo: false
+#| fig-width: 6.5
+#| fig-height: 4.2
+cov_sig <- cov_rows(coverage_empse$signal)
+ggplot(cov_sig, aes(strength, coverage, colour = estimator, shape = estimator,
+                    group = estimator)) +
+  geom_hline(yintercept = 0.95, linetype = "dotted", colour = "grey40") +
+  geom_linerange(aes(ymin = lo, ymax = hi), linewidth = 0.4, alpha = 0.6,
+                 show.legend = FALSE) +
+  geom_line(linewidth = 0.5, show.legend = FALSE) +
+  geom_point(size = 1.2) +
+  facet_grid(spec ~ outcome) +
+  scale_x_log10(breaks = c(0.02, 0.05, 0.1, 0.2, 0.5, 1),
+                labels = c(".02", ".05", ".1", ".2", ".5", "1")) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 0.95)) +
+  scale_colour_manual(values = cov_pal) +
+  scale_shape_manual(values = cov_shape) +
+  labs(x = expression("Outcome signal strength " * kappa),
+       y = "Coverage at the empirical SE", colour = NULL, shape = NULL) +
+  cov_theme()
+```
+
+Coverage at the empirical SE by outcome signal strength $\kappa$ at $n$ = 1000, both specifications. The dotted line is the nominal 95%.
+:::
+
+## Appendix H: Wong–Chan design {#sec-app-wc .unnumbered}
+
+```{r}
+#| label: app-wc-data
+#| include: false
+# Study 2's robustness check: the Wong and Chan design as Wang and
+# Zubizarreta ran it, balnet only, against DGP 2's misspecified CV grid at
+# matched overlap and confounding strength (stored entry wc_compare,
+# handoff/R/cv.R). The captions and the Methods sentence are typed, so the
+# render stops here if the stored numbers no longer match them
+wc_cmp <- read_summary("wc_compare")
+wc_mcse <- signif(wc_compare_mcse(wc_cmp), 2)
+wc_agree <- c(interior = sum(wc_cmp$twins$interior_agree),
+              win = sum(wc_cmp$twins$win_agree), pairs = nrow(wc_cmp$twins))
+stopifnot(
+  wc_mcse[["wc"]] == 0.085, wc_mcse[["dgp2"]] == 0.019,
+  identical(unname(wc_agree), c(14L, 15L, 15L)),
+  all(wc_cmp$points$m[wc_cmp$points$design == "DGP 2"] == 2500),
+  all(wc_cmp$points$m[wc_cmp$points$design != "DGP 2"] == 1000))
+```
+
+The design of @wongchan2018 as run by @wang2020 has ten standard normal covariates, a logistic treatment on two, outcome model A linear in four and model B nonlinear in them, and an analyst who sees Kang–Schafer transforms of the four. We use $n$ = 5000, the ATT and 1000 replications, `balnet` balancing the covariates and their squares on a 100-point $\lambda$ grid, the logit scaled by 1, 2 or 4 and the noise SD $\sigma$ at 1, 10, 30 and 100. Cells match DGP 2's misspecified grid on the SD of the true logit ($c$ = 1, 0.5, 0.25) and on $R^2_e$, the share of the control outcome's variance the true score explains, which neither overlap knob changes. The endpoint is the last $\lambda$ reached by 95% of replications for Wong–Chan and each replication's own last $\lambda$ for DGP 2.
+
+::: {#afig-app-wc}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 4.6
+#| echo: false
+fig_wc_compare(wc_cmp, title = "Wong–Chan against DGP 2")
+```
+
+RMSE at the best fixed $\lambda$ (top) and of the best selector (bottom), relative to the endpoint's, against $R^2_e$ by logit SD. Wong–Chan points are model A at $\sigma$ = 100, 30, 10 and 1 (left to right) and model B at $\sigma$ = 1 (open), DGP 2 points $\kappa$ = 0 to 1 under the linear outcome.
+:::
+
+::: {#atbl-app-wc}
+```{r}
+#| echo: false
+table_wc_twins(wc_cmp)
+```
+
+Interior optima and selector wins, each Wong–Chan cell against the DGP 2 cells bracketing its $R^2_e$ at the same logit SD.
+:::
+
+## Appendix I: Study 2 {#sec-app-s2 .unnumbered}
+
+::: {#atbl-s2-selectors}
+```{r}
+#| echo: false
+table_s2_selectors(s2_sel)
+```
+
+Selector wins, lowest RMSE and mean RMSE change by selector, all Study 2 grids.
+:::
+
+### Penalty form {.unnumbered}
+
+::: {#atbl-s2-alpha}
+```{r}
+#| echo: false
+table_s2_alpha(filter(s2_flags_d, id == "cv_alpha_x_overlap"))
+```
+
+Interior optima, selector wins and RMSE relative to the lasso by penalty form $\alpha$.
+:::
+
+### Sample size and dimension {.unnumbered}
+
+::: {#afig-s2-design}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 3.4
+#| echo: false
+fig_s2_tiles(s2_design_tiles,
+             title = "Share of cells with an interior optimum")
+```
+
+Share of cells with an interior optimum by $\kappa$ and $\alpha$, $n$ or $p$, pooled over each grid's outcomes and overlap levels (@tbl-grids-s2). A dot marks a selector win in any pooled cell.
+:::
+
+### Misspecification and denser confounders {.unnumbered}
+
+::: {#afig-s2-spec}
+```{r}
+#| fig-width: 6.5
+#| fig-height: 3.4
+#| echo: false
+fig_s2_tiles(s2_spec_tiles,
+             title = "Share of cells with an interior optimum")
+```
+
+As @afig-s2-design, by $c$ under each specification and by $s$ and covariance structure in the denser grid, with and without Tan's transformation.
+:::

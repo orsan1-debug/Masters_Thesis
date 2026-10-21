@@ -1,0 +1,245 @@
+
+Attaching package: ‘data.table’
+
+The following object is masked from ‘package:base’:
+
+    %notin%
+
+Loading required package: Matrix
+Loaded glmnet 5.1
+cell 1 of 13: 0 failed, 0.65 secs
+cell 2 of 13: 0 failed, 0.46 secs
+cell 9 of 13: 0 failed, 6.8 secs
+cell 10 of 13: 0 failed, 10 secs
+cell 1 of 30: 0 failed, 2.1 secs
+cell 25 of 30: 0 failed, 8.2 secs
+cell 1 of 28: 0 failed, 3.7 secs
+cell 2 of 28: 0 failed, 3.7 secs
+cell 27 of 28: 0 failed, 1.3 secs
+cell 28 of 28: 0 failed, 1.6 secs
+cell 1 of 312: 0 failed, 0.59 secs
+cell 2 of 312: 0 failed, 0.61 secs
+cell 311 of 312: 0 failed, 0.76 secs
+cell 312 of 312: 0 failed, 0.98 secs
+cell 1 of 24: 0 failed, 0.43 secs
+cell 2 of 24: 0 failed, 0.4 secs
+cell 23 of 24: 0 failed, 1.1 mins
+cell 24 of 24: 0 failed, 1.1 mins
+cell 1 of 16: 0 failed, 0.5 secs
+cell 2 of 16: 0 failed, 0.49 secs
+cell 15 of 16: 0 failed, 0.39 secs
+cell 16 of 16: 0 failed, 0.48 secs
+cell 1 of 204: 0 failed, 0.62 secs
+cell 2 of 204: 0 failed, 3.2 secs
+cell 203 of 204: 0 failed, 1.8 mins
+cell 204 of 204: 0 failed, 1.4 mins
+Loading required package: Matrix
+Loaded glmnet 5.1
+cell 1 of 6: 0 failed, 3.5 secs
+cell 6 of 6: 0 failed, 2.5 secs
+cell 1 of 7: 0 failed, 3.4 secs
+cell 7 of 7: 0 failed, 4.1 secs
+cell 1 of 28: 0 failed, 3.3 secs
+cell 28 of 28: 0 failed, 4 secs
+cell 1 of 20: 0 failed, 4.4 secs
+cell 20 of 20: 0 failed, 4.8 secs
+cell 1 of 16: 0 failed, 2.8 secs
+cell 16 of 16: 0 failed, 10 secs
+cell 1 of 16: 0 failed, 4.2 secs
+cell 16 of 16: 0 failed, 33 secs
+cell 1 of 6: 0 failed, 4.4 secs
+cell 6 of 6: 0 failed, 4.6 secs
+cell 1 of 12: 0 failed, 3.8 secs
+cell 2 of 12: 0 failed, 4.2 secs
+cell 3 of 12: 0 failed, 4 secs
+cell 10 of 12: 0 failed, 4.5 secs
+cell 11 of 12: 0 failed, 3 secs
+cell 12 of 12: 0 failed, 2.3 secs
+cell 1 of 2: 0 failed, 1.3 mins
+cell 2 of 2: 0 failed, 31 secs
+cell 1 of 2: 0 failed, 1.4 mins
+cell 2 of 2: 0 failed, 1.3 mins
+cell 1 of 18: 0 failed, 8.8 secs
+cell 2 of 18: 0 failed, 11 secs
+cell 17 of 18: 0 failed, 6.9 secs
+cell 18 of 18: 0 failed, 6.9 secs
+Loading required package: Matrix
+Loaded glmnet 5.1
+wc_noise_s1_c1.rds: 0 failed
+wc_noise_s100_c4.rds: 0 failed
+Loading required package: Matrix
+Loaded glmnet 5.1
+                          run      version
+                       <char>       <char>
+ 1:             denser.csv.gz      correct
+ 2:             denser.csv.gz      correct
+ 3:             denser.csv.gz misspecified
+ 4:             denser.csv.gz misspecified
+ 5:          dimension.csv.gz      correct
+ 6:          dimension.csv.gz      correct
+ 7:          dimension.csv.gz misspecified
+ 8:          dimension.csv.gz misspecified
+ 9:       n_by_overlap.csv.gz      correct
+10:       n_by_overlap.csv.gz misspecified
+11:     outcome_signal.csv.gz      correct
+12:     outcome_signal.csv.gz misspecified
+13:            overlap.csv.gz      correct
+14:            overlap.csv.gz      correct
+15:            overlap.csv.gz      correct
+16:            overlap.csv.gz misspecified
+17:            overlap.csv.gz misspecified
+18:            overlap.csv.gz misspecified
+19:   sample_size_path.csv.gz misspecified
+20:        sample_size.csv.gz      correct
+21:        sample_size.csv.gz      correct
+22:        sample_size.csv.gz      correct
+23:        sample_size.csv.gz misspecified
+24:        sample_size.csv.gz misspecified
+25:             denser.csv.gz      correct
+26:             denser.csv.gz      correct
+27:             denser.csv.gz misspecified
+28:             denser.csv.gz misspecified
+29:          dimension.csv.gz         <NA>
+30:          dimension.csv.gz         <NA>
+31:              folds.csv.gz           10
+32:              folds.csv.gz           10
+33:              folds.csv.gz            5
+34:              folds.csv.gz            5
+35:              folds.csv.gz            3
+36:              folds.csv.gz            3
+37:      large_n_10000.csv.gz         <NA>
+38:      large_n_10000.csv.gz         <NA>
+39:       large_n_5000.csv.gz         <NA>
+40:       large_n_5000.csv.gz         <NA>
+41:   misspecification.csv.gz         <NA>
+42:   misspecification.csv.gz         <NA>
+43:   noise_by_overlap.csv.gz         <NA>
+44:   noise_by_overlap.csv.gz         <NA>
+45:              noise.csv.gz         <NA>
+46:              noise.csv.gz         <NA>
+47:            overlap.csv.gz         <NA>
+48:            overlap.csv.gz         <NA>
+49: penalty_by_overlap.csv.gz         <NA>
+50: penalty_by_overlap.csv.gz         <NA>
+51:        sample_size.csv.gz         <NA>
+52:        sample_size.csv.gz         <NA>
+53:        wc_noise_s1_c1.rds         <NA>
+54:      wc_noise_s100_c4.rds         <NA>
+                          run      version
+                       <char>       <char>
+                                                file cells replications
+                                              <char> <int>        <int>
+ 1:             aipw_correct_sparsity_hd_dgp2.csv.gz     1           15
+ 2:        aipw_correct_sparsity_hd_equi_dgp3.csv.gz     1           15
+ 3:      aipw_misspec_tanobs_sparsity_hd_dgp3.csv.gz     1           15
+ 4: aipw_misspec_tanobs_sparsity_hd_equi_dgp3.csv.gz     1           15
+ 5:                       aipw_correct_p_dgp2.csv.gz     2           15
+ 6:                  aipw_diag_correct_p_dgp2.csv.gz     2           15
+ 7:                       aipw_misspec_p_dgp2.csv.gz     2           15
+ 8:                  aipw_diag_misspec_p_dgp2.csv.gz     2           15
+ 9:            aipw_correct_n_by_overlap_dgp2.csv.gz     2           15
+10:            aipw_misspec_n_by_overlap_dgp2.csv.gz     2           15
+11:                aipw_correct_strength_dgp2.csv.gz     2           15
+12:                aipw_misspec_strength_dgp2.csv.gz     2           15
+13:                aipw_correct_overlap7_dgp2.csv.gz     1           15
+14:           aipw_diag_correct_overlap7_dgp2.csv.gz     1           15
+15:                aipw_correct_overlap8_dgp2.csv.gz     1           15
+16:                aipw_misspec_overlap7_dgp2.csv.gz     1           15
+17:           aipw_full_misspec_overlap7_dgp2.csv.gz     1           15
+18:                aipw_misspec_overlap8_dgp2.csv.gz     1           15
+19:              aipw_full_misspec_nfine_dgp2.csv.gz     2           15
+20:                   aipw_correct_n400k_dgp2.csv.gz     2           15
+21:                       aipw_correct_n_dgp2.csv.gz     2           15
+22:               aipw_add_correct_n400k_dgp2.csv.gz     2           15
+23:                       aipw_misspec_n_dgp2.csv.gz     2           15
+24:                   aipw_add_misspec_n_dgp2.csv.gz     2           15
+25:                          cv_sparsity_dgp3.csv.gz     2           15
+26:                     cv_sparsity_dgp3_lamgrid.csv     9           NA
+27:                  cv_sparsity_misspec_dgp3.csv.gz     2           15
+28:             cv_sparsity_misspec_dgp3_lamgrid.csv     9           NA
+29:                                 cv_p_dgp2.csv.gz     2           15
+30:                            cv_p_dgp2_lamgrid.csv    16           NA
+31:                         cv_folds_k10_dgp2.csv.gz     2           15
+32:                    cv_folds_k10_dgp2_lamgrid.csv     4           NA
+33:                          cv_folds_k5_dgp2.csv.gz     2           15
+34:                     cv_folds_k5_dgp2_lamgrid.csv     4           NA
+35:                          cv_folds_k3_dgp2.csv.gz     2           15
+36:                     cv_folds_k3_dgp2_lamgrid.csv     4           NA
+37:                            cv_n10000_dgp2.csv.gz     2           15
+38:                       cv_n10000_dgp2_lamgrid.csv     2           NA
+39:                             cv_n5000_dgp2.csv.gz     2           15
+40:                        cv_n5000_dgp2_lamgrid.csv     2           NA
+41:                           cv_misspec_dgp2.csv.gz     2           15
+42:                      cv_misspec_dgp2_lamgrid.csv     6           NA
+43:                   cv_noise_x_overlap_dgp2.csv.gz     2           15
+44:              cv_noise_x_overlap_dgp2_lamgrid.csv    28           NA
+45:                             cv_noise_dgp2.csv.gz     2           15
+46:                        cv_noise_dgp2_lamgrid.csv     7           NA
+47:                           cv_overlap_dgp2.csv.gz     2           15
+48:                      cv_overlap_dgp2_lamgrid.csv     6           NA
+49:                   cv_alpha_x_overlap_dgp2.csv.gz     2           15
+50:              cv_alpha_x_overlap_dgp2_lamgrid.csv    20           NA
+51:                                 cv_n_dgp2.csv.gz     2           15
+52:                            cv_n_dgp2_lamgrid.csv    16           NA
+53:                               wc_noise_s1_c1.rds     1           15
+54:                             wc_noise_s100_c4.rds     1           15
+                                                file cells replications
+                                              <char> <int>        <int>
+    rows_compared cells_with_diff largest shift_in_mcse               verdict
+            <int>           <int>   <num>         <num>                <char>
+ 1:           480               0 0.0e+00       0.0e+00             identical
+ 2:           480               0 0.0e+00       0.0e+00             identical
+ 3:           510               0 0.0e+00       0.0e+00             identical
+ 4:           510               0 0.0e+00       0.0e+00             identical
+ 5:           960               1 4.4e-03       6.4e-02 means within 0.5 MCSE
+ 6:           870               1 4.4e-03       6.4e-02 means within 0.5 MCSE
+ 7:          1020               1 5.3e-03       1.3e-01 means within 0.5 MCSE
+ 8:           870               1 5.3e-03       1.3e-01 means within 0.5 MCSE
+ 9:           960               0 0.0e+00       0.0e+00             identical
+10:          1020               0 0.0e+00       0.0e+00             identical
+11:           960               0 1.8e-14       1.2e-05             identical
+12:          1020               0 2.0e-14       1.2e-05             identical
+13:           480               0 0.0e+00       0.0e+00             identical
+14:           435               0 0.0e+00       0.0e+00             identical
+15:           480               0 0.0e+00       0.0e+00             identical
+16:           480               0 0.0e+00       0.0e+00             identical
+17:           555               0 0.0e+00       0.0e+00             identical
+18:           510               0 0.0e+00       0.0e+00             identical
+19:          1110               0 0.0e+00       0.0e+00             identical
+20:           960               0 0.0e+00       0.0e+00             identical
+21:           960               0 9.0e-13       1.8e-05             identical
+22:           120               0 0.0e+00       0.0e+00             identical
+23:          1020               0 1.1e-13       1.8e-05             identical
+24:           120               0 0.0e+00       0.0e+00             identical
+25:          3240               0 0.0e+00       0.0e+00             identical
+26:           270               0 0.0e+00            NA             identical
+27:          3240               0 0.0e+00       0.0e+00             identical
+28:           270               0 0.0e+00            NA             identical
+29:          3240               0 0.0e+00       0.0e+00             identical
+30:           480               0 0.0e+00            NA             identical
+31:          3240               0 0.0e+00       0.0e+00             identical
+32:           120               0 0.0e+00            NA             identical
+33:          3240               0 0.0e+00       0.0e+00             identical
+34:           120               0 0.0e+00            NA             identical
+35:          3240               0 0.0e+00       0.0e+00             identical
+36:           120               0 0.0e+00            NA             identical
+37:          3240               0 0.0e+00       0.0e+00             identical
+38:            60               0 9.7e-17            NA             identical
+39:          3240               1 2.0e-05       8.8e-04           last digits
+40:            60               0 1.0e-15            NA             identical
+41:          3240               0 0.0e+00       0.0e+00             identical
+42:           180               0 0.0e+00            NA             identical
+43:          3240               0 0.0e+00       0.0e+00             identical
+44:           840               0 0.0e+00            NA             identical
+45:          3240               0 0.0e+00       0.0e+00             identical
+46:           210               0 0.0e+00            NA             identical
+47:          3240               0 0.0e+00       0.0e+00             identical
+48:           180               0 0.0e+00            NA             identical
+49:          3240               0 0.0e+00       0.0e+00             identical
+50:           600               0 0.0e+00            NA             identical
+51:          3240               0 0.0e+00       0.0e+00             identical
+52:           480               0 0.0e+00            NA             identical
+53:            15              NA 2.4e-12            NA             identical
+54:            15              NA 1.6e-04            NA           last digits
+    rows_compared cells_with_diff largest shift_in_mcse               verdict
+            <int>           <int>   <num>         <num>                <char>

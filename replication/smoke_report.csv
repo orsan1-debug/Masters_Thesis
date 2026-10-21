@@ -1,0 +1,55 @@
+part,run,version,file,stored,cells,replications,rows_compared,cells_with_diff,rows_not_in_stored,largest_diff_estimates,largest_diff_diagnostics,largest_shift_in_mcse,na_mismatch,stored_rows_not_rewritten,largest,verdict
+study1,denser.csv.gz,correct,aipw_correct_sparsity_hd_dgp2.csv.gz,TRUE,1,15,480,0,0,0,0,0,0,0,0,identical
+study1,denser.csv.gz,correct,aipw_correct_sparsity_hd_equi_dgp3.csv.gz,TRUE,1,15,480,0,0,0,0,0,0,0,0,identical
+study1,denser.csv.gz,misspecified,aipw_misspec_tanobs_sparsity_hd_dgp3.csv.gz,TRUE,1,15,510,0,0,0,0,0,0,0,0,identical
+study1,denser.csv.gz,misspecified,aipw_misspec_tanobs_sparsity_hd_equi_dgp3.csv.gz,TRUE,1,15,510,0,0,0,0,0,0,0,0,identical
+study1,dimension.csv.gz,correct,aipw_correct_p_dgp2.csv.gz,TRUE,2,15,960,1,0,6.08937726369607e-05,0.0043859649122807,0.0640146869372805,0,0,0.0043859649122807,means within 0.5 MCSE
+study1,dimension.csv.gz,correct,aipw_diag_correct_p_dgp2.csv.gz,TRUE,2,15,870,1,0,6.08937726369607e-05,0.0043859649122807,0.0640146869372805,0,45,0.0043859649122807,means within 0.5 MCSE
+study1,dimension.csv.gz,misspecified,aipw_misspec_p_dgp2.csv.gz,TRUE,2,15,1020,1,0,2.94159885199652e-05,0.0053475935828877,0.128206257104296,0,0,0.0053475935828877,means within 0.5 MCSE
+study1,dimension.csv.gz,misspecified,aipw_diag_misspec_p_dgp2.csv.gz,TRUE,2,15,870,1,0,2.94159885199652e-05,0.0053475935828877,0.128206257104296,0,75,0.0053475935828877,means within 0.5 MCSE
+study1,n_by_overlap.csv.gz,correct,aipw_correct_n_by_overlap_dgp2.csv.gz,TRUE,2,15,960,0,0,0,0,0,0,0,0,identical
+study1,n_by_overlap.csv.gz,misspecified,aipw_misspec_n_by_overlap_dgp2.csv.gz,TRUE,2,15,1020,0,0,0,0,0,0,0,0,identical
+study1,outcome_signal.csv.gz,correct,aipw_correct_strength_dgp2.csv.gz,TRUE,2,15,960,0,0,1.301736496373e-14,1.80895886042094e-14,1.16075388095773e-05,0,0,1.80895886042094e-14,identical
+study1,outcome_signal.csv.gz,misspecified,aipw_misspec_strength_dgp2.csv.gz,TRUE,2,15,1020,0,0,1.301736496373e-14,1.95248846771407e-14,1.19568871327438e-05,0,0,1.95248846771407e-14,identical
+study1,overlap.csv.gz,correct,aipw_correct_overlap7_dgp2.csv.gz,TRUE,1,15,480,0,0,0,0,0,0,0,0,identical
+study1,overlap.csv.gz,correct,aipw_diag_correct_overlap7_dgp2.csv.gz,TRUE,1,15,435,0,0,0,0,0,0,45,0,identical
+study1,overlap.csv.gz,correct,aipw_correct_overlap8_dgp2.csv.gz,TRUE,1,15,480,0,0,0,0,0,0,0,0,identical
+study1,overlap.csv.gz,misspecified,aipw_misspec_overlap7_dgp2.csv.gz,TRUE,1,15,480,0,0,0,0,0,0,0,0,identical
+study1,overlap.csv.gz,misspecified,aipw_full_misspec_overlap7_dgp2.csv.gz,TRUE,1,15,555,0,0,0,0,0,0,75,0,identical
+study1,overlap.csv.gz,misspecified,aipw_misspec_overlap8_dgp2.csv.gz,TRUE,1,15,510,0,0,0,0,0,0,0,0,identical
+study1,sample_size_path.csv.gz,misspecified,aipw_full_misspec_nfine_dgp2.csv.gz,TRUE,2,15,1110,0,0,0,0,0,0,75,0,identical
+study1,sample_size.csv.gz,correct,aipw_correct_n400k_dgp2.csv.gz,TRUE,2,15,960,0,0,0,0,0,0,0,0,identical
+study1,sample_size.csv.gz,correct,aipw_correct_n_dgp2.csv.gz,TRUE,2,15,960,0,0,6.04599703635245e-13,9.00380768069123e-13,1.7500497615772e-05,0,0,9.00380768069123e-13,identical
+study1,sample_size.csv.gz,correct,aipw_add_correct_n400k_dgp2.csv.gz,TRUE,2,15,120,0,0,0,,0,0,0,0,identical
+study1,sample_size.csv.gz,misspecified,aipw_misspec_n_dgp2.csv.gz,TRUE,2,15,1020,0,0,1.09204312259692e-13,8.30253372282204e-14,1.75005120226301e-05,0,0,1.09204312259692e-13,identical
+study1,sample_size.csv.gz,misspecified,aipw_add_misspec_n_dgp2.csv.gz,TRUE,2,15,120,0,0,0,,0,0,0,0,identical
+study2,denser.csv.gz,correct,cv_sparsity_dgp3.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,denser.csv.gz,correct,cv_sparsity_dgp3_lamgrid.csv,TRUE,9,,270,0,0,0,,,0,0,0,identical
+study2,denser.csv.gz,misspecified,cv_sparsity_misspec_dgp3.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,denser.csv.gz,misspecified,cv_sparsity_misspec_dgp3_lamgrid.csv,TRUE,9,,270,0,0,0,,,0,0,0,identical
+study2,dimension.csv.gz,,cv_p_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,dimension.csv.gz,,cv_p_dgp2_lamgrid.csv,TRUE,16,,480,0,0,0,,,0,0,0,identical
+study2,folds.csv.gz,10,cv_folds_k10_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,folds.csv.gz,10,cv_folds_k10_dgp2_lamgrid.csv,TRUE,4,,120,0,0,0,,,0,0,0,identical
+study2,folds.csv.gz,5,cv_folds_k5_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,folds.csv.gz,5,cv_folds_k5_dgp2_lamgrid.csv,TRUE,4,,120,0,0,0,,,0,0,0,identical
+study2,folds.csv.gz,3,cv_folds_k3_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,folds.csv.gz,3,cv_folds_k3_dgp2_lamgrid.csv,TRUE,4,,120,0,0,0,,,0,0,0,identical
+study2,large_n_10000.csv.gz,,cv_n10000_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,large_n_10000.csv.gz,,cv_n10000_dgp2_lamgrid.csv,TRUE,2,,60,0,0,9.71445146547012e-17,,,0,0,9.71445146547012e-17,identical
+study2,large_n_5000.csv.gz,,cv_n5000_dgp2.csv.gz,TRUE,2,15,3240,1,0,2.01294580609579e-05,8.03559102829937e-06,0.00087562774411515,0,0,2.01294580609579e-05,last digits
+study2,large_n_5000.csv.gz,,cv_n5000_dgp2_lamgrid.csv,TRUE,2,,60,0,0,9.99200722162641e-16,,,0,0,9.99200722162641e-16,identical
+study2,misspecification.csv.gz,,cv_misspec_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,misspecification.csv.gz,,cv_misspec_dgp2_lamgrid.csv,TRUE,6,,180,0,0,0,,,0,0,0,identical
+study2,noise_by_overlap.csv.gz,,cv_noise_x_overlap_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,noise_by_overlap.csv.gz,,cv_noise_x_overlap_dgp2_lamgrid.csv,TRUE,28,,840,0,0,0,,,0,0,0,identical
+study2,noise.csv.gz,,cv_noise_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,noise.csv.gz,,cv_noise_dgp2_lamgrid.csv,TRUE,7,,210,0,0,0,,,0,0,0,identical
+study2,overlap.csv.gz,,cv_overlap_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,overlap.csv.gz,,cv_overlap_dgp2_lamgrid.csv,TRUE,6,,180,0,0,0,,,0,0,0,identical
+study2,penalty_by_overlap.csv.gz,,cv_alpha_x_overlap_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,penalty_by_overlap.csv.gz,,cv_alpha_x_overlap_dgp2_lamgrid.csv,TRUE,20,,600,0,0,0,,,0,0,0,identical
+study2,sample_size.csv.gz,,cv_n_dgp2.csv.gz,TRUE,2,15,3240,0,0,0,0,0,0,0,0,identical
+study2,sample_size.csv.gz,,cv_n_dgp2_lamgrid.csv,TRUE,16,,480,0,0,0,,,0,0,0,identical
+wc,wc_noise_s1_c1.rds,,wc_noise_s1_c1.rds,TRUE,1,15,15,,0,2.39922096618577e-12,1.11965218612505e-13,,0,0,2.39922096618577e-12,identical
+wc,wc_noise_s100_c4.rds,,wc_noise_s100_c4.rds,TRUE,1,15,15,,0,1.40628134042426e-09,0.000159039812675014,,0,0,0.000159039812675014,last digits

@@ -1,0 +1,259 @@
+
+== test_dgp.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | dgp                                                            
+⠋ |          1 | dgp                                                            
+⠏ |         10 | dgp                                                            
+⠹ |         23 | dgp                                                            
+⠇ |         39 | dgp                                                            
+⠋ |         41 | dgp                                                            
+⠹ |         43 | dgp                                                            
+⠼ |         45 | dgp                                                            
+⠦ |         47 | dgp                                                            
+⠇ |         49 | dgp                                                            
+⠋ |         51 | dgp                                                            
+⠹ |         53 | dgp                                                            
+⠼ |         55 | dgp                                                            
+⠦ |         57 | dgp                                                            
+⠇ |         59 | dgp                                                            
+⠋ |         61 | dgp                                                            
+⠹ |         63 | dgp                                                            
+⠼ |         65 | dgp                                                            
+⠦ |         67 | dgp                                                            
+⠇ |         69 | dgp                                                            
+⠋ |         71 | dgp                                                            
+⠹ |         73 | dgp                                                            
+⠼ |         75 | dgp                                                            
+⠦ |         77 | dgp                                                            
+⠇ |         79 | dgp                                                            
+⠋ |         81 | dgp                                                            
+⠹ |         83 | dgp                                                            
+⠼ |         85 | dgp                                                            
+⠦ |         87 | dgp                                                            
+⠇ |         89 | dgp                                                            
+⠋ |         91 | dgp                                                            
+⠹ |         93 | dgp                                                            
+⠼ |         95 | dgp                                                            
+⠦ |         97 | dgp                                                            
+⠇ |         99 | dgp                                                            
+⠋ |        101 | dgp                                                            
+⠹ |        103 | dgp                                                            
+⠼ |        105 | dgp                                                            
+⠦ |        107 | dgp                                                            
+⠇ |        109 | dgp                                                            
+⠹ |        113 | dgp                                                            
+⠧ |        118 | dgp                                                            
+⠹ |        133 | dgp                                                            
+⠧ |        148 | dgp                                                            
+⠧ |        158 | dgp                                                            
+⠏ |        160 | dgp                                                            
+⠦ |        167 | dgp                                                            
+⠦ |        177 | dgp                                                            
+⠹ |        183 | dgp                                                            
+⠧ |        188 | dgp                                                            
+⠙ |        192 | dgp                                                            
+✔ |        194 | dgp [16.4s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 16.5 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 194 ]
+
+== test_estimators.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | estimators                                                     
+⠋ |          1 | estimators                                                     
+⠹ |          3 | estimators                                                     
+⠼ |          5 | estimators                                                     
+⠦ |          7 | estimators                                                     
+⠇ |          9 | estimators                                                     
+⠹ |         13 | estimators                                                     
+⠴ |         16 | estimators                                                     
+⠏ |         20 | estimators                                                     
+✔ |         23 | estimators [22.8s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 22.8 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 23 ]
+
+== test_measures.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | measures                                                       
+⠋ |          1 | measures                                                       
+⠹ |         13 | measures                                                       
+⠼ |         25 | measures                                                       
+⠦ |         37 | measures                                                       
+⠇ |         49 | measures                                                       
+⠋ |         61 | measures                                                       
+⠹ |         73 | measures                                                       
+⠼ |         85 | measures                                                       
+⠦ |         97 | measures                                                       
+⠇ |        109 | measures                                                       
+⠋ |        121 | measures                                                       
+⠹ |        133 | measures                                                       
+⠼ |        145 | measures                                                       
+⠦ |        157 | measures                                                       
+⠇ |        169 | measures                                                       
+⠋ |        181 | measures                                                       
+⠹ |        193 | measures                                                       
+⠼ |        205 | measures                                                       
+⠦ |        217 | measures                                                       
+⠇ |        229 | measures                                                       
+⠋ |        241 | measures                                                       
+⠹ |        253 | measures                                                       
+⠼ |        265 | measures                                                       
+⠦ |        277 | measures                                                       
+⠇ |        289 | measures                                                       
+⠋ |        301 | measures                                                       
+⠹ |        313 | measures                                                       
+✔ |        326 | measures [48.2s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 48.2 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 326 ]
+
+== test_package.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | package                                                        
+⠸ |          4 | package                                                        
+✔ |         10 | package
+
+══ Results ═════════════════════════════════════════════════════════════════════
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 10 ]
+
+== test_runs.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | runs                                                           
+⠋ |          1 | runs                                                           
+⠹ |          3 | runs                                                           
+⠼ |          5 | runs                                                           
+⠦ |          7 | runs                                                           
+⠋ |         11 | runs                                                           
+⠹ |         13 | runs                                                           
+⠼ |         15 | runs                                                           
+⠦ |         17 | runs                                                           
+⠇ |         19 | runs                                                           
+⠋ |         21 | runs                                                           
+⠹ |         23 | runs                                                           
+⠼ |         25 | runs                                                           
+⠦ |         27 | runs                                                           
+⠇ |         29 | runs                                                           
+⠋ |         31 | runs                                                           
+⠹ |         33 | runs                                                           
+⠼ |         35 | runs                                                           
+⠦ |         37 | runs                                                           
+⠇ |         39 | runs                                                           
+⠋ |         41 | runs                                                           
+⠹ |         43 | runs                                                           
+⠼ |         45 | runs                                                           
+⠦ |         47 | runs                                                           
+⠇ |         49 | runs                                                           
+⠋ |         51 | runs                                                           
+⠙ |         52 | runs                                                           
+⠸ |         54 | runs                                                           
+⠴ |         56 | runs                                                           
+⠧ |         58 | runs                                                           
+⠋ |         61 | runs                                                           
+⠙ |         62 | runs                                                           
+⠼ |         65 | runs                                                           
+⠦ |         67 | runs                                                           
+⠧ |         68 | runs                                                           
+⠏ |         70 | runs                                                           
+⠙ |         72 | runs                                                           
+⠸ |         74 | runs                                                           
+⠴ |         76 | runs                                                           
+✔ |         77 | runs [187.3s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 187.3 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 77 ]
+
+== test_selectors.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | selectors                                                      
+⠋ |          1 | selectors                                                      
+⠙ |          2 | selectors                                                      
+⠦ |         27 | selectors                                                      
+✔ |         33 | selectors [13.2s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 13.2 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 33 ]
+
+== test_simulate.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | simulate                                                       
+⠹ |          3 | simulate                                                         rep 1 glmnetcv_hajek, largest difference to stored: 7.33e-15 (glmnet 5.1 here)
+
+⠼ |          5 | simulate                                                         rep 2 glmnetcv_hajek, largest difference to stored: 2.55e-15 (glmnet 5.1 here)
+
+⠦ |          7 | simulate                                                         rep 3 glmnetcv_hajek, largest difference to stored: 2.66e-15 (glmnet 5.1 here)
+cell 1 of 2: 0 failed, 0.0047 secs
+cell 2 of 2: 0 failed, 0.0025 secs
+cell 1/2: 0 failed, 0.3 secs
+cell 2/2: 0 failed, 0.28 secs
+
+⠇ |          9 | simulate                                                       cell 1 of 2: 0 failed, 0.0023 secs
+cell 2 of 2: 0 failed, 0.002 secs
+cell 1 of 1: 0 failed, 0.0035 secs
+cell 1 of 3: 0 failed, 0.0025 secs
+cell 2 of 3: 0 failed, 0.0026 secs
+cell 3 of 3: 0 failed, 0.0022 secs
+cell 1 of 2: 0 failed, 0.98 secs
+cell 2 of 2: 0 failed, 1.2 secs
+cell 1 of 1: 0 failed, 0.94 secs
+cell 1 of 1: 0 failed, 1.1 secs
+
+⠙ |         12 | simulate                                                       
+✔ |         12 | simulate [6.0s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 6.0 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 12 ]
+
+Your tests are divine!
+
+== test_study2_rules.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | study2_rules                                                   
+⠋ |          1 | study2_rules                                                   
+⠹ |         13 | study2_rules                                                   
+⠇ |         19 | study2_rules                                                   
+⠋ |         31 | study2_rules                                                   
+⠇ |         49 | study2_rules                                                   
+⠋ |         61 | study2_rules                                                   
+✔ |         71 | study2_rules
+
+══ Results ═════════════════════════════════════════════════════════════════════
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 71 ]
+
+== test_wong_chan.R ==
+✔ | F W  S  OK | Context
+
+⠏ |          0 | wong_chan                                                      
+⠦ |          7 | wong_chan                                                      
+⠧ |          8 | wong_chan                                                      
+⠏ |         10 | wong_chan                                                      
+⠼ |         15 | wong_chan                                                      
+⠴ |         16 | wong_chan                                                      
+✔ |         20 | wong_chan [11.7s]
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 11.7 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 20 ]
+
+9 test file(s), 0 failure(s) or error(s)

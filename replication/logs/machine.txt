@@ -1,0 +1,11 @@
+hw.model: Mac17,8
+machdep.cpu.brand_string: Apple M5 Pro
+hw.ncpu: 18
+hw.perflevel0.physicalcpu: 6
+hw.perflevel1.physicalcpu: 12
+hw.memsize: 25769803776
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+R: R version 4.6.1 (2026-06-24)
+parallel::detectCores(): 18

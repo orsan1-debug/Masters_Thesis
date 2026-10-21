@@ -1,0 +1,6 @@
+Loading required package: Matrix
+Loaded glmnet 5.1
+R R version 4.6.1 (2026-06-24) 
+balnet 0.0.4 
+glmnet 5.1 
+written replication/sessionInfo.txt

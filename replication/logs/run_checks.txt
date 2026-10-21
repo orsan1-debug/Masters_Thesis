@@ -1,0 +1,7 @@
+setup      ok                   1.8 secs
+tests      ok                   5.1 mins
+summaries  ok                   7.3 mins
+render     failed, status 1     25 secs
+manifest   ok                   16 secs
+Error: see replication/logs/ for the failed steps
+Execution halted

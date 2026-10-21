@@ -1,0 +1,53 @@
+display,page,chunk,qmd_line,summaries,results,runs
+Table 1,8,tbl-spec,223,design: typed in the qmd,,
+Table 2,9,tbl-grids,240,design: typed in the qmd,,
+Table 3,10,tbl-grids-s2,297,design: typed in the qmd,,
+Table 4,15,tbl-n-adv,528,n_both,aipw_correct_n400k_dgp2; aipw_add_correct_n400k_dgp2; aipw_misspec_n_dgp2; aipw_add_misspec_n_dgp2,study1 sample_size
+Figure 1,16,fig-n-refit,549,misspec_npath,aipw_full_misspec_nfine_dgp2; aipw_misspec_n_dgp2n1mill,study1 sample_size_path
+Figure 2,17,fig-n-misspec,566,misspec_npath,aipw_full_misspec_nfine_dgp2; aipw_misspec_n_dgp2n1mill,study1 sample_size_path
+Table 5,19,tbl-ov-adv,630,overlap,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Table 6,19,tbl-ov-adv-hi,647,overlap,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Table 7,20,tbl-ov-adv-lo,660,overlap,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Figure 3,20,fig-ov-adv,689,overlap,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Table 8,21,tbl-pn-adv,765,p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Figure 4,22,fig-pn-rmse,781,p_axis; app_p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Figure 5,23,fig-sp-change,824,sparsity,aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3; aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3,study1 denser
+Table 9,25,tbl-sig-adv,860,signal,aipw_correct_strength_dgp2; aipw_misspec_strength_dgp2,study1 outcome_signal
+Figure 6,26,fig-n-coverage,987,coverage_empse:n,aipw_correct_n400k_dgp2; aipw_misspec_n_dgp2; aipw_misspec_n_dgp2n1mill,study1 sample_size; study1 sample_size_path
+Table 10,27,tbl-s2-counts,1486,cv_overlap; cv_noise; cv_noise_x_overlap; cv_alpha_x_overlap; cv_n; cv_nbig; cv_p; cv_misspec; cv_sparsity; cv_sparsity_misspec,cv_overlap_dgp2; cv_noise_dgp2; cv_noise_x_overlap_dgp2; cv_alpha_x_overlap_dgp2; cv_n_dgp2; cv_n5000_dgp2; cv_n10000_dgp2; cv_p_dgp2; cv_misspec_dgp2; cv_sparsity_dgp3; cv_sparsity_misspec_dgp3,study2 overlap; study2 noise; study2 noise_by_overlap; study2 penalty_by_overlap; study2 sample_size; study2 large_n_5000; study2 large_n_10000; study2 dimension; study2 misspecification; study2 denser
+Figure 7,28,fig-s2-path,1498,cv_noise_x_overlap,cv_noise_x_overlap_dgp2,study2 noise_by_overlap
+Figure 8,29,fig-s2-lead,1514,cv_noise_x_overlap,cv_noise_x_overlap_dgp2,study2 noise_by_overlap
+Table 11,30,tbl-concl,1567,n_both; overlap; p_axis; sparsity; signal,aipw_correct_n400k_dgp2; aipw_add_correct_n400k_dgp2; aipw_misspec_n_dgp2; aipw_add_misspec_n_dgp2; aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2; aipw_correct_p_dgp2; aipw_misspec_p_dgp2; aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3; aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3; aipw_correct_strength_dgp2; aipw_misspec_strength_dgp2,study1 sample_size; study1 overlap; study1 dimension; study1 denser; study1 outcome_signal
+Appendix Table 1,38,atbl-q1-adv,1650,correct_n,aipw_correct_n400k_dgp2; aipw_add_correct_n400k_dgp2,study1 sample_size
+Appendix Table 2,38,atbl-app-n-diag-m-lin,1686,app_misspec_n,aipw_misspec_n_dgp2; aipw_add_misspec_n_dgp2,study1 sample_size
+Appendix Table 3,39,atbl-n-path,1700,misspec_npath,aipw_full_misspec_nfine_dgp2; aipw_misspec_n_dgp2n1mill,study1 sample_size_path
+Appendix Table 4,40,atbl-app-avg-n-m,1740,misspec_n,aipw_misspec_n_dgp2; aipw_add_misspec_n_dgp2,study1 sample_size
+Appendix Table 5,40,atbl-app-n-ref,1758,n_both,aipw_correct_n400k_dgp2; aipw_add_correct_n400k_dgp2; aipw_misspec_n_dgp2; aipw_add_misspec_n_dgp2,study1 sample_size
+Appendix Figure 1,41,afig-ov-levels,1787,design: drawn in the chunk from R/dgp.R,,
+Appendix Table 6,41,atbl-ov-levels,1863,"design: closed form, tests/test_dgp.R",,
+Appendix Table 7,41,atbl-app-ov-full-c,1906,app_overlap_full,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Appendix Table 8,42,atbl-app-ov-full-m,1919,app_overlap_full,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Appendix Figure 2,42,afig-ov-coverage,1932,coverage_empse:overlap,aipw_correct_overlap7_dgp2; aipw_correct_overlap8_dgp2; aipw_misspec_overlap7_dgp2; aipw_misspec_overlap8_dgp2,study1 overlap
+Appendix Figure 3,43,afig-app-nc,1974,nc,aipw_correct_n_by_overlap_dgp2; aipw_misspec_n_by_overlap_dgp2,study1 n_by_overlap
+Appendix Table 9,43,atbl-app-nc-full-m,1987,app_nc,aipw_correct_n_by_overlap_dgp2; aipw_misspec_n_by_overlap_dgp2,study1 n_by_overlap
+Appendix Table 10,44,atbl-app-nc-trunc,2001,nc,aipw_correct_n_by_overlap_dgp2; aipw_misspec_n_by_overlap_dgp2,study1 n_by_overlap
+Appendix Figure 4,45,afig-app-pn-bias,2028,app_p_axis; p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Appendix Table 11,45,atbl-app-pn-full-c,2040,app_p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Appendix Table 12,47,atbl-app-pn-full-m,2051,app_p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Appendix Table 13,48,atbl-app-pn-diag-c-lin,2064,app_p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Appendix Table 14,48,atbl-app-pn-diag-m-lin,2076,app_p_axis,aipw_correct_p_dgp2; aipw_misspec_p_dgp2,study1 dimension
+Appendix Table 15,49,atbl-app-sp-cells,2109,app_sparsity; app_sparsity_equi,aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3,study1 denser
+Appendix Table 16,49,atbl-app-sp-bound,2120,sparsity,aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3; aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3,study1 denser
+Appendix Table 17,50,atbl-app-sp-exact,2135,sparsity,aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3; aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3,study1 denser
+Appendix Table 18,50,atbl-app-sp-trunc,2155,sparsity,aipw_correct_sparsity_hd_dgp2; aipw_correct_sparsity_hd_equi_dgp3; aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3,study1 denser
+Appendix Table 19,51,atbl-app-sp-tan,2175,app_sparsity_tan,aipw_misspec_tanobs_sparsity_hd_dgp3; aipw_misspec_tanobs_sparsity_hd_equi_dgp3,study1 denser
+Appendix Table 20,52,atbl-app-sp-share,2187,"design: closed form, tests/test_dgp.R",,
+Appendix Table 21,52,atbl-app-sig-full-c,2223,app_signal,aipw_correct_strength_dgp2; aipw_misspec_strength_dgp2,study1 outcome_signal
+Appendix Table 22,53,atbl-app-sig-diag-c-lin,2236,app_signal,aipw_correct_strength_dgp2; aipw_misspec_strength_dgp2,study1 outcome_signal
+Appendix Figure 5,53,afig-sig-coverage,2252,coverage_empse:signal,aipw_correct_strength_dgp2; aipw_misspec_strength_dgp2,study1 outcome_signal
+Appendix Figure 6,54,afig-app-wc,2302,wc_compare,"wc_noise_s{1,10,30,100}_c{1,2,4}",wong_chan.R; study2 misspecification (twin)
+Appendix Table 23,54,atbl-app-wc,2313,wc_compare,"wc_noise_s{1,10,30,100}_c{1,2,4}",wong_chan.R; study2 misspecification (twin)
+Appendix Table 24,55,atbl-s2-selectors,2324,cv_overlap; cv_noise; cv_noise_x_overlap; cv_alpha_x_overlap; cv_n; cv_nbig; cv_p; cv_misspec; cv_sparsity; cv_sparsity_misspec,cv_overlap_dgp2; cv_noise_dgp2; cv_noise_x_overlap_dgp2; cv_alpha_x_overlap_dgp2; cv_n_dgp2; cv_n5000_dgp2; cv_n10000_dgp2; cv_p_dgp2; cv_misspec_dgp2; cv_sparsity_dgp3; cv_sparsity_misspec_dgp3,study2 overlap; study2 noise; study2 noise_by_overlap; study2 penalty_by_overlap; study2 sample_size; study2 large_n_5000; study2 large_n_10000; study2 dimension; study2 misspecification; study2 denser
+Appendix Table 25,55,atbl-s2-alpha,2335,cv_alpha_x_overlap,cv_alpha_x_overlap_dgp2,study2 penalty_by_overlap
+Appendix Figure 7,56,afig-s2-design,2346,cv_alpha_x_overlap; cv_n; cv_nbig; cv_p,cv_alpha_x_overlap_dgp2; cv_n_dgp2; cv_n5000_dgp2; cv_n10000_dgp2; cv_p_dgp2,study2 penalty_by_overlap; study2 sample_size; study2 large_n_5000; study2 large_n_10000; study2 dimension
+Appendix Figure 8,56,afig-s2-spec,2360,cv_noise_x_overlap; cv_misspec; cv_sparsity; cv_sparsity_misspec,cv_noise_x_overlap_dgp2; cv_misspec_dgp2; cv_sparsity_dgp3; cv_sparsity_misspec_dgp3,study2 noise_by_overlap; study2 misspecification; study2 denser
