@@ -32,7 +32,7 @@ if (run_arm("aipw_full_misspec_overlap7_dgp2.csv.gz", dgp_gen(TRUE), grid_1k,
               by = c("n", "overlap"))
 
 # n x overlap. 12 n levels (100-5000) x 13 overlap levels (0.01-1) 1000 reps
-# own streams so cells shared w/ the runs above only agree within MCSE
+# own streams so no draws are shared w/ the other runs
 n_lev   <- round(signif(exp(seq(log(100), log(5000), length.out = 12)), 2))
 ov_lev  <- signif(10^seq(-2, 0, by = 1 / 6), 3)
 grid_nc <- expand.grid(n = n_lev, overlap = ov_lev)

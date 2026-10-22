@@ -23,7 +23,7 @@ build_summaries <- function(ids = c(names(sections), names(appendix_sections),
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # build verify and store each section
-# 1 to 2 GB per section. ~6 min for the 8 sections + ~5 for the appendix entries (windows R 4.5)
+# 1 to 2 GB per section. ~6 min for the sections + ~5 for the appendix entries (windows R 4.5)
   for (id in ids) {
     message("Building ", id, " ...")
     started <- Sys.time()
@@ -55,7 +55,6 @@ build_summaries <- function(ids = c(names(sections), names(appendix_sections),
     }
     s$info$verified <- all(s$verify$ok[s$verify$level == "error"])
     saveRDS(s, file.path(out_dir, paste0(id, ".rds")))
-# nc (no pairs) and appendix and cv entries have no averages
     if (NROW(s$avg)) {
       readr::write_csv(s$avg, file.path(out_dir, paste0(id, "_averages.csv")))
     }

@@ -1,4 +1,4 @@
-# cv twin of the basic_dgp grids. lasso correct spec. overlap axis strength axis and both crossed
+# cv grids. lasso correct spec. overlap axis strength axis and both crossed
 # each strength is its own draw here (the other cv runs share one draw)
 library(balnet)
 library(glmnet)
@@ -9,7 +9,7 @@ source(here::here("R", "simulate.R"))
 source(here::here("runs", "cv", "our dgp", "path_floor.R"))
 source(here::here("runs", "cv", "our dgp", "cv_helpers.R"))
 stopifnot(packageVersion("glmnet") >= "5.0",
-          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # cv-experimental build
+          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # in balnet 0.0.4 from pkg/
 
 n_sim   <- as.integer(Sys.getenv("N_SIM", 2500))   # N_SIM = 5 for a smoke run
 out_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "our dgp",

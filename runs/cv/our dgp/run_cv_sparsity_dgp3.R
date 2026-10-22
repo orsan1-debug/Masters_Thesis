@@ -9,7 +9,7 @@ source(here::here("R", "simulate.R"))
 source(here::here("runs", "cv", "our dgp", "path_floor.R"))
 source(here::here("runs", "cv", "our dgp", "cv_helpers.R"))
 stopifnot(packageVersion("glmnet") >= "5.0",
-          "cv.boot.balnet" %in% getNamespaceExports("balnet"),  # cv-experimental build
+          "cv.boot.balnet" %in% getNamespaceExports("balnet"),  # in balnet 0.0.4 from pkg/
           exists("dgp3"))
 
 # mac time at N_SIM 2500 about 4-6 h
@@ -35,5 +35,6 @@ dgp3_cv <- function(cell)
 
 dgp_gen <- function(cell) share_strengths(dgp3_cv(cell))
 
+# cv_sparsity_misspec_dgp3 was this run w/ misspec = TRUE and misspec_form tan_obs in dgp3_cv()
 run_cv_grid(dgp_gen, grid, num_sim = n_sim, base_seed = 312,
             out_file = file.path(out_dir, "cv_sparsity_dgp3.csv.gz"))

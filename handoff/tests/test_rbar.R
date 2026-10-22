@@ -13,7 +13,7 @@ make_study <- function(m = 500, levels = 2, sd_A = 0.6, sd_B = 1, b_A = 0.05,
       u <- rho * z + sqrt(1 - rho^2) * rnorm(m)
       v <- rho * z + sqrt(1 - rho^2) * rnorm(m)
       eB <- b_B + sd_B * u
-      eA <- b_A + sd_A * (0.8 * u + 0.6 * v)         # corr(A B) = 0.8
+      eA <- b_A + sd_A * (0.8 * u + 0.6 * v)         # corr(A B) about 0.9 at rho 0.7
       out[[length(out) + 1]] <- tibble(
         spec = "correct", level = paste0("L", lv), sim = rep(seq_len(m), 2),
         outcome = o, estimator = rep(c("A", "B"), each = m),

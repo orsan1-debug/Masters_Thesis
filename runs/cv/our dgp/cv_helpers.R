@@ -1,10 +1,10 @@
 # shared steps of the cv run files in this folder
 # run file sources R/dgp.R estimators_ipw.R estimators_cv_dgp2.R simulate.R path_floor.R first
 
-#' outcome strengths of the cv grids. halving from 1 as in runs/ipw/SNR.R then 0
+#' outcome strengths of the cv grids. halving from 1 then 0
 cv_strengths <- c(1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0)
 
-#' one dgp2() draw for the cv runs. same setup as runs/aipw/aipw_overlap.R
+#' one dgp2() draw for the cv runs. same setup as runs/aipw/overlap_axis.R
 #' misspec = analyst sees Kang-Schafer transforms of the 4 ps covs. Y and m still from X_true
 dgp2_cv <- function(overlap, n = 1000, p = 50, misspec = FALSE, strength = 1)
   dgp2(n = n, p = p, s = 4, signs = "pos",

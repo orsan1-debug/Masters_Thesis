@@ -22,7 +22,7 @@ arms_tol <- tol_arm(setdiff(tol_exponents, 4))               # tolerance run
 
 # pairs. estimator A vs comparator B
 
-# correct spec table (tbl-q1-adv)
+# correct spec table (atbl-q1-adv)
 pairs_main <- tribble(
   ~A,                   ~B,
   "balnet0",            "glmnetcv_hajek",
@@ -33,7 +33,7 @@ pairs_main <- tribble(
   "abw_balnet0_ortrue", "aipw_glmnetcv_ortrue"
 )
 
-# ABW-balnet vs each comparator (tbl-n-abw-m)
+# ABW-balnet vs each comparator
 pairs_abw <- tribble(
   ~A,            ~B,
   "abw_balnet0", "balnet0",
@@ -52,7 +52,7 @@ pairs_s1 <- tribble(
   "abw_balnet0", "aipw_glmnetcv"
 )
 
-# sparsity regime table (tbl-sp-regimes) in its column order
+# sparsity regime table in its column order
 pairs_sp <- tribble(
   ~A,            ~B,
   "balnet0",     "glmnetcv_hajek",
@@ -60,7 +60,7 @@ pairs_sp <- tribble(
   "abw_balnet0", "aipw_glmnetcv"
 )
 
-# balnet at every path endpoint vs OLS (tbl-app-tol)
+# balnet at every path endpoint vs OLS
 pairs_tol <- tibble(A = tol_arm(tol_exponents), B = "ols")
 
 # section helpers
@@ -91,7 +91,7 @@ l1_norm <- function(s, nu, covcor) {
   sum(a) / sqrt(drop(t(a) %*% sigma %*% a))
 }
 
-#' IPW-balnet linear bias as pct of the imbalance bound (path ends x l1 norm) (tbl-app-sp-bound)
+#' IPW-balnet linear bias as pct of the imbalance bound (path ends x l1 norm) (atbl-app-sp-bound)
 #' correct score p/n >= 0.5 only. lam_end rows hold the logged value as error since tau = 0
 sparsity_bound <- function(res) {
   res |>
@@ -108,7 +108,7 @@ sparsity_bound <- function(res) {
                   pct_mcse = 100 * mcse / (lam * norm))
 }
 
-#' share of reps where a balnet path truncates per n c and spec (fig-overlap-nc-*)
+#' share of reps where a balnet path truncates per n c and spec
 #' truncates = either arm ends above the 1e-4 target (> 1.01e-4 as ov-nc-data)
 nc_truncation <- function(res) {
   res |>
@@ -214,7 +214,7 @@ sparsity_cost_sets <- c(
 
 sections <- list(
 
-  # correct spec (tbl-q1-adv fig-q1-adv tbl-q1 tbl-q1-ols)
+  # correct spec (atbl-q1-adv)
   correct_n = list(
     title = "Correct specification, n = 500 to 400k",
     files = list(correct = list(
@@ -224,12 +224,12 @@ sections <- list(
     check_arm = "oracle_hajek",
     pairs = pairs_main, reps = 1e4, x = "n",
     sets = list(
-      # drops n = 400k where glmnet jumps (appendix B)
+      # drops n = 400k where glmnet jumps
       to_200k = list(keep = \(d) d$n <= 2e5)
     )
   ),
 
-  # misspec (tbl-n-abw-m fig-n-abw-m)
+  # misspec
   misspec_n = list(
     title = "Misspecified propensity score, n = 500 to 50k",
     files = list(misspec = list(
@@ -298,7 +298,7 @@ sections <- list(
     )
   ),
 
-  # overlap n x c grid (fig-overlap-nc-200 -840 -5000)
+  # overlap n x c grid
   nc = list(
     title = "n x c grid, n = 100 to 5000, c = 0.01 to 1, 1000 replications",
     files = list(
@@ -312,7 +312,7 @@ sections <- list(
     extra = list(trunc = nc_truncation)
   ),
 
-  # high dim p/n grid (tbl-pn-adv fig-p-adv)
+  # high dim p/n grid (tbl-pn-adv)
   p_axis = list(
     title = "p/n = 0.05 to 4, n = 500 and 1000, s = 4",
     # path ends too. sparsity grid s = 4 nu = 1 iid cells share this grid's ps (path_ends())
@@ -331,8 +331,7 @@ sections <- list(
     extra = list(path_ends = path_ends)
   ),
 
-  # noise covariates and denser profile (tbl-sp-regimes fig-sp-adv tbl-sp-adv tbl-app-sp-bound)
-  # also tbl-app-avg-sp-s -exact -trunc
+  # noise covariates and denser profile (atbl-app-sp-bound)
   sparsity = list(
     title = "Sparsity and correlation, correct score and Tan's transformation",
     # equi has its own 34 cell grid w/ dgp3 (dgp2 + equi cov). misspec = Tan's transform of obs X
@@ -359,7 +358,7 @@ sections <- list(
            truncated_all = list(keep = sparsity_regimes$truncated$keep)),
       # within each cov structure since trends differ (balnet lead narrows w/ s under equi)
       within_covcor(sparsity_regimes$exact_s, "exact_s"),
-      # all cells one avg per cov structure. for the text only and no table shows it
+      # all cells one avg per cov structure. no display reads it
       list(by_corr = list(by = "corr")),
       within_covcor(sparsity_regimes$exact, "exact"),
       within_covcor(sparsity_regimes$truncated, "truncated")
@@ -373,7 +372,7 @@ sections <- list(
     cost = list(arms = cost_arms, sets = sparsity_cost_sets)  # verify.R recomputes cost from these
   ),
 
-  # outcome signal (tbl-sig-adv -weak -strong fig-sig-adv)
+  # outcome signal (tbl-sig-adv)
   signal = list(
     title = "Outcome signal strength 0.02 to 1, n = 1000",
     files = list(
@@ -385,13 +384,13 @@ sections <- list(
     pairs = pairs_s1, reps = 1e4, x = "strength",
     # split at kappa 0.1 vs 0.2 where balnet rank vs the modelling ests flips (correct spec)
     sets = list(
-      weak = list(keep = \(d) d$strength <= 0.1),    # tbl-sig-adv-weak
-      strong = list(keep = \(d) d$strength >= 0.2),  # tbl-sig-adv-strong
-      by_kappa = list(by = "strength")              # tbl-app-avg-bykappa-*
+      weak = list(keep = \(d) d$strength <= 0.1),
+      strong = list(keep = \(d) d$strength >= 0.2),
+      by_kappa = list(by = "strength")
     )
   ),
 
-  # appendix H treated share (tbl-ts-adv)
+  # treated share. stored but no display reads it
   treat_share = list(
     title = "Treated share, n = 1000 and 10 000",
     files = list(
@@ -403,8 +402,8 @@ sections <- list(
     pairs = pairs_s1, reps = 1e4, x = "treat_prop", by = "n"
   ),
 
-  # appendix 2 IPW-balnet at endpoints 1e-2 to 1e-7 vs OLS (tbl-app-tol). 1e-4 is correct_n balnet0
-  # tol run (runs/aipw/aipw_tol_dgp2.R) stops at 50k. the 3 files share draws by n and sim to there
+  # IPW-balnet at endpoints 1e-2 to 1e-7 vs OLS. 1e-4 is correct_n balnet0. no display reads it
+  # tol run (runs/aipw/n_axis.R) stops at 50k. the 3 files share draws by n and sim to there
   tol_n = list(
     title = "Path endpoints 1e-2 to 1e-7, correct specification, n = 500 to 50k",
     files = list(correct = list(
@@ -419,7 +418,7 @@ sections <- list(
 )
 
 # appendix tables. same fields as sections plus dir full diag approx simple display
-# full$B = MAE bootstrap resamples (0 = no MAE MCSE). seed restarts per spec like run_perf() did
+# full$B = MAE bootstrap resamples (0 = no MAE MCSE). seed restarts per spec
 
 # diag rows logged by estimate_all() in R/estimators_ipw.R. weight sets balnet glmnet true
 arms_diag <- c(
@@ -435,8 +434,7 @@ spec_names <- c(correct = "Correct specification",
 
 appendix_sections <- list(
 
-  # appendix misspec (tbl-app-n-perf-m-* tbl-app-n-diag-m-*
-  # tbl-apx-bias-n-m tbl-apx-bias-n-m-avg)
+  # appendix misspec
   app_misspec_n = list(
     title = "Appendix: misspecified propensity score, n = 500 to 50k",
     files = sections$misspec_n$files,
@@ -510,7 +508,7 @@ appendix_sections <- list(
                    spec = spec_names["misspec"])
   ),
 
-  # appendix n x c grid (app-nc-perf). no MAE so no bootstrap
+  # appendix n x c grid (app-nc). no MAE so no bootstrap
   app_nc = list(
     title = "Appendix: n x c grid, both specifications",
     files = list(
@@ -524,7 +522,7 @@ appendix_sections <- list(
                    x_name = "c", spec = spec_names)
   ),
 
-  # appendix 1 IPW-balnet to 800k (tbl-balnet-n800k). old run runs/ipw/correctspec_dgp2_n800k.R
+  # IPW-balnet to 800k from the earlier IPW study. stored but no display reads it
   # seeds 202 (n <= 200k) 203 (400k) 204 (800k). linear and quad1 only. not paired w/ correct_n
   app_ipw_800k = list(
     title = "Appendix: IPW-balnet to n = 800 000 (IPW-set run)",
@@ -541,7 +539,7 @@ appendix_sections <- list(
                    x_name = "n", spec = spec_names["correct"])
   ),
 
-  # appendix A correct spec (tbl-app-q1-full-* tbl-app-q1-diag-* tbl-q1-approx tbl-q1-approx-avg)
+  # correct spec full tables. stored but no display reads it
   # OLS and the other add-on arms from the add-on file on correct_n draws (paired there)
   app_correct_n = list(
     title = "Appendix: correct specification, n = 500 to 400k",
@@ -554,8 +552,8 @@ appendix_sections <- list(
                    x_name = "n", spec = spec_names["correct"])
   ),
 
-  # appendix approx bias ABW-balnet vs OLS n = 1000 (tbl-apx-bias-ov-*). OLS from add-on runs
-  # (runs/aipw/aipw_addon_dgp2.R). different files so check_arm must match or nothing is stored
+  # approx bias ABW-balnet vs OLS n = 1000. OLS from the overlap7 diag and full runs
+  # different files so check_arm must match or nothing is stored. no display reads it
   app_overlap = list(
     title = "Appendix: overlap c = 0.05 to 2, n = 1000",
     files = list(
@@ -571,7 +569,7 @@ appendix_sections <- list(
                    x_name = "c", spec = spec_names)
   ),
 
-  # appendix C overlap full perf and diag minus Oracle (HT) (tbl-app-ov-full-* tbl-app-ov-diag-*)
+  # appendix C overlap full perf and diag minus Oracle (HT) (atbl-app-ov-full-*)
   # overlap section files log the diagnostics too
   app_overlap_full = list(
     title = "Appendix: overlap c = 0.05 to 2, n = 1000 and 10 000",
@@ -584,7 +582,7 @@ appendix_sections <- list(
                    spec = spec_names)
   ),
 
-  # appendix G signal full perf and diag minus Oracle (HT) (tbl-app-sig-full-* tbl-app-sig-diag-*)
+  # appendix G signal full perf and diag minus Oracle (HT) (atbl-app-sig-full-* atbl-app-sig-diag-*)
   # signal section files log the diagnostics too
   app_signal = list(
     title = "Appendix: outcome signal strength 0.02 to 1, n = 1000",
@@ -597,7 +595,7 @@ appendix_sections <- list(
                    spec = spec_names)
   ),
 
-  # appendix approx bias on the p/n grid (tbl-apx-bias-pn-*). OLS from diag twins on same draws
+  # approx bias on the p/n grid. OLS from diag twins on same draws. no display reads it
   # OLS is NA once p + 1 > the smaller arm (p/n >= 0.5) so those cells are left out
   app_p_approx = list(
     title = "Appendix: approximation bias, p/n = 0.05 to 4, n = 500 and 1000",
@@ -615,7 +613,7 @@ appendix_sections <- list(
                    x_name = "p/n", by_fmt = "n = %s", spec = spec_names)
   ),
 
-  # appendix approx bias fine n grid misspec 250 to 200k 29 levels (tbl-apx-bias-nfine-m*)
+  # approx bias fine n grid misspec 250 to 200k 29 levels. no display reads it
   # both arms in one 546 MB file so build this entry on the PC
   app_misspec_nfine = list(
     title = "Appendix: misspecified propensity score, fine n grid to 200k",

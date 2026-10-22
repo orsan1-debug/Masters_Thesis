@@ -1,5 +1,5 @@
 # ATE estimators and per draw estimate fns for runs/aipw
-# p. refs are PDF pages of the project copy. balnet docs = balnet 0.0.4 package reference
+# p. refs are pdf pages. balnet docs = balnet 0.0.4 package reference
 
 # ATE estimators
 

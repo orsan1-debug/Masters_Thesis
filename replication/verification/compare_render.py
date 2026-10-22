@@ -16,7 +16,7 @@ caption = re.compile(r"^(Appendix )?(Table|Figure) (\d+)[:.]")
 def lines(pdf):
     """page and line for every line but the page numbers. blank lines kept as empty strings"""
     text = subprocess.run(["pdftotext", "-layout", "-enc", "UTF-8", pdf, "-"], capture_output=True,
-                          text=True, check=True).stdout
+                          text=True, encoding="utf-8", check=True).stdout
     out = []
     for page, page_text in enumerate(text.split("\f"), start=1):
         for line in unicodedata.normalize("NFKC", page_text).translate(dashes).splitlines():
@@ -93,7 +93,7 @@ def words(pdf):
     """words of each page in reading order. words split at a line end are joined and hyphens
     between letters dropped so a word reads the same wherever the line breaks"""
     text = subprocess.run(["pdftotext", "-enc", "UTF-8", pdf, "-"], capture_output=True,
-                          text=True, check=True).stdout
+                          text=True, encoding="utf-8", check=True).stdout
     pages = []
     for page_text in text.split("\f")[:-1]:
         joined = []

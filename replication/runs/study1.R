@@ -92,6 +92,6 @@ run_study1_grid <- function(name) {
            stream_block = g$replications, cells = cells_to_run(g$cells))
 }
 
-# only runs under Rscript. smoke_test.R and tests/test_runs.R source it for grids
+# only runs under Rscript. main.R smoke_test.R and the tests source it for grids
 if (sys.nframe() == 0L)
   for (name in grep(Sys.getenv("GRIDS", "."), names(grids), value = TRUE)) run_study1_grid(name)

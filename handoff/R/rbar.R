@@ -1,4 +1,4 @@
-# Study 1 performance measures (thesis Performance measures) and averages over cells.
+# performance measures (thesis Performance measures) and averages over cells.
 # only place they get computed. build.R stores them verify.R rechecks separately thesis.R reads
 
 library(dplyr)
@@ -89,7 +89,7 @@ pair_cell_measures <- function(draws) {
       rmse_B = sqrt(mean(e_B^2)),
       R_c = rmse_A / rmse_B,
       log_R_c_mcse = sd(influence_log_R) / sqrt(reps),
-      # paired RMSE diff for tbl-q1-ols. IF of an RMSE is e_r^2 / (2 RMSE)
+      # paired RMSE diff. IF of an RMSE is e_r^2 / (2 RMSE)
       rmse_diff = rmse_A - rmse_B,
       rmse_diff_mcse = sd(e_A^2 / (2 * rmse_A) - e_B^2 / (2 * rmse_B)) /
         sqrt(reps),

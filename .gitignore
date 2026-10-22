@@ -1,14 +1,8 @@
 # raw results (7 GB) not in the repo. from the author on request
 results/
 
-# reruns from main.R
+# what main.R writes
 output/rerun/
-
-# superseded code nothing sources
-R/adv-helpers.R
-R/packages.R
-R/plots.R
-R/summarise.R
 
 # session and editor files
 .Rhistory

@@ -1,4 +1,4 @@
-# checks packages and installs balnet 0.0.4 from pkg/ if needed. writes replication/sessionInfo.txt
+# checks packages and installs balnet 0.0.4 from pkg/ if needed. writes sessionInfo.txt
 #   Rscript replication/00_setup.R   the render also needs Quarto XeLaTeX and Times New Roman
 
 # R.utils lets fread read .csv.gz. ggh4x knitr rmarkdown for the render. readr to rebuild summaries
@@ -18,11 +18,12 @@ if (!requireNamespace("balnet", quietly = TRUE) ||
 library(balnet); library(glmnet)
 invisible(lapply(needed, loadNamespace))   # load all so sessionInfo records their versions
 # stored results used R 4.5.2 (win) and 4.6.1 (mac) w/ balnet 0.0.4 and glmnet 5.0
-# wc cells used glmnet 4.1.10. glmnet 4.1.8 gave the stored glmnet est to 1e-13 (smoke_test.R)
-cat("R", R.version.string, "\nbalnet", as.character(packageVersion("balnet")),
+# wc cells used glmnet 4.1.10
+cat(R.version.string, "\nbalnet", as.character(packageVersion("balnet")),
     "\nglmnet", as.character(packageVersion("glmnet")), "\n")
+# main.R sets OUT_DIR so the stored sessionInfo.txt stays
+info <- file.path(Sys.getenv("OUT_DIR", here::here("replication")), "sessionInfo.txt")
 writeLines(c(capture.output(sessionInfo()),
              paste("balnet:", packageVersion("balnet")),
-             paste("glmnet:", packageVersion("glmnet"))),
-           here::here("replication", "sessionInfo.txt"))
-cat("written replication/sessionInfo.txt\n")
+             paste("glmnet:", packageVersion("glmnet"))), info)
+cat("written", info, "\n")

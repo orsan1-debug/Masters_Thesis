@@ -8,8 +8,9 @@ University, 2026).
 ## Quick start
 
 Open the `.Rproj`, then `Rscript main.R` from the project root. It installs the
-packages, runs the tests and renders the thesis from the stored summaries. About 10
-minutes, no raw results needed. The options at its top set the replications for reruns.
+packages, runs the tests and renders the thesis from the stored summaries to
+`output/rerun/`. About 10 minutes, no raw results needed. The options at its top set
+the replications for reruns.
 
 ## Data availability
 
@@ -27,7 +28,7 @@ main.R                    the master file. reps and steps set at its top
 _quarto.yml, .here        the Quarto project and the root for here::here()
 *.Rproj                   the RStudio project. open this first
 .gitattributes            keeps every file byte for byte, so the manifest's md5 sums hold
-.gitignore                keeps results/, session files and superseded code out
+.gitignore                keeps results/, reruns and session files out
 R/, runs/, handoff/       the code that ran, kept as the record
 output/thesis_summaries/  the stored summaries the thesis reads
 output/rendered/thesis/   the submitted PDF
@@ -77,7 +78,7 @@ names.
 
 ## Three ways to reproduce
 
-`main.R` runs these in order and prints the replications each grid used.
+`main.R` runs these and prints the replications each grid used.
 
 The thesis (`thesis/AAAAA Working Thesis.qmd`) renders from stored summaries in
 `output/thesis_summaries/`, built from the raw results by
@@ -102,9 +103,9 @@ reads a raw results file.
    `replication/RESULTS_INDEX.md`.
    Each grid writes one file to `results/study1/` or `results/study2/`, and
    `replication/RESULTS_INDEX.md` lists the stored files each one reproduces. A smoke
-   run of a few replications (`N_SIM=2 OUT_DIR=<folder>`) pairs with the stored files
-   replication by replication. The `VAR=value Rscript` forms need a POSIX shell, such
-   as Git Bash on Windows.
+   run of a few replications (`N_SIM=2 CELLS=ends MAX_N=50000 OUT_DIR=<folder>`) pairs
+   with the stored files replication by replication. The `VAR=value Rscript` forms need
+   a POSIX shell, such as Git Bash on Windows.
 
 ## Requirements
 
@@ -131,7 +132,7 @@ The last checks ran with these versions. The full list is in
 ## Checks
 
 ```
-Rscript main.R                             # setup tests summaries render and reruns. options at its top
+Rscript main.R                             # setup tests summaries reruns and render. options at its top
 Rscript replication/run_checks.R           # the next five in turn, needs results/
 Rscript replication/00_setup.R
 Rscript replication/tests/run_tests.R      # about 5 minutes

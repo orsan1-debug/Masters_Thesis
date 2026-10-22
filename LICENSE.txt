@@ -4,7 +4,7 @@ Replication package for Balancing weights against maximum likelihood propensity 
 a simulation study of balnet across sample size, overlap, dimension and penalty choice
 (Otis Sandford, ETC5860 Masters thesis, Monash University, 2026).
 
-Code. Everything in replication/, R/, runs/ and handoff/, and _quarto.yml, is released
+Code. main.R, _quarto.yml and everything in replication/, R/, runs/ and handoff/ is released
 under the BSD 3-Clause License below, except the render of the thesis named under Thesis.
 
 Results. The stored summaries (output/thesis_summaries/) and the raw results (available

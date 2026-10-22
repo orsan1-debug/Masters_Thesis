@@ -55,7 +55,7 @@ estimate_with_mcse <- function(est, se, digits, small = html_type()) {
 
 # full performance
 
-#' full perf table for one spec (tbl-app-n-perf-m-* app-pn app-nc)
+#' full perf table for one spec (app-pn app-nc)
 #' dash = arm misses over 1% of its estimates in that cell
 table_full <- function(s, spec = s$info$specs[1], outcome = NULL, keep = NULL,
                        arms = NULL, stack = FALSE, mcse = c("cell", "note"),
@@ -335,7 +335,7 @@ note_truncation <- function(trunc, cells, keys, key_names,
 
 # fit diagnostics
 
-#' fit diagnostics for one spec. median (quartiles) per cell (tbl-app-n-diag-m-* app-pn app-sp)
+#' fit diagnostics for one spec. median (quartiles) per cell (atbl-app-n-diag-m-lin app-pn app-sp)
 #' balnet nnz goes in the note when its median is the same in every cell
 table_diagnostics <- function(s, spec = s$info$specs[1], outcome = NULL,
                               keep = NULL, stack = FALSE, times = TRUE,
@@ -542,7 +542,7 @@ table_diagnostics <- function(s, spec = s$info$specs[1], outcome = NULL,
 # path truncation on the n x c grid
 
 #' per cent of reps whose balnet path truncates (an arm ends above 1.01e-4) per n x c cell
-#' MCSE at most 1.6 points at m = 1000 so whole per cents (tbl-app-nc-trunc)
+#' MCSE at most 1.6 points at m = 1000 so whole per cents (atbl-app-nc-trunc)
 table_nc_trunc <- function(s, digits = 0, note = NULL, font = font_serif) {
   m <- s$info$reps
   tr <- s$extra$trunc |>
@@ -574,7 +574,7 @@ table_nc_trunc <- function(s, digits = 0, note = NULL, font = font_serif) {
     ), collapse = " ")))
 }
 
-# Wong-Chan vs DGP 2 for study 2. balnet only. stored entry wc_compare from cv.R sec 6
+# Wong-Chan vs DGP 2 for study 2. balnet only. stored entry wc_compare from cv.R
 # matched on the true ps logit SD and R2_e (share of control outcome var the true ps explains)
 
 wc_series_labs <- c(dgp2 = "DGP 2, misspecified grid",

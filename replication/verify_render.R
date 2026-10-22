@@ -1,4 +1,4 @@
-# renders the thesis from the stored summaries in a temp copy so nothing here is overwritten
+# renders the thesis in a temp copy from the stored summaries. output to OUT_DIR or verification/
 #   Rscript replication/verify_render.R   a few min. needs Quarto and XeLaTeX. reads no results/
 
 root  <- here::here()
@@ -25,7 +25,7 @@ started <- Sys.time()
 log <- withr::with_dir(copy, withr::with_envvar(c(QUARTO_R = R.home("bin")),
   suppressWarnings(system2(quarto, c("render", shQuote(qmd), "--to", "pdf", "-M", "keep-tex:true"),
                            stdout = TRUE, stderr = TRUE))))
-out <- here::here("replication", "verification")
+out <- Sys.getenv("OUT_DIR", here::here("replication", "verification"))
 dir.create(file.path(out, "render_tex"), recursive = TRUE, showWarnings = FALSE)
 writeLines(log, file.path(out, "render_log.txt"))
 # keep the tex and figures in render_tex/ so the PDF can be built elsewhere w/ xelatex
@@ -33,12 +33,9 @@ tex <- list.files(file.path(copy, "thesis"), "\\.tex$|_files$", full.names = TRU
 invisible(file.copy(tex, file.path(out, "render_tex"), recursive = TRUE, overwrite = TRUE))
 pdf <- file.path(copy, "thesis", c("AAAAA-Working-Thesis.pdf", "AAAAA Working Thesis.pdf"))
 pdf <- pdf[file.exists(pdf)][1]
-if (is.na(pdf)) stop("no PDF, see replication/verification/render_log.txt")
+if (is.na(pdf)) stop("no PDF, see ", file.path(out, "render_log.txt"))
 invisible(file.copy(pdf, file.path(out, "thesis_render.pdf"), overwrite = TRUE, copy.mode = FALSE))
 
 # verification/compare_render.py then compares this PDF w/ the stored one
-reference <- here::here("output", "rendered", "thesis", "AAAAA-Working-Thesis.pdf")
 cat("Quarto", system2(quarto, "--version", stdout = TRUE),
-    "\nrendered in", format(Sys.time() - started, digits = 2),
-    "\nmd5 render   ", unname(tools::md5sum(file.path(out, "thesis_render.pdf"))),
-    "\nmd5 reference", unname(tools::md5sum(reference)), "\n")
+    "\nrendered in", format(Sys.time() - started, digits = 2), "\n")

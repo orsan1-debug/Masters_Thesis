@@ -1,5 +1,5 @@
-# CV twin of the basic_dgp selector grids on dgp2's overlap and strength axes. IPW-balnet and ABW
-# needs the cv-experimental balnet build (cv.boot.balnet) + glmnet + R/estimators_ipw.R
+# CV selector grids on dgp2's overlap and strength axes. IPW-balnet and ABW
+# needs balnet 0.0.4 from pkg/ (cv.boot.balnet) + glmnet + R/estimators_ipw.R
 
 #' lambda grid per cell from a pilot draw. log spaced to its path end + 1 pt below every path end
 #' that last pt clamps each rep to its own path end so the last path row = the fixed arm

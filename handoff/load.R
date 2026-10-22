@@ -1,5 +1,5 @@
 # the thesis sources this. attaches sections.R thesis.R thesis_appendix.R as env thesis_api
-# its fns look there first so sourced helper files can't overwrite them. reads stored summaries
+# its fns look there first so sourced helper files can't overwrite them
 
 local({
   # packages first so they sit below the api on the search path. later ones can't mask them

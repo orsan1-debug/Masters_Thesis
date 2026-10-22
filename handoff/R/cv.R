@@ -13,7 +13,7 @@ cv_selectors <- c("cv.bloss", "cv.smd", "cv.inf", "boot.smd", "boot.inf")
 cv_outcomes <- c("linear", "quad1", "exp")
 cv_path_k <- 30   # points on each cell's lambda grid. path_30 is the end
 # interior optimum = path min below this share of the path end rmse
-# stored `interior` col keeps the 8 Oct rule (gain_floor > 0.05) to check against those files
+# stored `interior` col keeps the 8 Oct rule (gain_floor > 0.05)
 cv_interior_at <- 0.95
 
 # per run files (in results/cv/our dgp) ps spec and reps. merge = fold runs that only add cv rows
@@ -238,7 +238,7 @@ cv_against_end <- function(long, choice, end) {
               log2_R = log2(R_c), log2_R_mcse = log_R_c_mcse / log(2))
 }
 
-#' cells table of one est. rules of the 8 Oct summaries (output/cv/our dgp/r2500/summaries)
+#' cells table of one est. rules of the 8 Oct summaries
 #' path min is over the whole grid incl the end so gain_floor is never negative
 cv_cells_est <- function(perf, long, e, selectors = cv_selectors) {
   p <- filter(perf, est == e)

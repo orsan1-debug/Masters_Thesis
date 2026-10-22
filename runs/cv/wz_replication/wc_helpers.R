@@ -51,7 +51,7 @@ wc_att_g <- function(Y, W) {
 }
 
 #' one rep. balnet ATT weights gamma = w - 1 = e / (1 - e) (balnet Remark 2) plus MLE arms
-#' MLE fits after all balnet rng draws. clip caps e at 1 - 1e-6 (run_wc_overlap.R predates it)
+#' MLE fits after all balnet rng draws. clip caps e at 1 - 1e-6
 wc_estimate <- function(d, X, lam, grid, clip = TRUE) {
   W     <- d$W
   r     <- wc_fit_rules(X, W, grid)

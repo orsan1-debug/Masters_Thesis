@@ -1,4 +1,4 @@
-# study 1 tables and figs from the verified summaries in output/thesis_summaries/
+# tables and figs from the verified summaries in output/thesis_summaries/
 # nothing computed from results/ here (rbar.R does at build). load via handoff/load.R (own env)
 
 library(dplyr)
@@ -44,7 +44,7 @@ fmt_dot <- function(x) sub("^0\\.", ".", format_plain(x))
 #' n in thousands for an axis titled n (thousands)
 format_thousands <- function(x) as.character(x / 1000)
 
-#' n as 500 1k ... 400k like n_relabel() in the qmd
+#' n as 500 1k ... 400k
 format_k <- function(x) {
   ifelse(x >= 1000, paste0(x / 1000, "k"), format_plain(x))
 }
@@ -141,7 +141,7 @@ read_summary <- function(id) {
 # tables of averages
 # A = estimator B = comparator. R_c = RMSE_A / RMSE_B and Rbar = 100 {1 - exp(mean log R_c)}
 
-#' Rbar(Theta) by outcome and sbar_m(Theta) of A and B. one row per pair (tbl-q1-adv etc)
+#' Rbar(Theta) by outcome and sbar_m(Theta) of A and B. one row per pair (atbl-q1-adv etc)
 table_avg <- function(s, set = "all", blocks = NULL, pairs = NULL,
                       note = NULL, cell_counts = TRUE, title = NULL,
                       by_outcome = TRUE, shares = TRUE,
@@ -257,7 +257,7 @@ note_dropped <- function(pooled, theta = "pair") {
         "the pair's averages skip them.")
 }
 
-#' Rbar per pair and sbar of one pair at each level of some by-sets (tbl-sp-regimes)
+#' Rbar per pair and sbar of one pair at each level of some by-sets
 table_sets <- function(s, sets, pairs, share_pair = pairs[1, ],
                        factor_labs = NULL, block = s$info$specs[1],
                        note = NULL, theta = c("pair", "common"),
@@ -588,7 +588,7 @@ heat_panel_share <- function(shares, arm_levels, n_rows, by, by_fmt, title,
     theme_heat(n_rows, family, base_size, bar_per_row = 0.11)
 }
 
-#' per cell heat maps (fig-q1-adv etc). (a) 100(1 - R_c) per pair (b) share of bias per estimator
+#' per cell heat maps. (a) 100(1 - R_c) per pair (b) share of bias per estimator
 #' 2 specs = a row of panels each on one colour scale so they compare tile by tile
 heat_cells <- function(s, x = s$info$x, blocks = NULL, pairs = NULL,
                        keep = NULL, by = NULL, arms = NULL, x_lab = NULL,
@@ -791,7 +791,7 @@ heat_share_avg <- function(s, set, x, blocks = c("correct", "misspec"),
   )
 }
 
-# n x c grid. RMSE vs overlap (fig-overlap-nc)
+# n x c grid. RMSE vs overlap (afig-app-nc)
 
 # legend order. same marks as the strip figs so an estimator looks the same in every line fig
 nc_arms <- c("balnet0", "abw_balnet0", "glmnetcv_hajek", "aipw_glmnetcv")
@@ -886,15 +886,6 @@ nc_mcse <- function(s, n_sl) {
 
 # paths along one design factor. RMSE and |bias| (fig-n-misspec)
 
-# balancing wts blue (ABW dark balnet light). glmnet ones warm. HT light (faded)
-# all pairs pass a CVD check (Delta E >= 8 OKLab x 100) but balnet vs AIPW-glmnet (line types)
-npath_pal <- c(balnet0 = "#56B4E9", abw_balnet0 = "#2166AC",
-               glmnetcv_hajek = "#B22222", glmnetcv_ht = "#E78AC3",
-               aipw_glmnetcv = "#C77700", ols = "#A6761D")
-npath_lty <- c(balnet0 = "solid", abw_balnet0 = "22",
-               glmnetcv_hajek = "solid", glmnetcv_ht = "solid",
-               aipw_glmnetcv = "22", ols = "4212")
-
 #' n as 250 1k 100k 1M for a log n axis
 format_kM <- function(x) {
   ifelse(x >= 1e6, paste0(x / 1e6, "M"), format_k(x))
@@ -938,7 +929,7 @@ npath_gap <- function(s, A, B, from, x = s$info$x, block = s$info$specs[1]) {
   c(rmse = gap("rmse"), bias = gap("bias"))
 }
 
-# paths along n in strips. RMSE and bias and share of bias (fig-n-misspec fig-n-ortrue)
+# paths along n in strips. RMSE and bias and share of bias (fig-n-misspec fig-n-refit)
 
 # greys and one blue so figs read in print. line type and shape split shared inks
 # ABW dark blue and balnet light. the 2 ABW arms never share a fig
@@ -1153,7 +1144,7 @@ sp_change_rows <- function(s, arms = nc_arms, block = "correct") {
          hi = exp(log_rmse + 1.96 * mcse))
 }
 
-#' arrow chart of RMSE as confounders are added. s = 4 to 64 w/ a circle at 16 (Robbins)
+#' arrow chart of RMSE as confounders are added. s = 4 to 64 w/ a circle at 16
 fig_sp_change <- function(s, arms = nc_arms, block = "correct") {
   rows <- sp_change_rows(s, arms, block)
   regimes <- c(exact = "Exact balance\np/n = 0.1",

@@ -9,9 +9,10 @@ source(here::here("R", "simulate.R"))
 source(here::here("runs", "cv", "our dgp", "path_floor.R"))
 source(here::here("runs", "cv", "our dgp", "cv_helpers.R"))
 stopifnot(packageVersion("glmnet") >= "5.0",
-          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # cv-experimental build
+          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # in balnet 0.0.4 from pkg/
 
 # mac time at N_SIM 2500 about 3 h for n 5000 and 6-7 h for n 10 000. N_SIM 1000 about 4 h
+# stored n 5000 file is the 2500 run and n 10 000 the 1000 run
 n_sim   <- as.integer(Sys.getenv("N_SIM", 2500))   # N_SIM = 5 for a smoke run
 out_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "our dgp",
                                             paste0("r", n_sim)))

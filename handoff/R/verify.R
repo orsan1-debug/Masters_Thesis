@@ -661,7 +661,7 @@ verify_appendix <- function(a, entry, B = 100, tol = 1e-9, seed = 20261008) {
     long <- melt(d, id.vars = c(design, "sim", "estimator"),
                  measure.vars = oc, variable.name = "outcome",
                  value.name = "e", variable.factor = FALSE)
-# every rep counted like summarise_sim() did (none missing)
+# every rep counted (none missing)
     sv <- long[, list(m = .N, bias = mean(e), empse = sd(e),
                       rmse = sqrt(mean(e^2)), mcse_bias = sd(e) / sqrt(.N),
                       mcse_empse = sd(e) / sqrt(2 * (.N - 1)),
@@ -1266,7 +1266,7 @@ verify_wc <- function(s, section, B = 200, tol = 1e-9, seed = 20261012) {
       all(agree) && nrow(tw) == nrow(sw[series != "wc_b" | level == 1]),
       sum(!agree), sprintf("%d of %d pairs differ", sum(!agree), nrow(tw)))
 
-# numbers the 9 oct draft reported from its own python code
+# numbers the 9 oct draft reported
   draft <- data.table(
     design = c("wc", "wc", "dgp2", "dgp2"),
     series = c("wc_a", "wc_b", "dgp2", "dgp2"),

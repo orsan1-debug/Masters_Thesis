@@ -1,5 +1,4 @@
-# p x overlap x penalty (twin of basic_dgp dima/dimhi). interior optimum as p nears arm size?
-# in basic_dgp selectors won by 7-23% at p = 500 (R^2 0.02) and the gap closed at p = 1000
+# p x overlap x penalty. interior optimum as p nears arm size?
 library(balnet)
 library(glmnet)
 source(here::here("R", "dgp.R"))
@@ -9,7 +8,7 @@ source(here::here("R", "simulate.R"))
 source(here::here("runs", "cv", "our dgp", "path_floor.R"))
 source(here::here("runs", "cv", "our dgp", "cv_helpers.R"))
 stopifnot(packageVersion("glmnet") >= "5.0",
-          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # cv-experimental build
+          "cv.boot.balnet" %in% getNamespaceExports("balnet"))  # in balnet 0.0.4 from pkg/
 
 n_sim   <- as.integer(Sys.getenv("N_SIM", 2500))   # N_SIM = 5 for a smoke run
 out_dir <- Sys.getenv("OUT_DIR", here::here("results", "cv", "our dgp",

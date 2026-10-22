@@ -1,4 +1,4 @@
-# recomputes the study 1 section summaries and coverage_empse.rds from results/aipw w/ R/measures.R
+# recomputes the study 1 section summaries and coverage_empse.rds from results/aipw
 #   Rscript replication/verify_summaries.R   about 7 minutes. needs results/ (7 GB)
 
 source(here::here("replication", "R", "measures.R"))

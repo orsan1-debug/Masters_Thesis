@@ -1,6 +1,7 @@
 # lists the thesis files their deps and the test fixtures w/ size and md5 so a copy can be checked
 #   Rscript replication/make_manifest.R   writes replication/manifest.csv
 
+stopifnot(dir.exists(here::here("results")))   # w/o results/ their rows drop out
 roles <- list(
   thesis       = c("thesis/AAAAA Working Thesis.qmd", "thesis/references.bib", "_quarto.yml",
                    "output/rendered/thesis/AAAAA-Working-Thesis.pdf"),
@@ -18,11 +19,6 @@ roles <- list(
                    file.path("output", "thesis_summaries", . = _),
   results      = list.files(here::here("results"), "\\.(csv\\.gz|rds|txt|csv)$", recursive = TRUE,
                             full.names = FALSE) |> file.path("results", . = _))
-
-# record code for designs the thesis does not use stays with the author
-not_thesis <- c("^runs/ipw/", "^runs/cv/basic_dgp/", "^runs/cv/wz_replication/run_wc_(basis|overlap|overlap_n|path)\\.R$",
-                "^handoff/style_examples\\.R$", "^handoff/scripts/(compare_legacy|tidy_copy)\\.R$")
-roles$record <- grep(paste(not_thesis, collapse = "|"), roles$record, value = TRUE, invert = TRUE)
 
 manifest <- do.call(rbind, lapply(names(roles), function(role) {
   files <- roles[[role]]
