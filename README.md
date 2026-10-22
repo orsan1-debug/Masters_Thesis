@@ -49,7 +49,7 @@ replication/
   make_manifest.R         every file the thesis depends on, with sizes and md5 sums
   verification/
     displays.csv          every table and figure: page, qmd chunk, summaries, results files, runs
-    compare_render.py     the render against the stored PDF, number by number and word by word
+    compare_render.R      the render against the stored PDF, number by number and word by word
     make_verification.R   VERIFICATION.md from the logs
   R/
     dgp.R                 the design (Methods 3.2)
@@ -127,7 +127,7 @@ The last checks ran with these versions. The full list is in
 | R packages | balnet 0.0.4, data.table 1.18.4, dplyr 1.2.1, furrr 0.4.0, future 1.75.0, ggh4x 0.3.1, ggplot2 4.0.3, glmnet 5.1, gt 1.3.0, here 1.0.2, knitr 1.51, Matrix 1.7-5, purrr 1.2.2, R.utils 2.13.0, readr 2.2.0, rmarkdown 2.31, testthat 3.3.2, tibble 3.3.1, tidyr 1.3.2, withr 3.0.3 |
 | Quarto | 1.9.38, from RStudio |
 | TeX | XeLaTeX, TeX Live 2022 |
-| PDF comparison | Python 3.10, pdftotext 22.02 |
+| PDF comparison | pdftotext 22.02 |
 
 ## Checks
 
@@ -139,7 +139,7 @@ Rscript replication/tests/run_tests.R      # about 5 minutes
 Rscript replication/verify_summaries.R     # about 7 minutes, needs results/
 Rscript replication/verify_render.R        # needs Quarto and XeLaTeX
 Rscript replication/make_manifest.R
-python3 replication/verification/compare_render.py     # needs pdftotext (poppler)
+Rscript replication/verification/compare_render.R      # needs pdftotext (poppler)
 Rscript replication/verification/make_verification.R   # writes VERIFICATION.md
 Rscript replication/smoke_test.R           # about 20 minutes on 17 workers, needs results/
 ```

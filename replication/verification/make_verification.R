@@ -1,5 +1,5 @@
-# writes replication/VERIFICATION.md from run_checks.R logs smoke_report.csv and compare_render.py
-#   Rscript replication/verification/make_verification.R   after run_checks.R and compare_render.py
+# writes replication/VERIFICATION.md from run_checks.R logs smoke_report.csv and compare_render.R
+#   Rscript replication/verification/make_verification.R   after run_checks.R and compare_render.R
 
 rp <- function(...) here::here("replication", ...)
 lines <- function(path) if (file.exists(path)) readLines(path, warn = FALSE) else character()
@@ -114,7 +114,7 @@ md <- c(
           length(recomputed), format(signif(max(recomputed, na.rm = TRUE), 2))),
   sprintf("| Summaries = raw results | `handoff/scripts/build_summaries.R`: the appendix entries, the Study 2 summaries and `wc_compare` by a second computation | %d of %d passed | `output/thesis_summaries/verification.md` |",
           sum(second == "passed"), length(second)),
-  sprintf("| PDF = a render from the summaries | `verify_render.R`: the thesis rendered from the stored summaries in a clean copy. `verification/compare_render.py`: the numbers of every table and figure, every number in the text and the words of every page, against `output/rendered/thesis/AAAAA-Working-Thesis.pdf` | %s | `verification/render_compare.csv`, `verification/render_numbers.csv`, `verification/render_text.csv` |",
+  sprintf("| PDF = a render from the summaries | `verify_render.R`: the thesis rendered from the stored summaries in a clean copy. `verification/compare_render.R`: the numbers of every table and figure, every number in the text and the words of every page, against `output/rendered/thesis/AAAAA-Working-Thesis.pdf` | %s | `verification/render_compare.csv`, `verification/render_numbers.csv`, `verification/render_text.csv` |",
           if (is.null(compare) || is.null(text)) "not compared" else
             sprintf("%d of %d displays with identical numbers (%s numbers). In the whole text %d numbers in one PDF and not the other. The %d pages by their words: %s. Both listed below",
                     sum(compare$identical %in% c(TRUE, "True")), nrow(displays),

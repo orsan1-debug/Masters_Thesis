@@ -36,6 +36,6 @@ pdf <- pdf[file.exists(pdf)][1]
 if (is.na(pdf)) stop("no PDF, see ", file.path(out, "render_log.txt"))
 invisible(file.copy(pdf, file.path(out, "thesis_render.pdf"), overwrite = TRUE, copy.mode = FALSE))
 
-# verification/compare_render.py then compares this PDF w/ the stored one
+# verification/compare_render.R then compares this PDF w/ the stored one
 cat("Quarto", system2(quarto, "--version", stdout = TRUE),
     "\nrendered in", format(Sys.time() - started, digits = 2), "\n")
